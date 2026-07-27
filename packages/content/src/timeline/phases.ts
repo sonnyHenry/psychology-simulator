@@ -89,8 +89,11 @@ export const timeline: PhaseConfig[] = [
     label: '本科',
     date: { year: 2015, month: 6 },
     rounds: 4,
-    // 本科每年的 mandatory 事件(时代节点 + 学院节拍)本来就有 3–5 个,而 mandatory 不占槽位。
-    // 槽位是给非 mandatory 事件的:2 个太少,学院专属和耗竭事件在 3000 局里一次都抽不到。
+    // **槽位是给非 mandatory 事件的,而 mandatory 不占槽位——每年放几幕由两者相加决定。**
+    //
+    // 玩家反馈"每年事件太多"时,砍槽位是错的那条路:降到 2 之后事件覆盖从 84/84 塌到 64/84,
+    // 学院专属线和耗竭线在 3000 局里一次都抽不到。**本科的内容量就是按 3 格配的。**
+    // 减量要从 mandatory 那一路减——那才是每局必现、真正造成疲劳的部分(大三原本一年 8 幕全是它)。
     eventSlots: 3,
     pools: ['undergrad'],
     briefs: [

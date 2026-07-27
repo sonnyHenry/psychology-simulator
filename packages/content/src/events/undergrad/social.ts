@@ -178,7 +178,7 @@ export const socialSeedEvents: GameEvent[] = [
     id: 'ev_seed_rival_first_crossing',
     pools: ['undergrad'],
     category: 'social',
-    mandatory: true,
+    
     // 第一次交汇:大三"谁跟着导师做正式课题"
     // 不能锁死 2017:玩家可能大三才进实验室,那时"竞争者出场"本身就在 2017,
     // 而事件抽取发生在回合开始,同一年不可能既出场又交汇。

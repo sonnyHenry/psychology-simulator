@@ -16,10 +16,11 @@ export const year2Events: GameEvent[] = [
     id: 'ev_u2_first_read_results',
     pools: ['undergrad'],
     category: 'method',
-    mandatory: true,
     tier: 'major',
     // 得先上过统计。没投入过统计课的人这一年读不懂,这个时刻会晚一年到,或者永远不到。
-    trigger: { all: [{ year: { from: 2016, to: 2016 } }, { stat: 'method', op: '>=', value: 45 }] },
+    // **窗口而不是单点。** 普通事件只在当年 mandatory 没占满槽位时才抽得到,
+    // 锁死在一个年份等于把它交给运气——3000 局里一次都没出现过。放宽成窗口它才总能落地。
+    trigger: { all: [{ year: { from: 2016, to: 2018 } }, { stat: 'method', op: '>=', value: 45 }] },
     order: 20,
     title: '你第一次看懂了结果部分',
     text: '一个普通的下午,你在图书馆读一篇英文文献。读到 Results 那一节,你本来准备像往常一样跳过去。\n\n然后你发现你没跳。\n\n"F(2, 87) = 6.34, p = .003, η² = .13"——你知道这行字在说什么了。你知道那两个数字是自由度,知道 87 意味着他们大概招了 90 个人,知道 η² = .13 是个不小的效应,也知道为什么作者在下一句要提 Bonferroni 校正。\n\n你把那一页翻回去又读了一遍,不是因为没读懂,是因为读懂了。',
@@ -192,7 +193,7 @@ export const year2Events: GameEvent[] = [
     category: 'era',
     mandatory: true,
     variantGroup: 'era_replication_crisis',
-    trigger: { all: [{ year: { from: 2016, to: 2016 } }, { flag: 'reads_outside_syllabus' }] },
+    trigger: { all: [{ year: { from: 2016, to: 2017 } }, { flag: 'reads_outside_syllabus' }] },
     weight: 4,
     title: '你在网上刷到了那篇报道',
     text: '一个科普号发了篇文章:《你读过的心理学畅销书,一半的结论可能不成立》。\n\n下面点名了几个效应。其中两个,正好是你大一那年自己找书看时候记得最牢的。',

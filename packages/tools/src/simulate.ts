@@ -270,6 +270,14 @@ export interface RunResult {
   steps: number;
   presentationHits: string[];
   contextLineHits: string[];
+  /**
+   * 每个自然年放了几幕事件。**节奏指标。**
+   *
+   * 玩家的原话是"每一年的事件太多了,玩久了有点累"——而在此之前没有任何一条指标在看这个。
+   * 事件数是分四路加起来的(mandatory 不占槽位、管线不占槽位、导师不占槽位),
+   * 所以 `eventSlots: 2` 的阶段实际可能放七八幕,**而配置里任何一个数字都看不出来。**
+   */
+  eventsPerYear: Array<[number, number]>;
 }
 
 function fmtDeltas(deltas: Record<string, number | undefined>): string {
@@ -288,6 +296,7 @@ export function runOne(
 ): RunResult {
   let state = engine.start(seed);
   const bot = new Rng(botSeed);
+  const eventsPerYear = new Map<number, number>();
   const stateByYear: Array<[number, number]> = [];
   const presentationHits: string[] = [];
   const contextLineHits: string[] = [];
@@ -321,6 +330,7 @@ export function runOne(
         steps,
         presentationHits,
         contextLineHits,
+        eventsPerYear: [...eventsPerYear.entries()],
       };
     }
     const action = botAction(view, bot, strategy, state, examSkill);
@@ -410,6 +420,7 @@ export function runOne(
         log(view.text);
         break;
       case 'EVENT':
+        eventsPerYear.set(state.date.year, (eventsPerYear.get(state.date.year) ?? 0) + 1);
         if (action.type === 'CHOOSE') {
           const event = eventsById.get(view.eventId);
           if (event) {
@@ -470,6 +481,8 @@ interface BatchStats {
   byBackground: Map<string, { count: number; moneySum: number; stateSum: number; scoreSum: number }>;
   byCareer: Map<string, { count: number; moneySum: number; stateSum: number; scoreSum: number }>;
   stateYearly: Map<number, number[]>;
+  /** 节奏:每个自然年放了几幕事件 */
+  eventsYearly: Map<number, number[]>;
   npcStats: Map<string, { active: number; completed: number; special: number; stages: Map<string, number> }>;
 }
 
@@ -498,6 +511,7 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
     byBackground: new Map(),
     byCareer: new Map(),
     stateYearly: new Map(),
+    eventsYearly: new Map(),
     npcStats: new Map(),
   };
   const earlyEndingIds = new Set(
@@ -569,6 +583,11 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
       const arr = stats.stateYearly.get(year) ?? [];
       arr.push(state);
       stats.stateYearly.set(year, arr);
+    }
+    for (const [year, count] of result.eventsPerYear) {
+      const arr = stats.eventsYearly.get(year) ?? [];
+      arr.push(count);
+      stats.eventsYearly.set(year, arr);
     }
   }
   stats.moneySamples.sort((a, b) => a - b);
@@ -653,6 +672,19 @@ function printBatch(s: BatchStats): void {
       })
       .join(' ');
     console.log(`\n状态年度中位数(年初): ${curve}`);
+  }
+
+  // **节奏**。玩家累不累看的是这一行,不是事件总数。
+  // 中位数后面括号里是 p90:偶尔一年特别满是好事,年年特别满就是负担。
+  const evYears = [...s.eventsYearly.keys()].sort((a, b) => a - b);
+  if (evYears.length > 0) {
+    const line = evYears
+      .map(y => {
+        const arr = [...(s.eventsYearly.get(y) ?? [])].sort((a, b) => a - b);
+        return `${y}:${percentile(arr, 50)}(p90 ${percentile(arr, 90)})`;
+      })
+      .join(' ');
+    console.log(`每年事件数中位数: ${line}`);
   }
 }
 

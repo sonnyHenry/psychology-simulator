@@ -127,7 +127,16 @@ export function pickRoundEvents(
 
   const due = state.scheduled.filter(s => s.dueRound <= state.roundCounter);
   state.scheduled = state.scheduled.filter(s => s.dueRound > state.roundCounter);
-  for (const d of due) picked.push(d.eventId);
+  for (const d of due) {
+    // **被 schedule 的事件也要认 `once`。** 它们绕过 `isEligible`(那正是 schedule 的意义:
+    // 不受 trigger 和池子约束),但"一局只播一次"不是 trigger,是事件自己的属性。
+    // 毕业论文那笔诚信账被六处 outcome 各排了一次,于是记了两笔账的玩家会连看两遍同一幕。
+    // `once: false` 的事件(阶段事件、开题那几幕)不受影响,它们本来就要能重复。
+    if (picked.includes(d.eventId)) continue;
+    const def = pack.events.find(ev => ev.id === d.eventId);
+    if (def && def.once !== false && state.triggeredEventIds.includes(d.eventId)) continue;
+    picked.push(d.eventId);
+  }
 
   const ctx = { state, pack, rng };
   const isEligible = (ev: GameEvent): boolean => {

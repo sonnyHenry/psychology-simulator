@@ -212,8 +212,9 @@ export const year3Events: GameEvent[] = [
     id: 'ev_u3_abnormal_is_dsm',
     pools: ['undergrad'],
     category: 'course',
-    mandatory: true,
-    trigger: { year: { from: 2017, to: 2017 } },
+    // **窗口而不是单点。** 普通事件只在当年 mandatory 没占满槽位时才抽得到,
+    // 锁死在一个年份等于把它交给运气——3000 局里一次都没出现过。放宽成窗口它才总能落地。
+    trigger: { year: { from: 2017, to: 2018 } },
     title: '所有人最期待的那门课',
     text: '变态心理学是全专业最期待的一门课。选课的时候人挤爆了,后排都坐满了。\n\n第三周你发现:这门课就是背 DSM。\n\nA 标准、B 标准、持续时间、排除条件、鉴别诊断。抑郁发作要满足九条里的五条,其中必须包含前两条之一,持续两周以上。\n\n后排的人开始变少。',
     presentationVariants: [
@@ -280,9 +281,8 @@ export const year3Events: GameEvent[] = [
     id: 'ev_u3_first_roleplay',
     pools: ['undergrad'],
     category: 'counseling',
-    mandatory: true,
     tier: 'major',
-    trigger: { year: { from: 2017, to: 2017 } },
+    trigger: { year: { from: 2017, to: 2018 } },
     title: '会谈技术课:第一次坐在那把椅子上',
     text: '会谈技术课的作业是两人一组,一个人当来访者,一个人当咨询师,全程录像,下周课上回看。\n\n你抽到的搭档是坐在你旁边四年的那个人。\n\n他说的是他爸的事。他讲了十二分钟,你只说了七句话。其中三句是"嗯"。\n\n下课的时候你俩都有点不知道该怎么打招呼。**你突然发现你不了解这个坐在你旁边四年的人。**',
     contextLines: [

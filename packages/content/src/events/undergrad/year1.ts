@@ -86,6 +86,10 @@ export const year1Events: GameEvent[] = [
     id: 'ev_u1_weber',
     pools: ['undergrad'],
     category: 'course',
+    // **不能降级成普通事件。** 它是唯一设置 `reads_outside_syllabus` 的地方,
+    // 而 2016 年那个时代节点变体读这个 flag。为了减少每年事件数把它降级之后,
+    // 它自己和 `ev_era_2016_replication_online` **一起变成了不可达**——
+    // 降级一幕会连带掐死所有靠它写 flag 的下游内容。
     mandatory: true,
     trigger: { year: { from: 2015, to: 2015 } },
     title: '第一次专业课考试',

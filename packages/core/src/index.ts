@@ -74,6 +74,7 @@ export {
 export { findEnding } from './systems/ending';
 export { selectContextLine } from './systems/context-lines';
 export { createEngine, type Engine } from './engine/engine';
+export { devJump, type DevJumpResult, type DevJumpTarget } from './dev/jump';
 export {
   CURRENT_SAVE_VERSION,
   createSaveFile,

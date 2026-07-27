@@ -656,3 +656,32 @@ body {
 .result-landed-label { font-size: 0.78rem; opacity: 0.6; }
 .result-landed-name { font-size: 1.1rem; font-weight: 700; margin-top: 0.15rem; }
 .result-landed-unit { font-size: 0.82rem; opacity: 0.7; margin-top: 0.1rem; }
+
+/* ── 开发面板:一键跳转(测试工具,dev 或 ?dev 才出现)──────── */
+.dev-jump {
+  margin-top: 1.2rem;
+  border: 1px dashed var(--line, #c8c0b2);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.88rem;
+}
+.dev-jump summary {
+  cursor: pointer;
+  opacity: 0.65;
+  user-select: none;
+}
+.dev-jump-note {
+  margin: 0.6rem 0;
+  font-size: 0.8rem;
+  opacity: 0.6;
+  line-height: 1.5;
+}
+.dev-jump-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+.dev-jump-grid .choice-btn {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.7rem;
+}

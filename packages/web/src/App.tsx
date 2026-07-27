@@ -28,7 +28,7 @@ function phaseLabelOf(phaseIndex: number): string {
 }
 
 export default function App() {
-  const { game, view, act, hasSave, continueGame, newGame } = useGame();
+  const { game, view, act, hasSave, continueGame, newGame, devJumpTo } = useGame();
   const showStats = view.kind !== 'TITLE' && view.kind !== 'ENDING';
 
   return (
@@ -38,7 +38,15 @@ export default function App() {
         {(() => {
           switch (view.kind) {
             case 'TITLE':
-              return <TitleScreen view={view} act={act} hasSave={hasSave} onContinue={continueGame} />;
+              return (
+                <TitleScreen
+                  view={view}
+                  act={act}
+                  hasSave={hasSave}
+                  onContinue={continueGame}
+                  onDevJump={devJumpTo}
+                />
+              );
             case 'BACKGROUND_DRAW':
               // key 让每次抽卡都重置本地选择状态,否则上一局的勾选会残留
               return <BackgroundScreen key={view.card.id} view={view} act={act} />;

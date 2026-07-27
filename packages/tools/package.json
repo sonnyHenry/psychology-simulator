@@ -6,7 +6,7 @@
     "simulate": "tsx src/simulate.ts",
     "repetition": "tsx src/repetition.ts",
     "validate": "tsx src/validate.ts",
-    "test": "tsx src/verify-npcs.ts && tsx src/verify-validate.ts",
+    "test": "tsx src/verify-npcs.ts && tsx src/verify-validate.ts && tsx src/verify-jumps.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

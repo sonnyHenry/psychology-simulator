@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import {
   createEngine,
+  devJump,
   randomSeed,
   restoreSave,
   type GameState,
   type PlayerAction,
   type ViewModel,
 } from '@psy-sim/core';
-import { contentPack } from '@psy-sim/content';
+import { contentPack, devJumpTargets } from '@psy-sim/content';
 import { clearSave, loadSaveFile, saveGame } from './platform/storage';
 
 const engine = createEngine(contentPack);
@@ -20,6 +21,8 @@ interface GameStore {
   newGame: (seed?: number) => void;
   continueGame: () => void;
   clearSavedGame: () => void;
+  /** 开发用一键跳转(见 core 的 devJump)。返回是否到达 */
+  devJumpTo: (targetId: string) => boolean;
 }
 
 export const useGame = create<GameStore>((set, get) => {
@@ -55,6 +58,22 @@ export const useGame = create<GameStore>((set, get) => {
       actionLog = [];
       const g = engine.start();
       set({ game: g, view: engine.view(g), hasSave: false });
+    },
+    devJumpTo: targetId => {
+      const target = devJumpTargets.find(t => t.id === targetId);
+      if (!target) return false;
+      // 种子随机:每次跳转是一局新的人生,不然测试永远看同一份档
+      const result = devJump(contentPack, target, { seed: randomSeed() });
+      if (!result) return false;
+      // 快进产出的 actions 就是合法的 actionLog——存档、重放、继续手玩全部照常成立
+      actionLog = [...result.actions];
+      saveGame(result.state, actionLog);
+      set({
+        game: result.state,
+        view: engine.view(result.state),
+        hasSave: result.state.screen !== 'ENDING',
+      });
+      return true;
     },
   };
 });

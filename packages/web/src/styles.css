@@ -1,0 +1,595 @@
+/*
+ * 排版沿用前作:620px 单列、移动优先、手写 CSS + `:root` 自定义属性、不引 UI 库。
+ * 调色板也照抄——纸本白 + 一点砖红,适合大段中文正文。
+ *
+ * 前作那份 658 行里有一多半是它专属的类(分享卡、NPC 关系台账、职业线徽章),
+ * 本作用不到,所以没有整体搬过来。**留着不用的 CSS 比重写一份更贵**:
+ * 它会让人以为某个类还在被用。
+ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --paper: #f6f3ec;
+  --card: #fffdf8;
+  --ink: #2c2c2a;
+  --muted: #8a877e;
+  --accent: #b0492c;
+  --accent-soft: #f3e3dc;
+  --line: #e4dfd3;
+  --up: #2f6c48;
+  --down: #a33030;
+}
+
+html {
+  background: var(--paper);
+}
+
+body {
+  font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--ink);
+  line-height: 1.8;
+  font-size: 16px;
+}
+
+.app {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 12px 16px 48px;
+  min-height: 100vh;
+}
+
+/* ── 常驻状态条 ─────────────────────────────────────────── */
+
+.stats-bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--paper);
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 20px;
+}
+
+.stats-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.stats-head {
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.stats-year {
+  font-weight: 700;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.stats-phase {
+  color: var(--accent);
+}
+
+.stats-school {
+  font-size: 12px;
+}
+
+.stat {
+  display: inline-flex;
+  gap: 4px;
+  align-items: baseline;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stat-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* 状态 ≤0 会触发提前结局(休学/退学),所以低位必须一直看得见 */
+.stat-low .stat-value,
+.stat-low .stat-label {
+  color: var(--down);
+}
+
+.stats-traits {
+  margin-top: 4px;
+}
+
+.trait-chip {
+  font-size: 12px;
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--muted);
+}
+
+/* ── 卡片与通用排版 ─────────────────────────────────────── */
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 22px 20px;
+}
+
+.screen-head {
+  margin-bottom: 14px;
+}
+
+.card h1 {
+  font-size: 26px;
+  line-height: 1.4;
+}
+
+.card h2 {
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+.card p {
+  margin-bottom: 14px;
+}
+
+.card p:last-of-type {
+  margin-bottom: 0;
+}
+
+.screen-sub {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.quote-line {
+  border-left: 3px solid var(--accent-soft);
+  padding-left: 12px;
+  color: var(--muted);
+  font-size: 15px;
+}
+
+.section-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin: 20px 0 8px;
+}
+
+.hint {
+  font-size: 14px;
+  color: var(--accent);
+  margin-top: 12px;
+}
+
+.big-number {
+  font-size: 44px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  margin: 8px 0 0;
+}
+
+.title-sub {
+  color: var(--muted);
+  margin-top: 8px;
+}
+
+.disclaimer {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+/* ── 按钮 ───────────────────────────────────────────────── */
+
+.choice-btn,
+.continue-btn,
+.skip-btn {
+  display: block;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.choice-btn:hover,
+.continue-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.choice-sub {
+  display: block;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.continue-btn {
+  text-align: center;
+  font-weight: 600;
+  margin-top: 20px;
+}
+
+.continue-btn:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.skip-btn {
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+  border-style: dashed;
+}
+
+.choices {
+  margin-top: 18px;
+}
+
+/* ── 抽卡式选择(特质 / 人物)───────────────────────────── */
+
+.pick-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.pick-card:hover {
+  border-color: var(--accent);
+}
+
+.pick-card-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.pick-card-label {
+  font-weight: 600;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.pick-card-text {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.pick-card-mods {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.inline-picks {
+  display: flex;
+  gap: 8px;
+}
+
+.inline-pick {
+  font: inherit;
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 20px;
+}
+
+.inline-pick-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ── 志愿填报 ───────────────────────────────────────────── */
+
+.app-option {
+  margin-top: 10px;
+}
+
+.app-option-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.app-option-head:hover {
+  border-color: var(--accent);
+}
+
+.chance {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.chance-safe {
+  color: var(--up);
+  background: #e8f0ea;
+}
+
+.chance-risky {
+  color: var(--down);
+  background: var(--accent-soft);
+}
+
+.app-majors {
+  padding-left: 12px;
+  border-left: 2px solid var(--accent-soft);
+  margin-top: 4px;
+}
+
+/* ── 年度投入分配 ───────────────────────────────────────── */
+
+.slot-meter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 0 4px;
+}
+
+.slot {
+  width: 26px;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--line);
+}
+
+.slot-used {
+  background: var(--accent);
+}
+
+.slot-count {
+  margin-left: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.slot-meter-full .slot-count {
+  color: var(--up);
+}
+
+.retake-note {
+  color: var(--down);
+}
+
+.alloc-group {
+  margin-top: 16px;
+}
+
+.alloc-group-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.alloc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+
+.alloc-item-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.alloc-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.alloc-item-label {
+  font-weight: 600;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.alloc-count {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.alloc-item-text {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.alloc-textbook {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.alloc-item-controls {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.alloc-btn {
+  width: 32px;
+  height: 32px;
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.alloc-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.alloc-btn:disabled {
+  color: var(--line);
+  cursor: not-allowed;
+}
+
+/* ── 事件 / 结果 / 年度回顾 ─────────────────────────────── */
+
+.event-major {
+  border-color: var(--accent);
+}
+
+.major-tag {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 0 6px;
+  margin-bottom: 10px;
+}
+
+.delta-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.chip {
+  font-size: 12px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chip-up {
+  color: var(--up);
+  background: #e8f0ea;
+}
+
+.chip-down {
+  color: var(--down);
+  background: var(--accent-soft);
+}
+
+.review-block {
+  margin-top: 18px;
+}
+
+.review-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 4px;
+}
+
+.review-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+  padding: 3px 0;
+}
+
+.review-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.thesis-tag {
+  font-size: 11px;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 4px;
+  margin-left: 6px;
+}
+
+.not-replicated {
+  font-size: 11px;
+  color: var(--down);
+  margin-left: 6px;
+}
+
+.tier-mastered .review-value {
+  color: var(--up);
+  font-weight: 600;
+}
+
+.tier-failed .review-value {
+  color: var(--down);
+}
+
+.money-trend {
+  margin-top: 18px;
+  color: var(--accent);
+}
+
+.money-trend-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── 结局 ───────────────────────────────────────────────── */
+
+.ending-label {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+
+.share-tagline {
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: var(--accent-soft);
+  border-radius: 8px;
+  font-size: 15px;
+  text-align: center;
+}

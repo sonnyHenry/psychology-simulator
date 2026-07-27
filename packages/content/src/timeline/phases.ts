@@ -1,0 +1,146 @@
+import type { PhaseConfig } from '@psy-sim/core';
+
+/**
+ * 时间线。阶段路由是**显式**的:每个非终局阶段必须写 `nextPhaseId`(validate 强制,一个不许漏),
+ * 终局阶段可以有多个——七条路径各有自己的终局。
+ *
+ * ## 学年与自然年
+ * 大一学年 2014.9–2015.6 记作 **2015**,所以本科阶段 `date.year = 2015`、`courseYearFrom: 1`,
+ * 四个回合分别是 2015(大一)/ 2016(大二)/ 2017(大三)/ 2018(大四)。
+ * 内容侧的年份门控和时代事件都用这套口径。
+ *
+ * ## 当前边界(M3)
+ * **学术线已经铺到博士毕业**:硕士 3 年 → 硕士岔口 → 博士 3 年,以及直博 5 年。
+ * 培养年限按真实规则设定。博后与教职求职季是 M5,所以博士毕业就是学术线现在的终点。
+ *
+ * 其余五条路径仍是一个回合的"2018 年之后"快照:临床线是 M4,二级线是 M6。
+ *
+ * 保留这些快照而不是留空,是为了让 `validate` 的阶段图连通性/可终止性和
+ * `simulate --check` 的结局分布门禁**从现在起就在真的查东西**——不用等到 M5 才发现路由有洞。
+ */
+
+/** 七条路径的下游阶段。M3/M4/M6 会把它们各自展开成真正的培养阶段。 */
+function pathStub(
+  id: string,
+  label: string,
+  brief: string,
+): Extract<PhaseConfig, { kind: 'rounds' }> {
+  return {
+    kind: 'rounds',
+    id,
+    label,
+    date: { year: 2019, month: 6 },
+    rounds: 1,
+    eventSlots: 0,
+    pools: [],
+    briefs: [brief],
+    isFinal: true,
+  };
+}
+
+/** 研究生阶段的公共形状:三格精力、先看白板再分配、管线事件不占槽位 */
+function gradPhase(
+  id: string,
+  label: string,
+  fromYear: number,
+  rounds: number,
+  briefs: string[],
+  tail: { nextPhaseId: string } | { isFinal: true },
+): Extract<PhaseConfig, { kind: 'rounds' }> {
+  return {
+    kind: 'rounds',
+    id,
+    label,
+    date: { year: fromYear, month: 9 },
+    rounds,
+    eventSlots: 2,
+    pools: ['grad'],
+    briefs,
+    // 先看白板(手上有什么),再决定今年干什么。这个顺序本身就是一句话:
+    // **你的精力要分给已经在手上的东西,而不是分给一个抽象的"做科研"。**
+    roundOpeners: ['PROJECT_BOARD', 'ALLOCATION'],
+    allocationSlots: 3,
+    ...tail,
+  };
+}
+
+export const timeline: PhaseConfig[] = [
+  {
+    kind: 'flow',
+    id: 'gaokao',
+    label: '2014 年夏天',
+    date: { year: 2014, month: 6 },
+    steps: ['BACKGROUND_DRAW', 'SETUP', 'EXAM', 'APPLICATION', 'NPC_SELECTION'],
+    nextPhaseId: 'undergrad',
+  },
+  {
+    kind: 'rounds',
+    id: 'undergrad',
+    label: '本科',
+    date: { year: 2015, month: 6 },
+    rounds: 4,
+    // 本科每年的 mandatory 事件(时代节点 + 学院节拍)本来就有 3–5 个,而 mandatory 不占槽位。
+    // 槽位是给非 mandatory 事件的:2 个太少,学院专属和耗竭事件在 3000 局里一次都抽不到。
+    eventSlots: 3,
+    pools: ['undergrad'],
+    briefs: [
+      '大一。你以为自己来学"人为什么会这样",课表告诉你先学高等数学。',
+      '大二。心理统计和实验心理学同时压过来,班上开始出现"跟不上"的人。',
+      '大三。实验室和咨询中心的门都开了,但你只有一个周五下午。',
+      '大四。有人在准备考研,有人在投简历,有人还没想清楚自己要什么。',
+    ],
+    // 每年开场先分配四格精力。递减到硕博 3 / 博后 3 / 预聘期 2——递减本身就是一句评论。
+    roundOpeners: ['ALLOCATION'],
+    allocationSlots: 4,
+    courseYearFrom: 1,
+    nextPhaseId: 'crossroad_2018',
+  },
+  {
+    kind: 'flow',
+    id: 'crossroad_2018',
+    label: '2018 年三月',
+    date: { year: 2018, month: 3 },
+    // 先选人生取向(改评分权重与导演偏好),再选路径
+    steps: ['LIFE_GOAL', 'CROSSROAD'],
+    // CROSSROAD 的每个选项都带 `{ jumpToPhase }`,所以这条边正常走不到。
+    // 但它必须写:validate 要求每个非终局阶段都有显式路由,而"正常走不到"不等于"不会走到"。
+    nextPhaseId: 'master',
+  },
+
+  // ── 学术线:硕士 → 硕士岔口 → 博士,以及直博 ────────────────
+  //
+  // 培养年限按真实规则:**直博 5 年;硕 3 年 + 博 3 年**。
+  // M3 的学术线收在**博士毕业**——博后与教职求职季是 M5。
+  gradPhase('master', '硕士', 2019, 3, [
+    '研一。组会上一半的词你听不懂,而所有人都在点头。',
+    '研二。你手上有了一个真正属于自己的课题,以及它做不出来的可能性。',
+    '研三。该决定要不要接着读了,而这个决定的依据比你以为的少。',
+  ], { nextPhaseId: 'crossroad_2021' }),
+  {
+    kind: 'flow',
+    id: 'crossroad_2021',
+    label: '2021 年三月',
+    date: { year: 2021, month: 3 },
+    steps: ['CROSSROAD'],
+    nextPhaseId: 'phd_after_master',
+  },
+  gradPhase('phd_after_master', '博士', 2022, 3, [
+    '博一。你已经知道课题会怎么烂掉了,这既是经验也是负担。',
+    '博二。中期考核。你手上有几篇,以及几个说不清算不算活着的课题。',
+    '博三。毕业要求、答辩、以及"接下来去哪"这个你回避了很久的问题。',
+  ], { isFinal: true }),
+  gradPhase('phd_direct', '直博', 2019, 5, [
+    '直博一年级。没有硕士学位这个安全垫,中间退出就是什么都没有。',
+    '直博二年级。第一个课题开始显出它真正的难度。',
+    '直博三年级。中期考核。同批考研进来的人还有两年,你还有两年半。',
+    '直博四年级。该有的文章还没有该有的数量。',
+    '直博五年级。毕业,或者延毕。这两个词你今年会听很多次。',
+  ], { isFinal: true }),
+
+  // ── 其余五条路径(M4 / M6 展开)──────────────────────────
+  pathStub('overseas_phd', '海外 PhD', '2018 年八月,你拖着两个箱子落地。六年,一个没有人认识你的地方。'),
+  pathStub('clinical', '临床线', '2018 年秋天,你开始读专硕。注册系统那条路,一小时一小时地攒。'),
+  pathStub('school', '中小学心理教师', '2018 年秋天,你考上了教师编。全校两千一百个学生,心理老师一个。'),
+  pathStub('industry', '大厂用研', '2018 年七月,你入职了。工位在十七楼,你的组叫"用户研究"。'),
+  pathStub('left', '离开这一行', '2018 年,你去做了别的。四年不算白读,你只是不在这条路上了。'),
+];

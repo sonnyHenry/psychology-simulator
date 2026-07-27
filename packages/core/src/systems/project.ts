@@ -98,7 +98,7 @@ const PER_QUALITY_POINT = 0.006;
  * 真修法不是调这个数,是把发表从"推进过 review"改成 review 站上一次独立的接收判定
  * (失败即一次被拒)。那会动到论文产出,得配一轮完整标定,所以单独排一轮做。
  */
-export const MAX_REJECTIONS = 3;
+export const MAX_REJECTIONS = 2;
 /** 本年每投一格精力对**单次**成功率的加成 */
 const PER_INVESTED_SLOT = 0.08;
 /**
@@ -233,6 +233,35 @@ export function activeProjects(state: GameState): Project[] {
  * 而这件事不是多投两格精力能补上的——它按比例吃掉你所有的努力。
  * 这正是"导师是本作最大的随机变量"在数值上的样子。
  */
+/**
+ * 接收率:课题站在最后一站(投稿/审稿)时,**这一年会不会被接收**。
+ *
+ * 和推进的成功率是两套东西,差别就是这个职业最不讲理的地方:
+ *
+ * - **推进可以靠多投精力加速,接收不行。** 投出去之后你能做的事很少,
+ *   所以这一掷不随投入格数增长(推进那边是 `1 + 2×投入格数` 次,这边永远一次)。
+ * - **质量的斜率是推进的两倍。** 一篇立论就不结实的文章,你再努力也只是被拒得慢一点;
+ *   而这正是"课题的命运在很早以前就定了"这句话在数值上的样子。
+ *
+ * 用 `stageSuccessChance` 那套的后果量过:被拒率只有 1%,`MAX_REJECTIONS` 形同虚设。
+ */
+const PER_QUALITY_POINT_ON_ACCEPTANCE = 0.012;
+
+export function acceptanceChance(state: GameState, pack: ContentPack, project: Project): number {
+  const template = findTemplate(pack, project.templateId);
+  const base = template?.stageChance?.[project.stage] ?? DEFAULT_STAGE_CHANCE;
+  const advisorDef = (pack.advisors ?? []).find(a => a.id === state.advisor?.id);
+  const modifier = advisorDef?.projectModifiers?.[project.stage] ?? 1;
+  // **注意这里没有 `investedSlotsOn`。** 这不是省略,是全部要点:
+  // 第一版是在 `stageSuccessChance` 上加一层,而那个函数含投入加成——
+  // 于是"多投精力刷不过审稿"这句话在实现里是假的(单测抓到的)。
+  const raw =
+    base * modifier +
+    (state.stats.method - 50) * PER_METHOD_POINT +
+    (project.quality - 50) * PER_QUALITY_POINT_ON_ACCEPTANCE;
+  return Math.max(0.05, Math.min(MAX_SUCCESS, raw));
+}
+
 export function stageSuccessChance(state: GameState, pack: ContentPack, project: Project): number {
   const template = findTemplate(pack, project.templateId);
   const base = template?.stageChance?.[project.stage] ?? DEFAULT_STAGE_CHANCE;
@@ -281,6 +310,12 @@ export function resolveTarget(state: GameState, target?: string): Project | unde
     if (bound) return bound;
   }
   return projects[projects.length - 1];
+}
+
+/** 课题是否已经站在管线的最后一站(投稿/审稿)。到了这里就只等接收或被拒。 */
+export function isAtFinalStage(template: ProjectTemplate, project: Project): boolean {
+  const last = template.stageSequence[template.stageSequence.length - 1];
+  return last !== undefined && project.stage === last;
 }
 
 export function currentStageIndex(template: ProjectTemplate, project: Project): number {
@@ -354,7 +389,17 @@ export function applyProjectOp(
         project.stage = COMPLETED_STAGE;
         return project;
       }
-      publishProject(state, project, tierForQuality(project.quality));
+      // **真课题不在这里发表,只推到最后一站(投稿/审稿)为止。**
+      //
+      // 原来是"推过最后一站就发表",后果是课题从来不会**停在**审稿上:
+      // 到达审稿那一年的骰子只要成功一次就直接发出去了。于是
+      // `rejections`(卡在审稿而这一年没推动 = 又被拒一次)永远加不上去——
+      // 3000 局里的分布是 `{0: 323, 1: 1}`,**"投了四个刊都没中"这种最常见的做废等于不存在。**
+      //
+      // 现在到达审稿就停在那里,能不能发由**下一年**的骰子决定
+      // (见 engine 的 settleProjectAdvances):成功即接收,全败即被拒一次。
+      // 这也更真实——投出去之后等审稿意见本来就是一年起步的事。
+      project.stage = template.stageSequence[template.stageSequence.length - 1] ?? project.stage;
       return project;
     }
     case 'regress': {

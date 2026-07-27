@@ -23,11 +23,14 @@ import {
   allocationIdForProject,
   applyProjectOp,
   findTemplate,
+  isAtFinalStage,
+  tierForQuality,
   advanceAttempts,
   ATTEMPTS_PER_STARTUP_SLOT,
   investedSlotsOn,
   shouldAbandonBySilence,
   stageSuccessChance,
+  acceptanceChance,
   MAX_STARTUP_ADVANCES,
 } from '../systems/project';
 import { advisorDefOf, drawAdvisorOffer, joinAdvisor } from '../systems/advisor';
@@ -797,11 +800,33 @@ export function createEngine(pack: ContentPack): Engine {
       // 毕业论文的推进全部写死在内容里(教学关要教流程,不掷骰)
       if (project.isThesis) continue;
       const advances = project.lastAdvances ?? 0;
-      if (advances > 0) {
+      const template = findTemplate(pack, project.templateId);
+      // **站在最后一站(投稿/审稿)的课题,今年掷的是"接不接收",不是"推不推进"。**
+      //
+      // 推进已经在 applyProjectOp 里被卡在最后一站了,所以到这里的课题是
+      // **上一年就投出去、等了一年审稿意见的那些**。成功即接收,全败即被拒一次;
+      // 被拒够 MAX_REJECTIONS 次就不再投了(shouldAbandonBySilence)。
+      //
+      // 这一支是"投了四个刊都没中"的唯一来源——在它之前,课题到达审稿的那一年
+      // 只要成功一次就直接发出去了,`rejections` 永远加不上去。
+      if (advances > 0 && !(template && isAtFinalStage(template, project))) {
         applyProjectOp(state, pack, { op: 'advance', target: project.id, stages: advances });
-      } else if (project.stage === 'review' || project.stage === 'submit') {
-        // 卡在投稿/审稿而且这一年没动 = 又被拒了一次
-        project.rejections += 1;
+      }
+      // **站在最后一站(投稿/审稿)的课题,每年掷一次"接不接收"。**
+      //
+      // 这一掷发生在**到达审稿的当年**,不额外吃掉一年——学制只有六年,
+      // 强制等一年审稿会让论文数从 1.7 掉到 1.0(量过)。
+      // 接收即发表;被拒就留在审稿上,明年再投一家。被拒够 MAX_REJECTIONS 次就不投了。
+      //
+      // **只掷一次,而且不随投入格数增长。** 推进可以靠多投精力加速,审稿不行:
+      // 投出去之后你能做的事很少,接不接收由文章本身的质量和运气决定。
+      // 沿用推进那套骰子的话,"多投两格"就能把审稿刷过去,`MAX_REJECTIONS` 形同虚设。
+      if (template && isAtFinalStage(template, project)) {
+        if (rng.chance(acceptanceChance(state, pack, project))) {
+          applyProjectOp(state, pack, { op: 'publish', target: project.id, tier: tierForQuality(project.quality) });
+        } else {
+          project.rejections += 1;
+        }
       }
       project.neglectedYears =
         investedSlotsOn(state, project.id) > 0 ? 0 : (project.neglectedYears ?? 0) + 1;

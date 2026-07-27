@@ -12,6 +12,7 @@ import {
   allocationIdForProject,
   shouldAbandonBySilence,
   stageSuccessChance,
+  acceptanceChance,
   tierForQuality,
   MIN_SETBACK_CHANCE,
   MAX_REJECTIONS,
@@ -1914,8 +1915,9 @@ describe('M2.5 课题状态机', () => {
     applyEffects([{ project: { op: 'advance' } }], state, pack);
     expect(state.projects?.[0]?.stage).toBe('lit');
     applyEffects([{ project: { op: 'advance' } }, { project: { op: 'advance' } }], state, pack);
-    // tpl_real 只有三步,推到底就是终态
-    expect(state.projects?.[0]?.stage).toBe('published');
+    // tpl_real 只有三步。**真课题推到底会停在最后一站等接收判定**,不会自动发表;
+    // 毕业论文(上一条用例)才是推过最后一站就直接完成——它是教学关,不投稿。
+    expect(state.projects?.[0]?.stage).toBe('collect');
   });
 
   it('regress 退回一步(地基塌方 / 答辩没过)', () => {
@@ -2191,7 +2193,11 @@ describe('M3 发表与论文清单', () => {
   const pack = projectPack();
   const engine = createEngine(pack);
 
-  it('推过最后一站就自动变成一篇论文,档位由质量决定', () => {
+  it('推进只推到最后一站为止,发表由接收判定决定', () => {
+    // **契约在 M3.3 变了。** 原来是"推过最后一站就自动发表",后果是课题从来不会
+    // 停在审稿上:到达那一年的骰子成功一次就直接发出去了,于是 `rejections`
+    // 一次都加不上去(3000 局里分布是 `{0: 323, 1: 1}`)。
+    // 现在推进被卡在最后一站,能不能发由每年一次的接收判定决定。
     const state = engine.start(111);
     state.date = { year: 2023, month: 6 };
     applyEffects([{ project: { op: 'create', templateId: 'tpl_real' } }], state, pack);
@@ -2199,6 +2205,11 @@ describe('M3 发表与论文清单', () => {
     project.quality = 90;
     project.integrityRisk = 30;
     applyEffects([{ project: { op: 'advance', stages: 5 } }], state, pack);
+    // 推 5 站也只停在最后一站,不会越过它
+    expect(project.stage).toBe('collect');
+    expect(state.papers ?? []).toHaveLength(0);
+    // 显式发表(接收判定成功走的就是这一条)才产出论文
+    applyEffects([{ project: { op: 'publish', tier: 'q1' } }], state, pack);
     expect(project.stage).toBe('published');
     expect(state.papers).toHaveLength(1);
     const paper = state.papers![0]!;
@@ -2387,5 +2398,63 @@ describe('M3.1 实机反馈修复', () => {
     expect(rounds[0]).toBe(true);
     expect(rounds.slice(1)).toEqual([false, false]);
     expect(project.seenEventIds).toEqual(['ev_stage_only']);
+  });
+});
+
+/**
+ * M3.3 让"投稿被拒"这条死法真的会开火。
+ *
+ * 在此之前它是一条**死规则**:3000 局里 `rejections` 的分布是 `{0: 323, 1: 1}`,
+ * 而所有门禁都是绿的——因为课题从来不会停在审稿上,到达那一年就直接发出去了。
+ */
+describe('M3.3 接收判定', () => {
+  const pack = projectPack();
+
+  it('接收率不随投入格数增长,而且质量的斜率比推进陡一倍', () => {
+    const engine = createEngine(pack);
+    function at(quality: number, slots: number) {
+      const state = engine.start(77);
+      applyEffects([{ project: { op: 'create', templateId: 'tpl_real' } }], state, pack);
+      const project = state.projects![0]!;
+      project.quality = quality;
+      project.stage = 'collect'; // tpl_real 的最后一站
+      state.allocation = {
+        slots: 3,
+        picks: Array.from({ length: slots }, () => allocationIdForProject(project.id)),
+      };
+      return { state, project };
+    }
+    // **多投精力不能把审稿刷过去。** 推进那边投入是加数,这边完全不进公式——
+    // 投出去之后你能做的事很少,这条差别就是这个职业最不讲理的地方。
+    const lean = at(50, 0);
+    const heavy = at(50, 2);
+    expect(acceptanceChance(heavy.state, pack, heavy.project)).toBeCloseTo(
+      acceptanceChance(lean.state, pack, lean.project),
+      5,
+    );
+    expect(stageSuccessChance(heavy.state, pack, heavy.project)).toBeGreaterThan(
+      stageSuccessChance(lean.state, pack, lean.project),
+    );
+
+    // 质量在接收上的斜率是推进上的两倍:立论不结实的文章,再努力也只是被拒得慢一点
+    const weak = at(20, 0);
+    const strong = at(80, 0);
+    const acceptSpread =
+      acceptanceChance(strong.state, pack, strong.project) - acceptanceChance(weak.state, pack, weak.project);
+    const advanceSpread =
+      stageSuccessChance(strong.state, pack, strong.project) - stageSuccessChance(weak.state, pack, weak.project);
+    expect(acceptSpread).toBeGreaterThan(advanceSpread);
+  });
+
+  it('被拒够 MAX_REJECTIONS 次就不再投了', () => {
+    const engine = createEngine(pack);
+    const state = engine.start(78);
+    applyEffects([{ project: { op: 'create', templateId: 'tpl_real' } }], state, pack);
+    const project = state.projects![0]!;
+    project.stage = 'collect';
+    project.rejections = MAX_REJECTIONS - 1;
+    expect(shouldAbandonBySilence(project)).toBe(false);
+    project.rejections = MAX_REJECTIONS;
+    expect(shouldAbandonBySilence(project)).toBe(true);
   });
 });

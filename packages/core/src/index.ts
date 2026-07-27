@@ -28,6 +28,8 @@ export {
   shouldAbandonBySilence,
   stageSuccessChance,
   tierForQuality,
+  acceptanceChance,
+  isAtFinalStage,
   DEFAULT_STAGE_CHANCE,
   MIN_SETBACK_CHANCE,
   MAX_REJECTIONS,

@@ -1,4 +1,6 @@
 import {
+  MAX_REJECTIONS,
+  NEGLECT_YEARS_TO_ABANDON,
   createEngine,
   evalCondition,
   Rng,
@@ -481,6 +483,13 @@ interface BatchStats {
   byBackground: Map<string, { count: number; moneySum: number; stateSum: number; scoreSum: number }>;
   byCareer: Map<string, { count: number; moneySum: number; stateSum: number; scoreSum: number }>;
   stateYearly: Map<number, number[]>;
+  /**
+   * 课题做废的死法分布。**每一条死法都得有人盯着,否则它会悄悄变成死规则。**
+   *
+   * M3.1 就是这么发现 `MAX_REJECTIONS` 从来没生效过的:3000 局里 `rejections`
+   * 的分布是 `{0: 323, 1: 1}`——而在此之前所有门禁都是绿的。
+   */
+  abandonReasons: Map<string, number>;
   /** 节奏:每个自然年放了几幕事件 */
   eventsYearly: Map<number, number[]>;
   npcStats: Map<string, { active: number; completed: number; special: number; stages: Map<string, number> }>;
@@ -511,6 +520,7 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
     byBackground: new Map(),
     byCareer: new Map(),
     stateYearly: new Map(),
+    abandonReasons: new Map(),
     eventsYearly: new Map(),
     npcStats: new Map(),
   };
@@ -546,6 +556,17 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
       stats.academic.paperSamples.push(papers);
       if (papers === 0) stats.academic.emptyLists++;
       if ((fs.projects ?? []).some(p => p.stage === 'abandoned')) stats.academic.withAbandoned++;
+      for (const p of fs.projects ?? []) {
+        if (p.stage !== 'abandoned' || p.isThesis) continue;
+        // **阈值一律从引擎导入,不在这里抄一份。**
+        // 抄过一次:MAX_REJECTIONS 从 3 调成 2 之后,这里还在按 3 判,
+        // 于是被拒死的课题被算进了"玩家主动放弃",指标自己撒了谎。
+        const why =
+          (p.rejections ?? 0) >= MAX_REJECTIONS ? '投稿被拒'
+          : (p.neglectedYears ?? 0) >= NEGLECT_YEARS_TO_ABANDON ? '烂在手里'
+          : '做太久没写完 / 玩家主动放弃';
+        stats.abandonReasons.set(why, (stats.abandonReasons.get(why) ?? 0) + 1);
+      }
     }
     stats.scoreSum += result.endingScore;
     stats.moneySamples.push(fs.stats.money);
@@ -685,6 +706,15 @@ function printBatch(s: BatchStats): void {
       })
       .join(' ');
     console.log(`每年事件数中位数: ${line}`);
+  }
+
+  if (s.abandonReasons.size > 0) {
+    const total = [...s.abandonReasons.values()].reduce((a, b) => a + b, 0);
+    const line = [...s.abandonReasons.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([why, n]) => `${why} ${((n / total) * 100).toFixed(0)}%`)
+      .join(' · ');
+    console.log(`课题做废的死法: ${line}(共 ${total} 个)`);
   }
 }
 
@@ -855,7 +885,16 @@ function main(): void {
     const eliteRuns = Math.max(300, Math.round(args.runs / 2));
     console.log(`\n--- 补测:会做题的 bot(答题正确率 100%,${eliteRuns} 局,只并入可达性判定) ---`);
     eliteBatch = runBatch(eliteRuns, baseSeed + 100000, args.strategy, 1);
-    console.log(`事件覆盖: ${eliteBatch.eventsSeen.size}/${contentPack.events.length} · 结局到达 ${eliteBatch.endingCounts.size}/${contentPack.endings.length}`);
+    // 兜底结局(`always: true`)**永远到不了才是对的**——它到得了就说明有局没匹配上真结局。
+    // 不标出来的话,"结局到达 12/13"每次都会让人以为有一个结局写废了(已经追查过一次)。
+    const fallbackId = contentPack.meta.fallbackEndingId;
+    const reachable = contentPack.endings.filter(e => e.id !== fallbackId).length;
+    const hitFallback = eliteBatch.endingCounts.has(fallbackId);
+    const seenReal = [...eliteBatch.endingCounts.keys()].filter(id => id !== fallbackId).length;
+    console.log(
+      `事件覆盖: ${eliteBatch.eventsSeen.size}/${contentPack.events.length} · 结局到达 ${seenReal}/${reachable}` +
+        (hitFallback ? ' · ⚠️ 有对局落到了兜底结局' : '(兜底结局不计:它到得了才是 bug)'),
+    );
     const careerLine = [...eliteBatch.byCareer.entries()]
       .sort((a, b) => b[1].count - a[1].count)
       .map(([id, row]) => `${CAREER_LABELS[id] ?? id} ${((row.count / eliteBatch!.runs) * 100).toFixed(1)}%`)

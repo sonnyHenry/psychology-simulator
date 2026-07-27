@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ViewModel } from '@psy-sim/core';
-import { Card, ContinueButton } from '../components/ui';
+import { Card, ContinueButton, RichText } from '../components/ui';
 
 type AllocationView = Extract<ViewModel, { kind: 'ALLOCATION' }>;
 
@@ -79,7 +79,7 @@ export function AllocationScreen(props: { view: AllocationView; onSubmit: (picks
                     {item.label}
                     {count > 0 && <span className="alloc-count">×{count}</span>}
                   </div>
-                  <div className="alloc-item-text">{item.text}</div>
+                  <div className="alloc-item-text"><RichText text={item.text} /></div>
                   {item.textbook && <div className="alloc-textbook">{item.textbook}</div>}
                 </div>
                 <div className="alloc-item-controls">

@@ -567,16 +567,22 @@ for (const ending of contentPack.endings) {
 
 // ---------- 恒假条件静态检查(防 vc-simulator 式死结局) ----------
 
-const gameYearMin = Math.min(
-  ...contentPack.timeline.map(p => p.date.year),
-);
+const datedYears = contentPack.timeline.flatMap(p => (p.date ? [p.date.year] : []));
+const gameYearMin = Math.min(...datedYears);
 // 多个终局阶段时取最晚的那个。少算 gameYearMax 会把合法的后期事件误判成"条件恒假",
 // 所以这里必须扫全部 rounds 阶段而不是只看第一个 final(六条路径长度不同,最长的才是上界)。
-const gameYearMax = contentPack.timeline.reduce((max, phase) => {
-  if (phase.kind !== 'rounds') return max;
+const datedMax = contentPack.timeline.reduce((max, phase) => {
+  if (phase.kind !== 'rounds' || !phase.date) return max;
   const lastYear = phase.date.year + (phase.rounds - 1) * (phase.yearsPerRound ?? 1);
   return Math.max(max, lastYear);
 }, gameYearMin);
+// 不写 date 的阶段沿用进入时的日期,静态看不出那是哪一年。**这里必须往宽了估**:
+// 上界估小会把合法的后期事件误判成"条件恒假",而估大只是少查出几条,不会误伤。
+// 这样的阶段最早也得从某个有日期的阶段之后进来,所以拿 datedMax 当它的起点。
+const gameYearMax = contentPack.timeline.reduce((max, phase) => {
+  if (phase.kind !== 'rounds' || phase.date) return max;
+  return Math.max(max, datedMax + phase.rounds * (phase.yearsPerRound ?? 1));
+}, datedMax);
 
 function statBoundsImpossible(stat: string, op: string, value: number): boolean {
   if (!BOUNDED_STATS.has(stat)) return false;

@@ -194,11 +194,15 @@ export function pickRoundEvents(
       if (ev.projectDomains && !ev.projectDomains.includes(project.domain)) return false;
       if (picked.includes(ev.id)) return false;
       if (ev.once !== false && state.triggeredEventIds.includes(ev.id)) return false;
+      // 同一个课题不重复放同一幕。阶段事件是 `once: false`(要能跨课题复用),
+      // 所以全局那条去重管不到它——一个卡在收数据三年的课题会连收三封"被试招不满"。
+      if (project.seenEventIds?.includes(ev.id)) return false;
       return evalCondition(ev.trigger, ctx);
     });
     if (candidates.length === 0) continue;
     const chosen = rng.weightedPick(candidates, ev => ev.weight ?? 1);
     picked.push(chosen.id);
+    project.seenEventIds = [...(project.seenEventIds ?? []), chosen.id];
     state.eventProjects[chosen.id] = project.id;
     pipelineSlotsLeft -= 1;
   }

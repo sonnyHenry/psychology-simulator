@@ -56,7 +56,7 @@ const fixtures: NpcRouteFixture[] = [];
 function makeState(fixture: NpcRouteFixture, warmCount: number): GameState {
   const state = createEngine(contentPack).start(53);
   const finalPhase = [...contentPack.timeline].reverse().find(p => p.kind === 'rounds' && p.isFinal);
-  state.date = { year: finalPhase?.date.year ?? 2033, month: 1 };
+  state.date = { year: finalPhase?.date?.year ?? 2033, month: 1 };
   state.npcs = { [fixture.npcId]: { favor: 50, stage: fixture.stage } };
   state.history = Array.from({ length: warmCount }, (_, index) => ({
     kind: 'event' as const,

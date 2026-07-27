@@ -597,7 +597,9 @@ export function createEngine(pack: ContentPack): Engine {
   function enterPhase(state: GameState, rng: Rng, index: number): void {
     state.phaseIndex = index;
     const phase = phaseAt(index);
-    state.date = { ...phase.date };
+    // 省略 date 的阶段沿用当前日期。**被多个岔口共用的阶段必须这么写**——
+    // 否则从硕士毕业(2021)走进"大厂用研"会把时钟拨回 2019。
+    if (phase.date) state.date = { ...phase.date };
     // 延毕的追加轮数只属于它被授予的那个阶段
     state.phaseExtraRounds = 0;
     if (phase.kind === 'flow') {

@@ -27,8 +27,16 @@ import { allocationIdForCourse } from '@psy-sim/core';
  * 投一年就撤,什么都留不下——没有导师、没有人情、没有第一批来访者。这制造真正的承诺压力。
  */
 
-const YEAR_2 = { year: { from: 2016 } } as const;
-const YEAR_3 = { year: { from: 2017 } } as const;
+/**
+ * **每一项都必须有上界。**
+ *
+ * 只写 `from` 的门控会一路漏到研究生阶段:硕士的分配屏上会冒出"进实验室搬砖(大二就能进)"
+ * 和"备考",而"休息"会因为本科和硕博各有一项而出现两次。
+ * 本科是 2015–2018,所以这个上界就是 2018。
+ */
+const UNDERGRAD = { year: { from: 2015, to: 2018 } } as const;
+const YEAR_2 = { year: { from: 2016, to: 2018 } } as const;
+const YEAR_3 = { year: { from: 2017, to: 2018 } } as const;
 
 /** 课程投入项:id 由 `allocationIdForCourse` 生成,引擎和内容共用同一个函数,两边不会写错 */
 function courseItem(
@@ -101,6 +109,7 @@ export const allocationItems: AllocationItem[] = [
     label: '学生工作',
     text: '班委、学生会、心理健康协会。开会很多,但你认识了所有老师。',
     category: 'work',
+    availableWhen: UNDERGRAD,
     maxSlots: 2,
     perSlot: [
       { stats: { capital: 4, state: -1 } },
@@ -124,6 +133,7 @@ export const allocationItems: AllocationItem[] = [
     label: '兼职挣钱',
     text: '家教、发单、做被试。一小时的钱和一小时的实验室时间,你只能选一个。',
     category: 'money',
+    availableWhen: UNDERGRAD,
     maxSlots: 2,
     perSlot: [{ stats: { money: 4000, state: -1 } }],
   },
@@ -132,6 +142,7 @@ export const allocationItems: AllocationItem[] = [
     label: '休息',
     text: '睡觉、打球、看剧、什么都不干。',
     category: 'rest',
+    availableWhen: UNDERGRAD,
     maxSlots: 4,
     // "休息"必须是一个真实有效的选项:游戏不能奖励只会硬撑的玩家。
     // 但它也不能是最优解——它给状态、降耗竭,代价是这一格没有推进任何东西。

@@ -103,7 +103,14 @@ export type PhaseConfig =
       kind: 'rounds';
       id: string;
       label: string;
-      date: GameDate;
+      /**
+       * 进入本阶段时把时钟拨到这里。**省略 = 沿用当前日期。**
+       *
+       * 写死日期的前提是"这个阶段只有一个入口"。一旦某个阶段被两个岔口共用
+       * (比如大厂用研既能从大四去、也能从硕士毕业去),写死就会让时间倒流。
+       * 这类阶段一律省略 `date`,让它跟着玩家真实走到的年份走。
+       */
+      date?: GameDate;
       rounds: number;
       eventSlots: number;
       pools: string[];

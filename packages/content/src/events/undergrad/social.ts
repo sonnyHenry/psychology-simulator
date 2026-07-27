@@ -272,6 +272,15 @@ export const socialSeedEvents: GameEvent[] = [
     order: 16,
     title: '进组之前,你第一次去打听一个人',
     text: '你要选导师了。学院网站上每个老师的页面长得都差不多:研究方向、代表论文、承担项目。\n\n**这些页面唯一不写的,就是你真正需要知道的那件事。**\n\n于是你开始打听。你找到了三个人:一个刚毕业的师姐、一个在读的师兄、还有一个跟你不太熟但据说很知情的同班同学。',
+    // 师姐那条线要有 `has_senior_channel` 才问得到。**开场白不能许诺一个玩家没有的选项**——
+    // 说"你找到了三个人"却只给两个可问的人,读起来像 bug,实际上也是。
+    presentationVariants: [
+      {
+        condition: { not: { flag: 'has_senior_channel' } },
+        title: '进组之前,你第一次去打听一个人',
+        text: '你要选导师了。学院网站上每个老师的页面长得都差不多:研究方向、代表论文、承担项目。\n\n**这些页面唯一不写的,就是你真正需要知道的那件事。**\n\n于是你开始打听。但你能找到的人不多:一个在读的师兄,还有一个跟你不太熟但据说很知情的同班同学。\n\n**已经毕业的人才敢说真话,而你一个都不认识。**',
+      },
+    ],
     contextLines: [
       { text: '这是这一行最重要的一项技能,而它不在任何一门课的教学大纲里。' },
       { condition: { flag: 'has_senior_channel' }, text: '师姐那条线你已经有了,而且她欠你一顿饭的人情正好可以用。' },
@@ -326,6 +335,32 @@ export const socialSeedEvents: GameEvent[] = [
               { setFlag: 'asked_around_once' },
               { setFlag: 'verifies_rumors' },
               { addFlag: { key: 'rumors_heard', delta: 1, min: 0, max: 20 } },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'ask_the_senior_student',
+        text: '问那个还在读的师兄',
+        outcomes: [
+          {
+            weight: 2,
+            text: '他说了很多好话,而且说得很快。\n\n"挺好的老师,资源也多,你来肯定没问题。"\n\n(他还有两年毕业,而他的毕业得这个老师签字。)\n\n**在读的人不能说真话,这不是人品问题,是位置问题。** 你以后打听的第一件事会变成:这个人还归不归他管。',
+            effects: [
+              { stats: { method: 2, capital: 1 } },
+              { setFlag: 'asked_around_once' },
+              { setFlag: 'learned_who_can_speak' },
+              { addFlag: { key: 'rumors_heard', delta: 1, min: 0, max: 20 } },
+            ],
+          },
+          {
+            weight: 1,
+            text: '他讲了二十分钟的好话,然后在你要走的时候补了一句:\n\n> "你要是想清楚了再来,别到时候后悔。"\n\n这句话他压低了声音。**你当时没听懂,两年后懂了。**',
+            effects: [
+              { stats: { method: 2, capital: 1, state: -2 } },
+              { setFlag: 'asked_around_once' },
+              { setFlag: 'heard_the_warning' },
+              { addFlag: { key: 'rumors_heard', delta: 2, min: 0, max: 20 } },
             ],
           },
         ],

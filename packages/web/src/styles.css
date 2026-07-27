@@ -593,3 +593,9 @@ body {
   font-size: 15px;
   text-align: center;
 }
+
+/* 分配项的说明是单行的:RichText 会包一层 <p>,这里把段落间距压掉。
+   用 RichText 而不是裸文本,是因为内容里的 **强调** 否则会显示成一堆星号。 */
+.alloc-item-text p {
+  margin: 0;
+}

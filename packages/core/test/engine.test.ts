@@ -2308,3 +2308,84 @@ describe('M3 导师', () => {
     expect(() => applyEffects([{ advisorFavor: 5 }], noAdvisor, pack)).not.toThrow();
   });
 });
+
+/**
+ * 这一轮是玩家实际打通一局之后报回来的七个问题。**七个里有六个静态检查都查不出来**——
+ * 它们要么是"某一屏上多了一项"、要么是"同一幕放了两遍",只有把游戏当成时间线整体看才成立。
+ * 所以每一条都在这里钉一颗钉子。
+ */
+describe('M3.1 实机反馈修复', () => {
+  it('省略 date 的阶段沿用当前日期,不把时钟拨回去', () => {
+    // 硕士毕业(2021)走进"大厂用研"时看到"2019 年",因为那个阶段的 date 写死成 2019。
+    // 这几个阶段有两个入口(大四岔口和硕士岔口),写死年份必然让其中一个入口时间倒流。
+    const pack = miniPack();
+    pack.timeline = [
+      { ...pack.timeline[0]! },
+      {
+        kind: 'rounds', id: 'life', label: '人生', date: { year: 2020, month: 9 },
+        rounds: 1, eventSlots: 0, pools: [], briefs: ['第一年'], nextPhaseId: 'tail',
+      },
+      // 不写 date:该沿用走到这里时的年份
+      {
+        kind: 'rounds', id: 'tail', label: '之后', rounds: 1, eventSlots: 0,
+        pools: [], briefs: ['之后'], isFinal: true,
+      },
+    ];
+    const engine = createEngine(pack);
+    let state = engine.start(7);
+    const seen: number[] = [];
+    for (let guard = 0; guard < 200; guard++) {
+      const view = engine.view(state);
+      if (view.kind === 'ENDING') break;
+      seen.push(state.date.year);
+      let action: PlayerAction;
+      switch (view.kind) {
+        case 'TITLE': action = { type: 'START' }; break;
+        case 'BACKGROUND_DRAW': action = pickTraits(engine, state); break;
+        case 'SETUP': action = { type: 'CHOOSE_SETUP', gender: 'male', track: '理' }; break;
+        case 'EXAM': action = { type: 'ANSWER', optionIndex: 0 }; break;
+        case 'APPLICATION': action = { type: 'APPLY', optionId: view.options[0]!.id }; break;
+        case 'EVENT': action = { type: 'CHOOSE', choiceId: view.choices[0]!.id }; break;
+        default: action = { type: 'CONTINUE' };
+      }
+      state = engine.dispatch(state, action);
+    }
+    // 走到过那个没写 date 的阶段,而且年份只允许递增。**这就是那个 bug 的全部内容。**
+    expect(seen.some(y => y >= 2020)).toBe(true);
+    for (let i = 1; i < seen.length; i++) expect(seen[i]!).toBeGreaterThanOrEqual(seen[i - 1]!);
+  });
+
+  it('同一个课题不会两年收到同一幕阶段事件', () => {
+    // 卡在收数据的课题连着两年收到同一封"被试招不满",文案里还写着"这是第 2 年"。
+    // 阶段事件全是 once:false(要能跨课题复用),所以全局那条去重管不到它。
+    const pack = projectPack();
+    pack.projectTemplates = [{
+      id: 'tpl_t', titles: ['课题'], domain: 'social',
+      stageSequence: ['collect', 'write'],
+    }];
+    pack.events = [...pack.events, {
+      id: 'ev_stage_only', pools: [], projectStage: 'collect', once: false,
+      title: '唯一的一幕', text: '收数据',
+      choices: [{ id: 'ok', text: '好', outcomes: [{ weight: 1, text: '好', effects: [] }] }],
+    }];
+    const engine = createEngine(pack);
+    const state = engine.start(11);
+    state.projects = [{
+      id: 'proj_1', templateId: 'tpl_t', title: '课题', domain: 'social',
+      stage: 'collect', quality: 40, yearsSpent: 1, authorship: 'first',
+      integrityRisk: 0, rejections: 0, preregistered: false, startedYear: 2019,
+    }];
+    const project = state.projects[0]!;
+    const roundsPhase = pack.timeline.find(ph => ph.kind === 'rounds')!;
+    if (roundsPhase.kind !== 'rounds') throw new Error('fixture changed');
+    const rng = new Rng(3);
+    // 连挑三年。**课题一直卡在 collect**,而池子里只有这一幕。
+    const rounds = [0, 1, 2].map(() => {
+      project.stage = 'collect';
+      return pickRoundEvents(state, pack, rng, roundsPhase).includes('ev_stage_only');
+    });
+    expect(rounds[0]).toBe(true);
+    expect(rounds.slice(1)).toEqual([false, false]);
+    expect(project.seenEventIds).toEqual(['ev_stage_only']);
+  });
+});

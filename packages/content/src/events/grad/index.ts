@@ -57,15 +57,16 @@ export const gradEvents: GameEvent[] = [
     category: 'method',
     mandatory: true,
     tier: 'major',
-    // **手上少于三个在推进的课题就再开一个。**
+    // **只在手上一个真课题都没有的时候放。** 它是"第一个",不是"又一个"。
     //
-    // 三个课题、三格精力——**这个不等式是故意的**。你能同时认真推的最多两个,
-    // 于是永远有一个在边上放着,而放着的那个会在两年后烂掉。
+    // 原本写的是"少于三个就再开一个",于是它和下面那个由分配屏驱动的
+    // `ev_open_another_project` 完全重叠:某一年你投了"开一个新课题",
+    // 两幕会连着播出来,措辞几乎一样。**同一个决定不能问玩家两遍。**
     //
-    // 这不是惩罚,是这一行的默认状态:一个课题会做废,所以没有人只押一个;
-    // 而"手上三个、真正在动的两个"就是一个研究生的常态。
+    // 现在分工是干净的:第一个课题由剧情给(不给的话研究生阶段无事可做),
+    // 之后每一个都必须玩家自己在分配屏上花一格精力去换。
     once: false,
-    trigger: { projectCount: { active: true, isThesis: false, op: '<', value: 3 } },
+    trigger: { projectCount: { active: true, isThesis: false, op: '<', value: 1 } },
     order: -20,
     title: '你的第一个真课题',
     text: '{{advisor}} 让你自己定一个方向。\n\n"毕业论文那种不算,"他说,"那是练手。这次是要能发出去的。"\n\n三条路摆在你面前,而你现在还不知道它们各自意味着几年。',
@@ -197,6 +198,125 @@ export const gradEvents: GameEvent[] = [
               { stats: { state: 2, method: 1 } },
               { addFlag: { key: 'wants_new_project', delta: -1, min: 0, max: 3 } },
               { setFlag: 'chose_to_focus' },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+
+  /**
+   * 第三个课题来源:**导师塞给你的。**
+   *
+   * 前两个来源都要玩家点头——剧情给第一个,之后每个都得在分配屏上花一格精力换。
+   * 但真实的研究生手上那些课题,有相当一部分**根本不是自己挑的**:
+   * 师兄毕业留下的半截数据、导师的横向、他答应了别人的一个子课题。
+   *
+   * 这一幕是"至少一个课题会做废"这条硬约束的主要来源,而且来源是对的:
+   * **一个你没选的课题,就是最后烂在手里的那个。** 靠引擎硬塞三个课题去凑这个比例
+   * (M3 原来的做法)只是把同一句话说两遍,玩家看到的是 bug,不是命运。
+   */
+  {
+    id: 'ev_advisor_hands_project',
+    pools: ['grad'],
+    category: 'method',
+    tier: 'major',
+    // **mandatory,不去抢事件槽位。** 被塞活是研究生近乎普遍的经历,
+    // 让它去和普通事件抢槽位等于把一件几乎人人都会遇到的事变成随机事件。
+    // 变数留在选项里:推掉这一支不产生课题,代价记在导师关系上。
+    mandatory: true,
+    once: false,
+    trigger: {
+      all: [
+        { advisor: {} },
+        { flag: 'track_academic' },
+        { projectCount: { active: true, isThesis: false, op: '>=', value: 1 } },
+        { projectCount: { active: true, isThesis: false, op: '<', value: 3 } },
+        { flagNum: { key: 'handed_projects', op: '<', value: 2 } },
+      ],
+    },
+    weight: 3,
+    title: '"这个你先接一下"',
+    text: '{{advisor}} 在走廊上叫住你。\n\n师兄毕业走了,留下一个做了一半的东西:数据收了六成,分析跑过一版,文件夹里有十七个命名混乱的 sav 文件。\n\n"你先接一下,应该不难。"\n\n**这句话在这一行的准确翻译是:没有人知道它还要多久。**',
+    contextLines: [
+      { text: '你手上的那个还没做完。' },
+      { condition: { advisor: { archetype: 'young_pi' } }, text: '他在非升即走,这个课题他等不起。' },
+      { condition: { flagNum: { key: 'burnout', op: '>=', value: 45 } }, text: '你已经很累了。' },
+      { condition: { flag: 'chose_to_focus' }, text: '你上次刚决定要专注。' },
+    ],
+    choices: [
+      {
+        id: 'take_it',
+        text: '接下来',
+        outcomes: [
+          {
+            weight: 1,
+            text: '你把那十七个文件拖到自己电脑上,花了一周才搞清楚哪个是最终版。\n\n**接别人的课题最贵的成本不是时间,是你永远不完全信任那批数据。**',
+            effects: [
+              { stats: { capital: 3, state: -3 } },
+              { advisorFavor: 8 },
+              { project: { op: 'create', templateId: 'tpl_survey' } },
+              { addFlag: { key: 'handed_projects', delta: 1, min: 0, max: 3 } },
+              { setFlag: 'inherited_a_project' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'take_it_reluctantly',
+        text: '接,但先放着',
+        outcomes: [
+          {
+            weight: 1,
+            text: '你说好,然后把文件夹放在桌面上没有再打开。\n\n它会在那里待很久。**你每次看到它都会想起一次,然后关掉。** 这个循环本身就是这一行最耗人的东西。',
+            effects: [
+              { stats: { capital: 1, state: -1 } },
+              { advisorFavor: 3 },
+              { project: { op: 'create', templateId: 'tpl_survey' } },
+              { addFlag: { key: 'handed_projects', delta: 1, min: 0, max: 3 } },
+              { addFlag: { key: 'burnout', delta: 6, min: 0, max: 100 } },
+              { setFlag: 'inherited_a_project' },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'refuse',
+        text: '推掉',
+        outcomes: [
+          {
+            weight: 2,
+            text: '你说手上那个正到关键的时候。他"嗯"了一声,没再说什么。\n\n**这是对的决定,而且它有代价。** 那个代价不会立刻出现,会在写推荐信的时候出现。',
+            effects: [
+              { stats: { method: 2, state: 2 } },
+              { advisorFavor: -10 },
+              { addFlag: { key: 'handed_projects', delta: 1, min: 0, max: 3 } },
+              { setFlag: 'said_no_once' },
+            ],
+          },
+          {
+            weight: 1,
+            text: '你说手上那个正到关键的时候。\n\n"行,那我给别人。"他转身就走了。\n\n三个月后你听说那个课题发出来了,二区。**你没有后悔,但你算了一下。**',
+            effects: [
+              { stats: { method: 2, state: -2 } },
+              { advisorFavor: -6 },
+              { addFlag: { key: 'handed_projects', delta: 1, min: 0, max: 3 } },
+              { setFlag: 'said_no_once' },
+            ],
+          },
+          // **推掉不总是推得掉。** 少了这一支,"集中做一个课题"就成了绕开整条塞活线的
+          // 无成本打法——而那正好把"做废是普遍经验"这条硬约束漏掉了(集中打法的做废率
+          // 会掉到 54%)。现实里第二次开口你也很难再说不,所以这不是为了配平加的税。
+          {
+            weight: 2,
+            text: '你说手上那个正到关键的时候。他点点头,说"那再说"。\n\n两个月后他在组会上直接宣布了:这个课题由你负责。\n\n**"再说"的意思从来不是"算了"。** 你现在手上有两个课题,其中一个你说过不要。',
+            effects: [
+              { stats: { state: -5, capital: 2 } },
+              { advisorFavor: 2 },
+              { project: { op: 'create', templateId: 'tpl_survey' } },
+              { addFlag: { key: 'handed_projects', delta: 1, min: 0, max: 3 } },
+              { addFlag: { key: 'burnout', delta: 8, min: 0, max: 100 } },
+              { setFlag: 'inherited_a_project' },
             ],
           },
         ],

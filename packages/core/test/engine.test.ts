@@ -2486,7 +2486,8 @@ describe('M3.5 录取判定', () => {
       {
         id: 'inst_mid', name: '乙大学', unit: '心理学院', region: 'cn', city: 'B',
         tier: 'b_plus', domains: ['domain_social'], impression: '稳',
-        gameified: { tenured: true }, admits: ['master', 'phd'],
+        gameified: { admission: { quota: '统考为主' }, employment: { tenured: true } },
+        admits: ['master', 'phd'],
       },
       {
         id: 'inst_abroad', name: 'C University', unit: 'Dept', region: 'overseas', city: 'C',
@@ -2565,5 +2566,28 @@ describe('M3.5 录取判定', () => {
     // 而那道题的答案是全投稳的——恰好把这件事最真实的部分抹掉了。
     expect(JSON.stringify(view)).not.toMatch(/"chance":\s*0\./);
     expect(view.options.every(o => ['稳', '较稳', '冲', '悬', '基本无望'].includes(o.chanceLabel))).toBe(true);
+  });
+
+  it('**读硕的清单上不许出现聘用条款**', () => {
+    // 第一版把 gameified 的所有字段一股脑渲染,于是考研那一屏印着
+    // "预聘期约 6 年 · 预聘期内要有代表作与主持项目"——那是十年后求职季才关心的东西。
+    // 玩家一眼就看出来了,而所有门禁都是绿的:没有任何检查知道"这行字不该出现在这里"。
+    const pack = applyPack();
+    pack.institutions![1]!.gameified.employment = {
+      tenureYears: 6, tenureBar: '要有代表作', tenured: true, housing: '有安家补贴',
+      startupFunds: [300000, 1500000], teachingLoad: '2-2',
+    };
+    const engine = createEngine(pack);
+    const state = applicant(pack, 70, 55);
+    state.phaseIndex = pack.timeline.findIndex(p => p.kind === 'flow');
+    state.screen = 'GRAD_APPLY';
+    const view = engine.view(state);
+    if (view.kind !== 'GRAD_APPLY') throw new Error('expected GRAD_APPLY view');
+    const allTerms = view.options.flatMap(o => o.terms).join(' ');
+    for (const leak of ['预聘', '代表作', '安家', '启动经费', '2-2', '编制']) {
+      expect(allTerms).not.toContain(leak);
+    }
+    // 招生侧仍然要有内容,否则卡片就空了
+    expect(view.options.some(o => o.terms.length > 0)).toBe(true);
   });
 });

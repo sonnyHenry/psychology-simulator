@@ -164,24 +164,18 @@ export function createEngine(pack: ContentPack): Engine {
   }
 
   /**
-   * 把游戏化条款渲染成几行短句。
+   * `GRAD_APPLY` 上的条款行。**只读招生侧。**
    *
-   * **一律不出现精确金额**:启动经费写"30 万–150 万"这样的区间,
-   * 因为这些数字是游戏化近似,而精确值会被读成"这个学校就是给这么多"。
+   * 第一版把 `gameified` 的所有字段一股脑渲染出来,于是**读硕的清单上印着
+   * "预聘期约 6 年 · 预聘期内要有代表作与主持项目"**——一个考研的人不该看到这行字,
+   * 那是十年之后求职季才关心的东西,放在这里既没用又误导。
+   *
+   * 现在聘用条款在类型上就够不着:`gameified.employment` 由 M5 的 `JOB_MARKET` 消费。
    */
   function describeTerms(inst: { gameified: GameifiedTerms }): string[] {
-    const g = inst.gameified;
-    const lines: string[] = [];
-    if (g.admissionQuota) lines.push(g.admissionQuota);
-    if (g.tenured) lines.push('有编制');
-    if (g.tenureYears) lines.push(`预聘期约 ${g.tenureYears} 年`);
-    if (g.tenureBar) lines.push(g.tenureBar);
-    if (g.startupFunds && g.startupFunds[1] > 0) {
-      lines.push(`启动经费 ${Math.round(g.startupFunds[0] / 10000)} 万–${Math.round(g.startupFunds[1] / 10000)} 万`);
-    }
-    if (g.teachingLoad) lines.push(g.teachingLoad);
-    if (g.housing) lines.push(g.housing);
-    return lines;
+    const a = inst.gameified.admission;
+    if (!a) return [];
+    return [a.quota, a.duration, a.funding].filter((x): x is string => Boolean(x));
   }
 
   /**

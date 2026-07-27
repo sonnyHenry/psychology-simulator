@@ -36,19 +36,40 @@ export type InstitutionTier =
  * 而那既不真实也不负责任。UI 顶部的常驻声明是这条规范的第二道保险。
  */
 export interface GameifiedTerms {
-  /** 首次考核年限(预聘期) */
-  tenureYears?: number;
-  /** 考核指标的**描述**,不是指标本身 */
-  tenureBar?: string;
-  /** 启动经费区间,单位元。量级正确即可 */
-  startupFunds?: [number, number];
-  /** '2-2' | '3-3' | '年均 200 课时' */
-  teachingLoad?: string;
-  /** 是否直接给编制/长聘 */
-  tenured?: boolean;
-  housing?: string;
-  /** 招生指标的描述 */
-  admissionQuota?: string;
+  /**
+   * **招生侧**:一个申请读书的人会关心的。这一组会出现在 `GRAD_APPLY` 上。
+   */
+  admission?: {
+    /** 招生指标的描述,不是名额数字 */
+    quota?: string;
+    /** 学制或培养年限的描述 */
+    duration?: string;
+    /** 资助方式:奖学金、雇员合同、有没有补助 */
+    funding?: string;
+  };
+  /**
+   * **聘用侧**:一个找教职的人才关心的。这一组只出现在求职季(M5 的 `JOB_MARKET`)。
+   *
+   * **分开不是洁癖,是因为混过一次。** 第一版把两类条款放在一个扁平结构里,
+   * `describeTerms` 不管什么申请都全量渲染,于是**读硕的清单上印着"预聘期约 6 年、
+   * 预聘期内要有代表作与主持项目"**——一个考研的人根本不该看到这行字,
+   * 它属于十年之后的另一个屏。
+   *
+   * 拆成两组之后,这个错误在类型层面就写不出来了:`GRAD_APPLY` 拿不到 `employment`。
+   */
+  employment?: {
+    /** 首次考核年限(预聘期) */
+    tenureYears?: number;
+    /** 考核指标的**描述**,不是指标本身 */
+    tenureBar?: string;
+    /** 启动经费区间,单位元。量级正确即可 */
+    startupFunds?: [number, number];
+    /** '2-2' | '3-3' | '年均 200 课时' */
+    teachingLoad?: string;
+    /** 是否直接给编制/长聘 */
+    tenured?: boolean;
+    housing?: string;
+  };
 }
 
 export interface Institution {

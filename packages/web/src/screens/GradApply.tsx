@@ -94,3 +94,46 @@ export function GradApplyScreen(props: { view: View; act: (a: { type: 'APPLY_GRA
     </Card>
   );
 }
+
+type ResultView = Extract<ViewModel, { kind: 'GRAD_RESULT' }>;
+
+/**
+ * 录取结果。**这一屏不能省。**
+ *
+ * 第一版投完直接进了下一阶段:玩家看不到自己中没中,也不知道去了哪——
+ * 而"查结果那一刻"恰好是这条线上最有分量的时刻之一。
+ *
+ * 逐所列出来而不是只报一个结果,是因为**被拒的那几所也是这段经历的一部分**:
+ * 你后来还会想起自己当年投过那里。
+ */
+export function GradResultScreen(props: { view: ResultView; act: (a: { type: 'CONTINUE' }) => void }) {
+  const { view, act } = props;
+  return (
+    <Card>
+      <div className="screen-head">
+        <h2>{view.year} 年 · 结果</h2>
+      </div>
+
+      <div className="result-list">
+        {view.results.map(r => (
+          <div key={r.name} className={`result-row${r.admitted ? ' ok' : ''}`}>
+            <span className="result-name">{r.name}</span>
+            <span className="result-verdict">{r.admitted ? '录取' : '未录取'}</span>
+          </div>
+        ))}
+      </div>
+
+      <RichText text={view.text} />
+
+      {view.landedName && (
+        <div className={`result-landed${view.viaAdjustment ? ' adjusted' : ''}`}>
+          <div className="result-landed-label">{view.viaAdjustment ? '你最后去了' : '你去'}</div>
+          <div className="result-landed-name">{view.landedName}</div>
+          {view.landedUnit && <div className="result-landed-unit">{view.landedUnit}</div>}
+        </div>
+      )}
+
+      <ContinueButton label="继续" onClick={() => act({ type: 'CONTINUE' })} />
+    </Card>
+  );
+}

@@ -118,8 +118,33 @@ export const MAX_SHORTLIST = 3;
 
 export interface AdmissionResult {
   outcomes: Record<string, 'admitted' | 'rejected'>;
-  /** 最终去了哪。**一个都没中是高概率的真实结果**(GAME_DESIGN 9.3),所以允许 null */
+  /** 想去的那几个里中了的最高一所。**全没中是常见结果**,所以允许 null */
   landed: string | null;
+  /** 一个都没中,最后被兜底接住(调剂)。`landed` 这时是兜底那所 */
+  viaAdjustment: boolean;
+}
+
+/**
+ * 兜底(调剂)。**升学不该有"什么都没发生"这个结果。**
+ *
+ * `resolveAdmission` 允许全军覆没,那是它该有的样子——但如果游戏就此把玩家
+ * 原样送进硕士阶段,那是在撒谎:他一所都没考上,却出现在了研一的组会上。
+ *
+ * 现实里这一步叫调剂,而它的质感恰恰是这条线最真实的部分之一:
+ * **你最后去的是一个你本来根本没考虑过的地方**,而且你会在那里待三年。
+ * 所以兜底取的是清单上门槛最低的那一所,并留下 `went_through_adjustment`,
+ * 让后面的内容能读到"你是调剂来的"这件事。
+ *
+ * 求职季(M5)不适用这条:那里"一个 offer 都没有"是设计明确要的结果(GAME_DESIGN 9.3),
+ * 因为找工作真的没有调剂。
+ */
+export function adjustmentTarget(
+  pack: ContentPack,
+  kind: GradApplyKind,
+  exclude: string[],
+): Institution | undefined {
+  const list = institutionsFor(pack, kind).filter(i => !exclude.includes(i.id));
+  return list[list.length - 1];
 }
 
 /**
@@ -148,5 +173,7 @@ export function resolveAdmission(
     .map(([id]) => all.find(i => i.id === id))
     .filter((i): i is Institution => i !== undefined)
     .sort((a, b) => admissionBar(b, kind) - admissionBar(a, kind));
-  return { outcomes, landed: admitted[0]?.id ?? null };
+  if (admitted[0]) return { outcomes, landed: admitted[0].id, viaAdjustment: false };
+  const fallback = adjustmentTarget(pack, kind, shortlist);
+  return { outcomes, landed: fallback?.id ?? null, viaAdjustment: fallback !== undefined };
 }

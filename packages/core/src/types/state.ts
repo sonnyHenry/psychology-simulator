@@ -16,6 +16,7 @@ export type ScreenId =
   | 'ALLOCATION'
   | 'ADVISOR_DRAW'
   | 'GRAD_APPLY'
+  | 'GRAD_RESULT'
   | 'PROJECT_BOARD'
   | 'BRIEF'
   | 'EVENT'

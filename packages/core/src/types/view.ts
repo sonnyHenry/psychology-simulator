@@ -83,6 +83,25 @@ export type ViewModel =
       }[];
     }
   | {
+      /**
+       * 录取结果。**这一屏不能省。**
+       *
+       * 第一版投完直接进了下一阶段:玩家看不到自己中没中,也不知道去了哪——
+       * 而"查结果那一刻"恰好是这条线上最有分量的时刻之一,把它做成一次静默的状态变更
+       * 等于把整个申请屏的意义抹掉了一半。
+       */
+      kind: 'GRAD_RESULT';
+      year: number;
+      applyKind: GradApplyKind;
+      results: { name: string; unit: string; admitted: boolean }[];
+      /** 最终去哪。null 只在内容还没给这一种申请配兜底时出现 */
+      landedName: string | null;
+      landedUnit: string | null;
+      /** 想去的一个都没中,最后是被兜底接住的 */
+      viaAdjustment: boolean;
+      text: string;
+    }
+  | {
       kind: 'ADVISOR_DRAW';
       year: number;
       /**

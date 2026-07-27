@@ -2532,18 +2532,50 @@ describe('M3.5 录取判定', () => {
     expect(admissionBar(inst, 'phd_abroad')).toBeGreaterThan(admissionBar(inst, 'master'));
   });
 
-  it('**全冲高可能一个都不中**,而这不是 bug', () => {
+  it('**全冲高:想去的一个都不中是高概率结果**,而这不是 bug', () => {
     // GAME_DESIGN 9.3 第一条:"一个都没有"必须是高概率的真实结果。
     // 这条断言存在的意义是防止后人把它"修好"——落榜是这一屏要教的东西。
     const pack = applyPack();
     const weak = applicant(pack, 40, 15);
-    let shutouts = 0;
+    let allRejected = 0;
     for (let seed = 1; seed <= 200; seed++) {
-      if (resolveAdmission(weak, pack, 'master', ['inst_top'], new Rng(seed)).landed === null) {
-        shutouts += 1;
-      }
+      const r = resolveAdmission(weak, pack, 'master', ['inst_top'], new Rng(seed));
+      if (Object.values(r.outcomes).every(v => v === 'rejected')) allRejected += 1;
     }
-    expect(shutouts).toBeGreaterThan(100);
+    expect(allRejected).toBeGreaterThan(100);
+  });
+
+  it('想去的都没中时由调剂接住——升学不该有"什么都没发生"这个结果', () => {
+    // 全灭之后如果游戏原样把玩家送进硕士阶段,那是在撒谎:
+    // 他一所都没考上,却出现在了研一的组会上。现实里这一步叫调剂,
+    // 而它的质感恰恰最真实:**你最后去的是一个你本来根本没考虑过的地方。**
+    const pack = applyPack();
+    const weak = applicant(pack, 40, 15);
+    const r = resolveAdmission(weak, pack, 'master', ['inst_top'], new Rng(2));
+    if (Object.values(r.outcomes).every(v => v === 'rejected')) {
+      expect(r.viaAdjustment).toBe(true);
+      expect(r.landed).not.toBeNull();
+      // 兜底取清单上门槛最低的那所,而且不会是他投过的那所
+      expect(r.landed).not.toBe('inst_top');
+    }
+  });
+
+  it('结果屏之后头部换成新学校,而且能读到去向 flag', () => {
+    // 实机反馈:选完院校直接进了研一,既没有结果屏,顶上还挂着本科那所学校。
+    const pack = applyPack();
+    const engine = createEngine(pack);
+    let state = applicant(pack, 80, 60, ['domain_cogneuro']);
+    state.phaseIndex = pack.timeline.findIndex(p => p.kind === 'flow');
+    state.screen = 'GRAD_APPLY';
+    state.profile.university = '某地方本科院校';
+    state = engine.dispatch(state, { type: 'APPLY_GRAD', institutionIds: ['inst_top'] });
+    // **投完必须停在结果屏**,不能直接进下一阶段
+    expect(engine.view(state).kind).toBe('GRAD_RESULT');
+    state = engine.dispatch(state, { type: 'CONTINUE' });
+    const landed = state.gradApplication?.landed;
+    expect(landed).toBeTruthy();
+    expect(state.profile.university).toBe(pack.institutions!.find(i => i.id === landed)!.name);
+    expect(state.flags[`admitted_${landed}`]).toBe(true);
   });
 
   it('中了多所时去门槛最高的那所', () => {

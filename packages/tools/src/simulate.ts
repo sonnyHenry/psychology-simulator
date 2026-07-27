@@ -161,6 +161,7 @@ function botAction(
         type: 'CHOOSE_TRAITS',
         traitIds: bot.sample(view.traitOffer, view.pickCount).map(t => t.id),
       };
+    case 'GRAD_RESULT':
     case 'EXAM_RESULT':
     case 'BRIEF':
     case 'OUTCOME':
@@ -452,6 +453,14 @@ export function runOne(
             .map(o => (o ? `${o.name}(${o.chanceLabel})` : '?'));
           log(`\n🏫 ${view.applyKind} 投递: ${names.join(' · ')}`);
         }
+        break;
+      }
+      case 'GRAD_RESULT': {
+        const hit = view.results.filter(r => r.admitted).length;
+        log(
+          `\n📬 结果: ${hit}/${view.results.length} 录取 · 去 ${view.landedName ?? '(无)'}` +
+            (view.viaAdjustment ? '(调剂)' : ''),
+        );
         break;
       }
       case 'EVENT':

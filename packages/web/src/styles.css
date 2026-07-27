@@ -637,3 +637,22 @@ body {
 .apply-impression { font-size: 0.86rem; margin-top: 0.45rem; }
 .apply-match { font-size: 0.78rem; margin-top: 0.4rem; color: #2f7a4f; }
 .apply-terms { font-size: 0.78rem; margin-top: 0.35rem; opacity: 0.62; }
+
+/* ── 录取结果 ───────────────────────────────────────────
+   逐所列出来,包括没中的——被拒的那几所也是这段经历的一部分。 */
+.result-list { margin-bottom: 1rem; }
+.result-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 0.5rem 0; border-bottom: 1px solid var(--line, #eee);
+}
+.result-name { font-weight: 600; }
+.result-verdict { font-size: 0.82rem; opacity: 0.55; }
+.result-row.ok .result-verdict { color: #2f7a4f; opacity: 1; font-weight: 700; }
+.result-landed {
+  margin-top: 1rem; padding: 0.9rem 1rem;
+  border-left: 3px solid #2f7a4f; background: rgba(47, 122, 79, 0.06);
+}
+.result-landed.adjusted { border-left-color: #a3701f; background: rgba(163, 112, 31, 0.06); }
+.result-landed-label { font-size: 0.78rem; opacity: 0.6; }
+.result-landed-name { font-size: 1.1rem; font-weight: 700; margin-top: 0.15rem; }
+.result-landed-unit { font-size: 0.82rem; opacity: 0.7; margin-top: 0.1rem; }

@@ -347,6 +347,34 @@ export function createEngine(pack: ContentPack): Engine {
           })),
         };
       }
+      case 'GRAD_RESULT': {
+        const app = state.gradApplication;
+        const all = pack.institutions ?? [];
+        const landed = all.find(i => i.id === app?.landed);
+        const results = (app?.shortlist ?? []).map(id => {
+          const inst = all.find(i => i.id === id);
+          return {
+            name: inst?.name ?? id,
+            unit: inst?.unit ?? '',
+            admitted: app?.outcomes[id] === 'admitted',
+          };
+        });
+        const anyAdmitted = results.some(r => r.admitted);
+        return {
+          kind: 'GRAD_RESULT',
+          year: state.date.year,
+          applyKind: app?.kind ?? 'master',
+          results,
+          landedName: landed?.name ?? null,
+          landedUnit: landed?.unit ?? null,
+          viaAdjustment: app?.viaAdjustment ?? false,
+          text: anyAdmitted
+            ? '你把那个页面刷新了好几遍。'
+            : app?.viaAdjustment
+              ? '想去的那几个,一个都没有。\n\n**你是在调剂系统里找到下家的**——那几天你把从没考虑过的学校名字念了一遍又一遍,然后填了一个。\n\n你会在那里待三年。'
+              : '想去的那几个,一个都没有。',
+        };
+      }
       case 'CROSSROAD': {
         const group = crossroadGroup(state);
         const rng = new Rng(state.rngState);
@@ -1313,11 +1341,35 @@ export function createEngine(pack: ContentPack): Engine {
           throw new Error(`APPLY_GRAD needs 1-${MAX_SHORTLIST} listed institutions`);
         }
         const result = resolveAdmission(state, pack, kind, picks, rng);
-        state.gradApplication = { kind, shortlist: picks, outcomes: result.outcomes, landed: result.landed };
-        state.admissions = { ...(state.admissions ?? {}), [kind]: result.landed };
-        // 去向写成 flag,内容侧就能直接门控("你在北师大"这件事要能被事件读到)
-        if (result.landed) state.flags[`admitted_${result.landed}`] = true;
-        else state.flags.admission_shutout = true;
+        state.gradApplication = {
+          kind,
+          shortlist: picks,
+          outcomes: result.outcomes,
+          landed: result.landed,
+          viaAdjustment: result.viaAdjustment,
+        };
+        // **停在结果屏,不直接进下一阶段。** "查结果那一刻"是这条线上最有分量的时刻之一,
+        // 做成一次静默的状态变更等于把整个申请屏的意义抹掉一半。
+        state.screen = 'GRAD_RESULT';
+        return;
+      }
+      case 'GRAD_RESULT': {
+        if (action.type !== 'CONTINUE') invalid(state, action);
+        const app = state.gradApplication;
+        if (app?.landed) {
+          const inst = (pack.institutions ?? []).find(i => i.id === app.landed);
+          if (inst) {
+            // **头部要跟着换。** 不换的话玩家读到研一那一屏,顶上还挂着本科那所学校。
+            state.profile.university = inst.name;
+            state.profile.major = inst.unit;
+          }
+          // 去向写成 flag,内容侧就能直接门控("你在北师大"这件事要能被事件读到)
+          state.flags[`admitted_${app.landed}`] = true;
+          if (app.viaAdjustment) state.flags.went_through_adjustment = true;
+        } else {
+          state.flags.admission_shutout = true;
+        }
+        state.admissions = { ...(state.admissions ?? {}), [app?.kind ?? 'master']: app?.landed ?? null };
         nextStep(state, rng);
         return;
       }

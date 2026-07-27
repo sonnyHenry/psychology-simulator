@@ -181,6 +181,8 @@ export interface GradApplicationState {
   /** 玩家从清单里选的目标 */
   shortlist: string[];
   outcomes: Record<string, 'admitted' | 'rejected' | 'waitlist'>;
-  /** 最终去了哪。null = 一个都没中 */
+  /** 最终去了哪。null = 连兜底都没有(内容还没给这一种申请配清单时才可能) */
   landed: string | null;
+  /** 想去的一个都没中,`landed` 是调剂来的 */
+  viaAdjustment?: boolean;
 }

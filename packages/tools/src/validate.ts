@@ -139,6 +139,13 @@ const phasePoolIds = new Set(
   contentPack.timeline.flatMap(phase => (phase.kind === 'rounds' ? phase.pools : [])),
 );
 const eventPoolIds = new Set(contentPack.events.flatMap(e => e.pools));
+/** 引擎按基础塌方年份排进来的事件。id 由 `collapseEventId` 约定 */
+const collapseEventIds = new Set(
+  (contentPack.foundations ?? [])
+    .filter(f => f.replicationFailure && f.assignable !== false)
+    .map(f => `ev_collapse_${f.id.replace(/^fnd_/, '')}`),
+);
+
 const scheduledEventIds = new Set<string>();
 for (const event of contentPack.events) {
   for (const choice of event.choices) {
@@ -439,6 +446,9 @@ for (const event of contentPack.events) {
     event.projectStage === undefined &&
     !isAdvisorStageEvent &&
     !scheduledEventIds.has(event.id) &&
+    // 塌方事件由 `systems/foundation.ts` 在真实历史年份 schedule 进来,
+    // 内容里没有任何 `{ schedule }` 指向它们——**引擎排的事件也算有出处。**
+    !collapseEventIds.has(event.id) &&
     ![...contentPack.npcs].some(npc =>
       Object.values(npc.stages).some(stage => stage.eventId === event.id),
     )
@@ -1202,11 +1212,68 @@ const DOMAIN_REGISTRY = new Set([
     error('规则 12:有院校表却没有 gameifiedTermsNotice(GRAD_APPLY 顶部的游戏化声明)');
   }
 
-  // 规则 13:声明了 GRAD_APPLY 步骤的阶段必须写 gradApplyKind。
+  // 规则 12b:声明了 GRAD_APPLY 步骤的阶段必须写 gradApplyKind。
+  // (TECH 的规则 13 是 Foundation 时间线一致性,见下——M3.5 时我把编号占错了。)
   // 不写的话引擎会静默跳过这一屏——玩家不会看到申请,而且没有任何报错。
   for (const phase of contentPack.timeline) {
     if (phase.kind !== 'flow' || !phase.steps.includes('GRAD_APPLY')) continue;
-    if (!phase.gradApplyKind) error(`规则 13:阶段 ${phase.id} 有 GRAD_APPLY 步骤但没写 gradApplyKind`);
+    if (!phase.gradApplyKind) error(`规则 12b:阶段 ${phase.id} 有 GRAD_APPLY 步骤但没写 gradApplyKind`);
+  }
+
+
+  // 规则 13:`Foundation` 时间线一致性(TECH 7.1)。
+  //
+  // 这一条守的是**这个机制会不会静默失效**。第一版的基础表里只有一条会塌(2015 年),
+  // 而真课题 2019 年才开始——**它一次都不会触发**,和 M3.1 挖出的那两条死常量同类。
+  // 所以这条规则不只查数据自洽,还查"它到底够不够得着玩家"。
+  {
+    const foundations = contentPack.foundations ?? [];
+    const eventsById2 = new Map(contentPack.events.map(e => [e.id, e]));
+    const GAME_YEARS: [number, number] = [2014, 2034];
+    const REQUIRED_COLLAPSE_CHOICES = ['push_anyway', 'reframe', 'do_replication', 'abandon'];
+    let assignableCollapsing = 0;
+
+    for (const fnd of foundations) {
+      for (const cit of [fnd.origin, fnd.replicationFailure?.citation]) {
+        if (cit && cit.verified !== true) {
+          error(`规则 13:基础 ${fnd.id} 引用了未核对的文献 ${cit.id}`);
+        }
+      }
+      for (const d of fnd.domains) {
+        if (!DOMAIN_REGISTRY.has(d)) error(`规则 13:基础 ${fnd.id} 的 domain 不在注册表里: ${d}`);
+      }
+      const failure = fnd.replicationFailure;
+      if (!failure) continue;
+      if (failure.year <= fnd.origin.year) {
+        error(`规则 13:基础 ${fnd.id} 的重复失败年份(${failure.year})不晚于原始文献(${fnd.origin.year})`);
+      }
+      if (failure.year < GAME_YEARS[0] || failure.year > GAME_YEARS[1]) {
+        warn(`规则 13:基础 ${fnd.id} 的塌方年份 ${failure.year} 在游戏时间线外,这条永远不会塌`);
+      }
+      // **不进分配池的基础不需要塌方事件**:它塌的时候玩家手上没有能被砸中的课题,
+      // 位置是时代节点而不是"你的地基塌了"。写一个事件反而会造出永远不触发的内容。
+      if (fnd.assignable === false) continue;
+      assignableCollapsing += 1;
+      const evId = `ev_collapse_${fnd.id.replace(/^fnd_/, '')}`;
+      const ev = eventsById2.get(evId);
+      if (!ev) {
+        error(`规则 13:会塌的基础 ${fnd.id} 没有对应的塌方事件 ${evId}`);
+        continue;
+      }
+      // 四个选项一个都不能少:少一个,这一幕就从"一个真实的两难"退化成"一个惩罚"
+      for (const need of REQUIRED_COLLAPSE_CHOICES) {
+        if (!ev.choices.some(c => c.id === need)) {
+          error(`规则 13:塌方事件 ${evId} 缺少选项「${need}」(四选项必须齐全)`);
+        }
+      }
+    }
+    // 设计要求 ≥6 条基础、其中 ≥3 条在时间线内塌方(GAME_DESIGN 二十二节第 3 条)
+    if (foundations.length > 0 && foundations.length < 6) {
+      error(`规则 13:理论基础只有 ${foundations.length} 条(<6)`);
+    }
+    if (foundations.length > 0 && assignableCollapsing < 3) {
+      error(`规则 13:会砸到玩家课题的基础只有 ${assignableCollapsing} 条(<3),这个机制会变成稀有彩蛋`);
+    }
   }
 
   // 规则 14:院校数据完整性 + 每个 Position 都挂在真实机构上。

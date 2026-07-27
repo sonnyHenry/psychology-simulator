@@ -121,6 +121,8 @@ export type ViewModel =
         yearsSpent: number;
         authorship: string;
         isThesis: boolean;
+        /** 只有 `trait_skeptic` 能看到:这个课题地基的原始研究样本量 */
+        foundationHint?: string;
       }[];
       papers: { title: string; tier: string; authorship: string; year: number }[];
       /** 导师的公开身份(抽卡后才有)。仍然不含真实原型 */

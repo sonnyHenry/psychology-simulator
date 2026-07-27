@@ -9,6 +9,7 @@ import { crossroadOptions, lifeGoals, masterCrossroadOptions } from './setup/cro
 import { courses } from './courses';
 import { projectTemplates } from './projects';
 import { advisors } from './advisors';
+import { foundationEvents } from './events/foundation';
 import { GAMEIFIED_TERMS_NOTICE, institutions } from './institutions';
 import { positions } from './institutions/positions';
 import { citations, foundations } from './citations';
@@ -67,6 +68,7 @@ export const contentPack: ContentPack = {
     ...thesisEvents,
     ...gradEvents,
     ...projectStageEvents,
+    ...foundationEvents,
   ],
   incomes: [],
   endings,

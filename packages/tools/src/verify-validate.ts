@@ -73,6 +73,56 @@ interface Case {
 }
 
 const CASES: Case[] = [
+  // ── 文献可靠性(M3.6,规则 13)────────────────────────────────
+  //
+  // 这条规则最要紧的一条是**"会砸到玩家的基础 <3 就报错"**:
+  // 第一版唯一会塌的那条在 2015 年,而真课题 2019 年才开始——机制一次都不会触发,
+  // 而所有别的检查都是绿的。**死机制和没有机制是一回事。**
+  {
+    rule: '规则 13:会塌的基础没有对应的塌方事件',
+    break: pack => {
+      const evId = 'ev_collapse_ego_depletion';
+      pack.events = pack.events.filter(e => e.id !== evId);
+    },
+    expect: '没有对应的塌方事件',
+  },
+  {
+    rule: '规则 13:塌方事件缺了四选项之一',
+    break: pack => {
+      const ev = pack.events.find(e => e.id === 'ev_collapse_ego_depletion');
+      if (!ev) throw new Error('反例夹具需要更新');
+      ev.choices = ev.choices.filter(c => c.id !== 'do_replication');
+    },
+    expect: '四选项必须齐全',
+  },
+  {
+    rule: '规则 13:重复失败年份早于原始文献',
+    break: pack => {
+      const fnd = (pack.foundations ?? []).find(f => f.replicationFailure);
+      if (!fnd?.replicationFailure) throw new Error('反例夹具需要更新');
+      fnd.replicationFailure.year = fnd.origin.year - 1;
+    },
+    expect: '不晚于原始文献',
+  },
+  {
+    rule: '规则 13:会砸到玩家的基础少于 3 条(机制静默失效)',
+    break: pack => {
+      for (const f of pack.foundations ?? []) {
+        if (f.replicationFailure) f.assignable = false;
+      }
+    },
+    expect: '这个机制会变成稀有彩蛋',
+  },
+  {
+    rule: '规则 13:基础引用了未核对的文献',
+    break: pack => {
+      const fnd = (pack.foundations ?? [])[0];
+      if (!fnd) throw new Error('反例夹具需要更新');
+      fnd.origin = { ...fnd.origin, verified: false };
+    },
+    expect: '引用了未核对的文献',
+  },
+
   // ── 真实素材层(M3.5,规则 9–15)──────────────────────────────
   //
   // 这七条守的是**内容真实性**,它们能拦住的错误都不会崩、不会红、玩家也不会立刻发现,

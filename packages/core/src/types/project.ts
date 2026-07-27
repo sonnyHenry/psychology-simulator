@@ -92,6 +92,13 @@ export interface Project {
    * 同一个课题遇到两次不是。
    */
   seenEventIds?: string[];
+  /**
+   * 这个课题建在哪条理论基础上(GAME_DESIGN 19.4)。创建时随机分配,**玩家看不到**。
+   * 只有 `trait_skeptic` 能在白板上多看到一行原始研究的样本量。
+   */
+  foundationId?: string;
+  /** 地基已经塌过一次。一个课题只塌一次,否则同一幕会每年重放 */
+  foundationShaken?: boolean;
 }
 
 export type PaperTier = 'q1' | 'q2' | 'q3' | 'cssci' | 'chinese_core' | 'conference' | 'preprint';

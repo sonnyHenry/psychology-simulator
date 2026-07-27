@@ -164,6 +164,17 @@ export interface Foundation {
   hypeYears: [number, number];
   /** null = 至今站得住 */
   replicationFailure: { year: number; citation: Citation } | null;
+  /**
+   * 能不能被分配给玩家的课题当地基。默认能。
+   *
+   * `false` 用于**塌在课题窗口之前**的基础:高权力姿势 2015 年塌、行为启动 2018 年塌,
+   * 而真课题 2019 年才开始——它们塌的时候玩家手上没有能被砸中的东西。
+   * 这两条的位置是**时代节点**(你读到了那篇),不是"你的地基塌了"。
+   *
+   * 数据留着,因为年份是真的、内容侧会引用;但不进分配池,
+   * 否则会出现一个永远不触发的塌方事件——validate 规则 13 正是靠这个字段区分该不该要事件。
+   */
+  assignable?: boolean;
   /** 怀疑主义特质在选课题屏额外看到的一行(通常是原始研究的样本量) */
   skepticHint?: string;
 }

@@ -36,6 +36,7 @@ import {
 } from '../systems/project';
 import { advisorDefOf, drawAdvisorOffer, joinAdvisor } from '../systems/advisor';
 import { admissionTierFor, institutionsFor, MAX_SHORTLIST, resolveAdmission } from '../systems/admission';
+import { collapseEventId, collapsingProjects, foundationOf, pickFoundation } from '../systems/foundation';
 import { readNumericFlag } from '../dsl/evaluate';
 
 export interface Engine {
@@ -422,6 +423,12 @@ export function createEngine(pack: ContentPack): Engine {
             yearsSpent: p.yearsSpent,
             authorship: p.authorship,
             isThesis: Boolean(p.isThesis),
+            // **怀疑主义特质在这里第一次变现**(GAME_DESIGN 19.4)。
+            // 多给一行原始研究的样本量——那个当时就印在论文里、但没人在意的数字。
+            // **它不告诉你结论**,只是把数字放到你眼前;要不要往下想是你的事。
+            ...(state.flags.trait_skeptic
+              ? { foundationHint: foundationOf(pack, p)?.skepticHint }
+              : {}),
           })),
           papers: (state.papers ?? []).map(paper => ({
             title: paper.title,
@@ -861,6 +868,13 @@ export function createEngine(pack: ContentPack): Engine {
       // 如果不在这里补一次,每个课题都会白白损失开题的那一年,
       // 于是"两年一篇"变成"三年一篇",一个五年的博士只发得出两篇。
       // (这个 bug 不报错,只表现为"论文数怎么都上不去",是逐年打印课题状态才看出来的。)
+      // **地基在这里分配,不在创建时。** `applyEffects` 拿不到 RNG(那会让同一个种子的回放漂移),
+      // 所以和"开题那年补一次掷骰"用同一个位置。玩家看不到分到了哪条——
+      // 会塌的和不会塌的混在一个池子里,抽到哪条纯看运气。
+      if (!project.foundationId && !project.isThesis) {
+        const picked = pickFoundation(pack, project.domain, rng);
+        if (picked) project.foundationId = picked.id;
+      }
       if (project.lastAdvances === undefined && !project.isThesis) {
         // 开题那一年**按投了一格算**。
         //
@@ -915,6 +929,13 @@ export function createEngine(pack: ContentPack): Engine {
         investedSlotsOn(state, project.id) > 0 ? 0 : (project.neglectedYears ?? 0) + 1;
       project.lastAdvances = 0;
       project.lastRoll = undefined;
+    }
+    // **地基塌方**(GAME_DESIGN 19.4)。排在做废判定之前:
+    // 一个今年地基塌了的课题,应该先让玩家做那个四选一,而不是无声地烂掉。
+    for (const { project, foundation } of collapsingProjects(state, pack)) {
+      project.foundationShaken = true;
+      state.eventProjects = { ...(state.eventProjects ?? {}), [collapseEventId(foundation.id)]: project.id };
+      state.scheduled.push({ eventId: collapseEventId(foundation.id), dueRound: state.roundCounter + 1 });
     }
     // **烂在手里。** 真实的做废不是一个决定,是一个你渐渐不再打开的文件夹,
     // 所以它是无声的——玩家只会在结局页的"做废的课题"那一栏里再看到它。

@@ -14,6 +14,8 @@ import {
   stageSuccessChance,
   acceptanceChance,
   institutionsFor,
+  collapsingProjects,
+  pickFoundation,
   admissionTierFor,
   admissionBar,
   resolveAdmission,
@@ -2621,5 +2623,96 @@ describe('M3.5 录取判定', () => {
     }
     // 招生侧仍然要有内容,否则卡片就空了
     expect(view.options.some(o => o.terms.length > 0)).toBe(true);
+  });
+});
+
+/**
+ * M3.6 文献可靠性机制。
+ *
+ * 这一组盯的是**这个机制会不会静默失效**——它最容易的死法不是报错,
+ * 是塌方年份挑得不对,于是一次都不触发,而所有门禁都是绿的。
+ */
+describe('M3.6 地基塌方', () => {
+  function fndPack(): ContentPack {
+    const pack = projectPack();
+    const cit = (id: string, year: number) => ({
+      id, authors: 'A et al.', year, venue: 'V', gist: 'g', verified: true,
+    });
+    pack.foundations = [
+      {
+        id: 'fnd_falls', label: '会塌的', domains: ['domain_cognition'],
+        origin: cit('c_o', 2000), hypeYears: [2000, 2020],
+        replicationFailure: { year: 2021, citation: cit('c_f', 2021) },
+        skepticHint: '原始研究只有 20 个人。',
+      },
+      {
+        id: 'fnd_stands', label: '站得住的', domains: ['domain_cognition'],
+        origin: cit('c_s', 2006), hypeYears: [2006, 2024], replicationFailure: null,
+      },
+      {
+        id: 'fnd_early', label: '塌得太早', domains: ['domain_cognition'],
+        origin: cit('c_e', 1996), hypeYears: [1996, 2012],
+        // **不进分配池**:它塌的时候玩家手上还没有能被砸中的课题
+        assignable: false,
+        replicationFailure: { year: 2015, citation: cit('c_ef', 2015) },
+      },
+    ];
+    return pack;
+  }
+
+  function projectOn(pack: ContentPack, foundationId: string, year: number) {
+    const state = createEngine(pack).start(5);
+    state.date = { year, month: 6 };
+    state.projects = [{
+      id: 'proj_1', templateId: 'tpl_real', title: 't', domain: 'cognition',
+      stage: 'lit', quality: 50, yearsSpent: 2, authorship: 'first',
+      integrityRisk: 0, rejections: 0, preregistered: false, startedYear: year - 2,
+      foundationId,
+    }];
+    return state;
+  }
+
+  it('塌方只在真实的那一年、只砸活跃课题', () => {
+    const pack = fndPack();
+    expect(collapsingProjects(projectOn(pack, 'fnd_falls', 2021), pack)).toHaveLength(1);
+    // 早一年晚一年都不算——年份是这个机制唯一的说服力来源
+    expect(collapsingProjects(projectOn(pack, 'fnd_falls', 2020), pack)).toHaveLength(0);
+    expect(collapsingProjects(projectOn(pack, 'fnd_stands', 2021), pack)).toHaveLength(0);
+  });
+
+  it('一个课题只塌一次', () => {
+    const pack = fndPack();
+    const state = projectOn(pack, 'fnd_falls', 2021);
+    state.projects![0]!.foundationShaken = true;
+    expect(collapsingProjects(state, pack)).toHaveLength(0);
+  });
+
+  it('**塌在课题窗口之前的基础不进分配池**——否则会造出一个永不触发的机制', () => {
+    const pack = fndPack();
+    const rng = new Rng(1);
+    const picked = new Set<string>();
+    for (let i = 0; i < 200; i++) picked.add(pickFoundation(pack, 'cognition', rng)!.id);
+    expect(picked.has('fnd_early')).toBe(false);
+    // 会塌的和不会塌的必须混在同一个池子里:抽到哪条纯看运气,
+    // 这正是"事后看全是明牌,身处其中全是迷雾"在数值上的样子
+    expect(picked.has('fnd_falls')).toBe(true);
+    expect(picked.has('fnd_stands')).toBe(true);
+  });
+
+  it('怀疑主义特质才看得到样本量那一行,别人看不到', () => {
+    const pack = fndPack();
+    const engine = createEngine(pack);
+    function boardHint(skeptic: boolean): string | undefined {
+      const state = projectOn(pack, 'fnd_falls', 2021);
+      if (skeptic) state.flags.trait_skeptic = true;
+      state.screen = 'PROJECT_BOARD';
+      const view = engine.view(state);
+      if (view.kind !== 'PROJECT_BOARD') throw new Error('expected PROJECT_BOARD');
+      return view.projects[0]?.foundationHint;
+    }
+    expect(boardHint(true)).toBe('原始研究只有 20 个人。');
+    // **不是隐藏一个提示,是这条信息对别人根本不存在。**
+    // 它给的只是一个当时就印在论文里的数字,不告诉你结论——要不要往下想是你的事。
+    expect(boardHint(false)).toBeUndefined();
   });
 });

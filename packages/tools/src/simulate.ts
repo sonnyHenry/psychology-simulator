@@ -302,6 +302,10 @@ export interface RunResult {
   eventsPerYear: Array<[number, number]>;
   /** 这一局投递过的院校。**门禁"每所院校被选中率 ≥0.5%"读它** */
   institutionsPicked: string[];
+  /** 这一局有没有遇到过地基塌方(门禁:学术线 ≥45%) */
+  sawCollapse: boolean;
+  /** 塌方那一幕实际选了哪个(门禁:四个选项各 ≥8%) */
+  collapseChoices: string[];
 }
 
 function fmtDeltas(deltas: Record<string, number | undefined>): string {
@@ -322,6 +326,8 @@ export function runOne(
   const bot = new Rng(botSeed);
   const eventsPerYear = new Map<number, number>();
   const institutionsPicked = new Set<string>();
+  let sawCollapse = false;
+  const collapseChoices: string[] = [];
   const stateByYear: Array<[number, number]> = [];
   const presentationHits: string[] = [];
   const contextLineHits: string[] = [];
@@ -357,6 +363,8 @@ export function runOne(
         contextLineHits,
         eventsPerYear: [...eventsPerYear.entries()],
         institutionsPicked: [...institutionsPicked],
+        sawCollapse,
+        collapseChoices: [...collapseChoices],
       };
     }
     const action = botAction(view, bot, strategy, state, examSkill);
@@ -480,6 +488,10 @@ export function runOne(
             if (presentationIndex >= 0) presentationHits.push(`${event.id}#${presentationIndex}`);
             if (contextLine) contextLineHits.push(`${event.id}#${contextLine.index}`);
           }
+          if (view.eventId.startsWith('ev_collapse_')) {
+            sawCollapse = true;
+            if (action.type === 'CHOOSE') collapseChoices.push(action.choiceId);
+          }
           const choice = view.choices.find(c => c.id === action.choiceId);
           log(`\n▶ ${view.title}`);
           log(`  选择:${choice?.text}`);
@@ -534,6 +546,9 @@ interface BatchStats {
   abandonReasons: Map<string, number>;
   /** 每所院校在多少局里被投递过 */
   institutionPicks: Map<string, number>;
+  collapseRuns: number;
+  projectRuns: number;
+  collapseChoicePicks: Map<string, number>;
   /** 节奏:每个自然年放了几幕事件 */
   eventsYearly: Map<number, number[]>;
   npcStats: Map<string, { active: number; completed: number; special: number; stages: Map<string, number> }>;
@@ -566,6 +581,9 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
     stateYearly: new Map(),
     abandonReasons: new Map(),
     institutionPicks: new Map(),
+    collapseRuns: 0,
+    projectRuns: 0,
+    collapseChoicePicks: new Map(),
     eventsYearly: new Map(),
     npcStats: new Map(),
   };
@@ -650,6 +668,15 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
       arr.push(state);
       stats.stateYearly.set(year, arr);
     }
+    // **分母是"手上有过真课题的对局",不是全部对局。**
+    // 没进学术线的人根本没有地基可塌,把他们算进分母只会让这个数字失去意义。
+    if ((fs.projects ?? []).some(p => !p.isThesis)) {
+      stats.projectRuns += 1;
+      if (result.sawCollapse) stats.collapseRuns += 1;
+    }
+    for (const c of result.collapseChoices) {
+      stats.collapseChoicePicks.set(c, (stats.collapseChoicePicks.get(c) ?? 0) + 1);
+    }
     for (const id of result.institutionsPicked) {
       stats.institutionPicks.set(id, (stats.institutionPicks.get(id) ?? 0) + 1);
     }
@@ -694,7 +721,7 @@ function printBatch(s: BatchStats): void {
   );
   console.log(`提前结局占比: ${((s.earlyEndingCount / s.runs) * 100).toFixed(1)}%`);
 
-  if (s.academic.runs > 0) {
+  if (s.projectRuns > 0) {
     const a = s.academic;
     const sorted = [...a.paperSamples].sort((x, y) => x - y);
     console.log(
@@ -771,6 +798,17 @@ function printBatch(s: BatchStats): void {
     );
   }
 
+  // **地基塌方**(M3.6 门禁)。文献可靠性是一级线机制,不能是稀有彩蛋。
+  if (s.academic.runs > 0) {
+    const rate = (s.collapseRuns / Math.max(1, s.projectRuns)) * 100;
+    const total = [...s.collapseChoicePicks.values()].reduce((a, b) => a + b, 0);
+    const spread = [...s.collapseChoicePicks.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([id, n]) => `${id} ${((n / Math.max(1, total)) * 100).toFixed(0)}%`)
+      .join(' · ');
+    console.log(`地基塌方: ${rate.toFixed(1)}% 的有课题对局遇到过 · 四选项 ${spread || '(无)'}`);
+  }
+
   if (s.abandonReasons.size > 0) {
     const total = [...s.abandonReasons.values()].reduce((a, b) => a + b, 0);
     const line = [...s.abandonReasons.entries()]
@@ -786,6 +824,31 @@ function printBatch(s: BatchStats): void {
 // 分布类门禁(结局占比、提前结局、NPC 收官率)仍只看主队列,基线不受影响。
 function runCheck(s: BatchStats, extra?: BatchStats): void {
   const failures: string[] = [];
+  // **地基塌方**(M3.6 门禁)。文献可靠性是一级线机制,不能是稀有彩蛋——
+  // 而它最容易的失效方式是静默的:塌方年份挑得不对,这个机制一次都不会触发,
+  // 而所有别的检查都会是绿的(第一版就是这样:唯一会塌的那条在 2015 年,
+  // 而真课题 2019 年才开始)。
+  {
+    const projectRuns = s.projectRuns + (extra?.projectRuns ?? 0);
+    const collapseRuns = s.collapseRuns + (extra?.collapseRuns ?? 0);
+    if (projectRuns > 0) {
+      const rate = (collapseRuns / projectRuns) * 100;
+      if (rate < 45) {
+        failures.push(`地基塌方命中率过低(<45%): ${rate.toFixed(1)}%——文献可靠性是一级线机制,不是稀有彩蛋`);
+      }
+    }
+    const picks = new Map(s.collapseChoicePicks);
+    for (const [id, n] of extra?.collapseChoicePicks ?? []) picks.set(id, (picks.get(id) ?? 0) + n);
+    const total = [...picks.values()].reduce((a, b) => a + b, 0);
+    if (total >= 50) {
+      // 四条路每条都得有人走。某一条掉到 8% 以下 = 它实际上不是一个选项,
+      // 而这一幕的全部意义就是"四条路都真实存在、都有代价"。
+      for (const id of ['push_anyway', 'reframe', 'do_replication', 'abandon']) {
+        const share = ((picks.get(id) ?? 0) / total) * 100;
+        if (share < 8) failures.push(`塌方选项「${id}」使用率过低(<8%): ${share.toFixed(1)}%`);
+      }
+    }
+  }
   // **每所院校被选中率 ≥0.5%**(M3.5 里程碑门禁)。
   // 清单里有 27 所但实际只有 3 所可达 = 这份数据白做了,而且没有任何别的检查会发现——
   // validate 只看数据完整性,它不知道玩家实际能不能走到。

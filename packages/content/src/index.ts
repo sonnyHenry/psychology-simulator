@@ -9,6 +9,10 @@ import { crossroadOptions, lifeGoals, masterCrossroadOptions } from './setup/cro
 import { courses } from './courses';
 import { projectTemplates } from './projects';
 import { advisors } from './advisors';
+import { GAMEIFIED_TERMS_NOTICE, institutions } from './institutions';
+import { positions } from './institutions/positions';
+import { citations, foundations } from './citations';
+import { researcherNameBlocklist, textbookAuthorAllowlist } from './citations/namelist';
 import { gradAllocationItems } from './setup/grad-allocation';
 import { courseExamBank } from './courses/exams';
 import { npcs } from './npcs';
@@ -73,6 +77,13 @@ export const contentPack: ContentPack = {
   allocationItems: [...allocationItems, ...gradAllocationItems],
   crossroadOptions: [...crossroadOptions, ...masterCrossroadOptions],
   advisors,
+  institutions,
+  positions,
+  citations,
+  foundations,
+  gameifiedTermsNotice: GAMEIFIED_TERMS_NOTICE,
+  researcherNameBlocklist,
+  textbookAuthorAllowlist,
   backgrounds,
   traits,
   traitEvolutions: [],

@@ -1,3 +1,4 @@
+import type { GradApplicationState, GradApplyKind } from './institution';
 import type { AdvisorState } from './advisor';
 import type { Paper, Project } from './project';
 import type { Flags, StatDeltas, Stats, Track } from './stats';
@@ -14,6 +15,7 @@ export type ScreenId =
   | 'CROSSROAD'
   | 'ALLOCATION'
   | 'ADVISOR_DRAW'
+  | 'GRAD_APPLY'
   | 'PROJECT_BOARD'
   | 'BRIEF'
   | 'EVENT'
@@ -117,6 +119,10 @@ export interface GameState {
   papers?: Paper[];
   /** 导师。大三或研一抽卡后写入 */
   advisor?: AdvisorState | null;
+  /** 本次申请的状态。走完 GRAD_APPLY 后保留,内容侧用 `landed` 读去向 */
+  gradApplication?: GradApplicationState | null;
+  /** 历次申请去向:`master` → 'inst_bnu'。结局页和后续门控读它 */
+  admissions?: Partial<Record<GradApplyKind, string | null>>;
   /** 抽卡屏的候选导师 id,选完清空(照 traitOffer 的写法) */
   advisorOffer?: string[];
   /**

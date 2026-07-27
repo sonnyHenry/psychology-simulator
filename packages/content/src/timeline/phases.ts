@@ -74,6 +74,22 @@ function gradPhase(
   };
 }
 
+/**
+ * 申请屏阶段。**每个学术去向一个,因为 flow 阶段只有一条 `nextPhaseId`。**
+ *
+ * 为什么不把 `GRAD_APPLY` 直接塞进岔口那个 flow:岔口的每个选项都带 `jumpToPhase`,
+ * 一选完就跳走了,排在 CROSSROAD 后面的步骤永远走不到。
+ * 拆成独立阶段之后路由是显式的:岔口 → 申请 → 培养阶段,validate 的连通性检查看得见每一条边。
+ */
+function applyPhase(
+  id: string,
+  label: string,
+  gradApplyKind: 'master' | 'phd' | 'phd_abroad' | 'postdoc',
+  nextPhaseId: string,
+): Extract<PhaseConfig, { kind: 'flow' }> {
+  return { kind: 'flow', id, label, steps: ['GRAD_APPLY'], gradApplyKind, nextPhaseId };
+}
+
 export const timeline: PhaseConfig[] = [
   {
     kind: 'flow',
@@ -124,6 +140,11 @@ export const timeline: PhaseConfig[] = [
   //
   // 培养年限按真实规则:**直博 5 年;硕 3 年 + 博 3 年**。
   // M3 的学术线收在**博士毕业**——博后与教职求职季是 M5。
+  applyPhase('apply_master', '投申请', 'master', 'master'),
+  applyPhase('apply_phd_direct', '投申请', 'phd', 'phd_direct'),
+  applyPhase('apply_phd', '投申请', 'phd', 'phd_after_master'),
+  applyPhase('apply_abroad', '投申请', 'phd_abroad', 'overseas_phd'),
+
   gradPhase('master', '硕士', 2019, 3, [
     '研一。组会上一半的词你听不懂,而所有人都在点头。',
     '研二。你手上有了一个真正属于自己的课题,以及它做不出来的可能性。',

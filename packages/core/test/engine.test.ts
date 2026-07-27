@@ -13,6 +13,10 @@ import {
   shouldAbandonBySilence,
   stageSuccessChance,
   acceptanceChance,
+  institutionsFor,
+  admissionTierFor,
+  admissionBar,
+  resolveAdmission,
   tierForQuality,
   MIN_SETBACK_CHANCE,
   MAX_REJECTIONS,
@@ -2456,5 +2460,110 @@ describe('M3.3 接收判定', () => {
     expect(shouldAbandonBySilence(project)).toBe(false);
     project.rejections = MAX_REJECTIONS;
     expect(shouldAbandonBySilence(project)).toBe(true);
+  });
+});
+
+/**
+ * M3.5 真实素材层。
+ *
+ * 这一组盯的不是数值,是**内容真实性的机制保障**:
+ * 概率不给精确值、清单按 kind 过滤、一个都没中是允许的结果。
+ */
+describe('M3.5 录取判定', () => {
+  /**
+   * **core 不许 import content**(引擎不知道内容存在),所以这里用夹具。
+   * "真内容里每种 kind 够 8 所"由 validate 规则 15 守,那是内容的事,不是引擎的事。
+   */
+  function applyPack(): ContentPack {
+    const pack = projectPack();
+    pack.gameifiedTermsNotice = '条款为游戏化设定。';
+    pack.institutions = [
+      {
+        id: 'inst_top', name: '甲大学', unit: '心理学部', region: 'cn', city: 'A',
+        tier: 'a_plus', domains: ['domain_cogneuro'], impression: '强',
+        gameified: {}, admits: ['master', 'phd'],
+      },
+      {
+        id: 'inst_mid', name: '乙大学', unit: '心理学院', region: 'cn', city: 'B',
+        tier: 'b_plus', domains: ['domain_social'], impression: '稳',
+        gameified: { tenured: true }, admits: ['master', 'phd'],
+      },
+      {
+        id: 'inst_abroad', name: 'C University', unit: 'Dept', region: 'overseas', city: 'C',
+        tier: 'europe', domains: ['domain_cogneuro'], impression: '远',
+        gameified: {}, admits: ['phd_abroad'],
+      },
+    ];
+    const flow = pack.timeline.find(p => p.kind === 'flow');
+    if (flow?.kind !== 'flow') throw new Error('fixture changed');
+    flow.steps = ['GRAD_APPLY'];
+    flow.gradApplyKind = 'master';
+    return pack;
+  }
+
+  function applicant(pack: ContentPack, method: number, capital: number, domains: string[] = []) {
+    const state = createEngine(pack).start(301);
+    state.stats.method = method;
+    state.stats.capital = capital;
+    for (const d of domains) state.flags[d] = true;
+    return state;
+  }
+
+  it('清单按 kind 过滤:出国那份不混进国内院校', () => {
+    const pack = applyPack();
+    expect(institutionsFor(pack, 'master').map(i => i.id)).toEqual(['inst_top', 'inst_mid']);
+    expect(institutionsFor(pack, 'phd_abroad').map(i => i.id)).toEqual(['inst_abroad']);
+  });
+
+  it('方向对得上会改善档位——本科四年在这里兑现', () => {
+    const pack = applyPack();
+    const target = pack.institutions![0]!;
+    const blind = applicant(pack, 62, 45);
+    const matched = applicant(pack, 62, 45, ['domain_cogneuro']);
+    expect(admissionTierFor(matched, target, 'master').chance).toBeGreaterThan(
+      admissionTierFor(blind, target, 'master').chance,
+    );
+  });
+
+  it('出国的门槛比读硕高:语言、推荐信、没人认识你,合成一个门槛', () => {
+    const pack = applyPack();
+    const inst = pack.institutions![2]!;
+    expect(admissionBar(inst, 'phd_abroad')).toBeGreaterThan(admissionBar(inst, 'master'));
+  });
+
+  it('**全冲高可能一个都不中**,而这不是 bug', () => {
+    // GAME_DESIGN 9.3 第一条:"一个都没有"必须是高概率的真实结果。
+    // 这条断言存在的意义是防止后人把它"修好"——落榜是这一屏要教的东西。
+    const pack = applyPack();
+    const weak = applicant(pack, 40, 15);
+    let shutouts = 0;
+    for (let seed = 1; seed <= 200; seed++) {
+      if (resolveAdmission(weak, pack, 'master', ['inst_top'], new Rng(seed)).landed === null) {
+        shutouts += 1;
+      }
+    }
+    expect(shutouts).toBeGreaterThan(100);
+  });
+
+  it('中了多所时去门槛最高的那所', () => {
+    const pack = applyPack();
+    const strong = applicant(pack, 99, 95, ['domain_cogneuro', 'domain_social']);
+    const result = resolveAdmission(strong, pack, 'master', ['inst_mid', 'inst_top'], new Rng(9));
+    if (result.outcomes.inst_top === 'admitted') expect(result.landed).toBe('inst_top');
+  });
+
+  it('ViewModel 只给模糊档位,不给精确概率', () => {
+    const pack = applyPack();
+    const engine = createEngine(pack);
+    const state = applicant(pack, 70, 55, ['domain_social']);
+    state.phaseIndex = pack.timeline.findIndex(p => p.kind === 'flow');
+    state.screen = 'GRAD_APPLY';
+    const view = engine.view(state);
+    if (view.kind !== 'GRAD_APPLY') throw new Error('expected GRAD_APPLY view');
+    expect(view.notice.trim().length).toBeGreaterThan(0);
+    // 真实的申请里没有人知道自己的确切概率。给了数字,这一屏就变成一道最优化题,
+    // 而那道题的答案是全投稳的——恰好把这件事最真实的部分抹掉了。
+    expect(JSON.stringify(view)).not.toMatch(/"chance":\s*0\./);
+    expect(view.options.every(o => ['稳', '较稳', '冲', '悬', '基本无望'].includes(o.chanceLabel))).toBe(true);
   });
 });

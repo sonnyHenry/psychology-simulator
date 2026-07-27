@@ -1114,6 +1114,135 @@ for (const event of contentPack.events) {
   }
 }
 
+/**
+ * 领域注册表。院校的 `domains` 和玩家的 `domain_*` flag 必须用同一套词——
+ * 拼错一个词的后果是那所学校对任何人都不匹配,而这不会报错,只会让它悄悄变冷门。
+ */
+const DOMAIN_REGISTRY = new Set([
+  'domain_cognition', 'domain_cogneuro', 'domain_social', 'domain_clinical',
+  'domain_development', 'domain_education', 'domain_psychometrics', 'domain_health',
+]);
+
+// ---------- 规则 9–15:真实素材层(TECH 7.1 / GAME_DESIGN 十九节) ----------
+//
+// 这七条守的是**内容真实性**,不是数据完整性。它们能拦住的错误有一个共同点:
+// **不会崩、不会红、玩家也不会立刻发现**——但它们一旦发布出去,伤的是真实的人或真实的文献。
+
+{
+  const institutions = contentPack.institutions ?? [];
+  const instById = new Map(institutions.map(i => [i.id, i]));
+
+  // 规则 9:引用必须已核对。**任何 verified !== true 都让构建失败。**
+  // GAME_DESIGN 二十二节第 10 条:把真实文献的结论写反是这个游戏最不能犯的错——
+  // 一个讲科研诚信的游戏如果自己把文献说错了,它讲的每一句话都不成立。
+  const ledgerPath = new URL('../../content/src/citations/LEDGER.md', import.meta.url);
+  let ledger = '';
+  try {
+    ledger = readFileSync(ledgerPath, 'utf8');
+  } catch {
+    error('规则 9:找不到核对台账 content/src/citations/LEDGER.md');
+  }
+  for (const cit of contentPack.citations ?? []) {
+    if (cit.verified !== true) error(`规则 9:引用未核对 ${cit.id}(verified 必须为 true 才能进构建)`);
+    // 台账是 verified 的凭据。没有台账行,verified 就只是一个谁都能敲上去的布尔值。
+    if (ledger && !ledger.includes(cit.id)) {
+      error(`规则 9:引用 ${cit.id} 在 LEDGER.md 里没有核对条目`);
+    }
+  }
+
+  // 规则 10:真实研究者姓名只允许出现在 Citation 结构里。
+  //
+  // 导师六原型里有"边界感差的"(挂名、抢一作),把它安在真实可查的个体身上是诽谤,
+  // 免责声明豁免不了。**这条对所有原型一视同仁**——只对负面原型虚构等于反向指认。
+  const blocklist = contentPack.researcherNameBlocklist ?? [];
+  const allowlist = contentPack.textbookAuthorAllowlist ?? [];
+  const PERSONIFY = ['说', '告诉', '让你', '问你', '看着你', '叫住', '拍了拍', '皱眉', '点头', '回复'];
+  function scanProse(owner: string, text: string): void {
+    for (const name of blocklist) {
+      if (text.includes(name)) error(`规则 10:正文出现真实研究者姓名「${name}」: ${owner}`);
+    }
+    // 白名单里的名字可以当书名用,**但不许当人物**:
+    // 指一本书可以,让那本书的作者在你的故事里开口不行。
+    for (const name of allowlist) {
+      let from = text.indexOf(name);
+      while (from >= 0) {
+        const after = text.slice(from + name.length, from + name.length + 6);
+        if (PERSONIFY.some(marker => after.includes(marker))) {
+          error(`规则 10:真实人名「${name}」被当成人物使用(后接「${after.trim()}」): ${owner}`);
+        }
+        from = text.indexOf(name, from + 1);
+      }
+    }
+  }
+  for (const ev of contentPack.events) {
+    scanProse(`event ${ev.id}`, `${ev.title} ${ev.text}`);
+    for (const v of ev.presentationVariants ?? []) scanProse(`event ${ev.id} variant`, `${v.title} ${v.text}`);
+    for (const c of ev.choices) for (const o of c.outcomes) scanProse(`event ${ev.id} outcome`, o.text);
+  }
+  for (const end of contentPack.endings) scanProse(`ending ${end.id}`, `${end.title} ${end.text}`);
+
+  // 规则 11:导师必须虚构 + 必须挂真实建制。两条一起才是 19.2 的完整落地。
+  for (const adv of contentPack.advisors ?? []) {
+    for (const name of [...blocklist, ...allowlist]) {
+      if (adv.name.includes(name)) error(`规则 11:导师姓名命中真实人名「${name}」: ${adv.id}`);
+    }
+    if (adv.institutionId !== undefined && !instById.has(adv.institutionId)) {
+      error(`规则 11:导师 ${adv.id} 的 institutionId 指向不存在的机构: ${adv.institutionId}`);
+    }
+  }
+  for (const npc of contentPack.npcs) {
+    for (const name of [...blocklist, ...allowlist]) {
+      if (npc.name.includes(name)) error(`规则 11:NPC 姓名命中真实人名「${name}」: ${npc.id}`);
+    }
+  }
+
+  // 规则 12:游戏化条款声明必须存在且非空。
+  // 这不是免责套话,是 19.1 那条硬约束("待遇条款是游戏化近似")的机械保障。
+  if (institutions.length > 0 && !(contentPack.gameifiedTermsNotice ?? '').trim()) {
+    error('规则 12:有院校表却没有 gameifiedTermsNotice(GRAD_APPLY 顶部的游戏化声明)');
+  }
+
+  // 规则 13:声明了 GRAD_APPLY 步骤的阶段必须写 gradApplyKind。
+  // 不写的话引擎会静默跳过这一屏——玩家不会看到申请,而且没有任何报错。
+  for (const phase of contentPack.timeline) {
+    if (phase.kind !== 'flow' || !phase.steps.includes('GRAD_APPLY')) continue;
+    if (!phase.gradApplyKind) error(`规则 13:阶段 ${phase.id} 有 GRAD_APPLY 步骤但没写 gradApplyKind`);
+  }
+
+  // 规则 14:院校数据完整性 + 每个 Position 都挂在真实机构上。
+  for (const inst of institutions) {
+    if (inst.domains.length === 0) error(`规则 14:机构 ${inst.id} 没有 domains,永远匹配不上任何玩家方向`);
+    if (inst.admits.length === 0) error(`规则 14:机构 ${inst.id} 的 admits 为空,它不会出现在任何清单里`);
+    for (const d of inst.domains) {
+      if (!DOMAIN_REGISTRY.has(d)) error(`规则 14:机构 ${inst.id} 的 domain 不在注册表里: ${d}`);
+    }
+  }
+  for (const pos of contentPack.positions ?? []) {
+    if (!instById.has(pos.institutionId)) {
+      error(`规则 14:职位 ${pos.id} 指向不存在的机构: ${pos.institutionId}`);
+    }
+  }
+
+  // 规则 15:清单规模下限。每种 kind 至少 8 所,否则"选择"退化成"没得选"。
+  const KINDS = ['master', 'phd', 'phd_abroad', 'postdoc'] as const;
+  const declared = new Set(
+    contentPack.timeline.flatMap(p => (p.kind === 'flow' && p.gradApplyKind ? [p.gradApplyKind] : [])),
+  );
+  for (const kind of KINDS) {
+    if (!declared.has(kind)) continue; // 还没接入的 kind(博后是 M5)不查
+    const n = institutions.filter(i => i.admits.includes(kind)).length;
+    if (n < 8) error(`规则 15:${kind} 的可选院校只有 ${n} 所(<8),清单选择退化成没得选`);
+  }
+  const positions = contentPack.positions ?? [];
+  if (positions.length > 0) {
+    const cn = positions.filter(p => instById.get(p.institutionId)?.region === 'cn').length;
+    const overseas = positions.length - cn;
+    if (positions.length < 20) error(`规则 15:职位只有 ${positions.length} 个(<20)`);
+    if (cn < 8) error(`规则 15:国内职位只有 ${cn} 个(<8)`);
+    if (overseas < 8) error(`规则 15:海外职位只有 ${overseas} 个(<8)`);
+  }
+}
+
 const errors = issues.filter(i => i.level === 'error');
 const warnings = issues.filter(i => i.level === 'warn');
 

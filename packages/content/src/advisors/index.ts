@@ -20,9 +20,18 @@ import type { AdvisorDef } from '@psy-sim/core';
  * 它是**乘数**,不是加数——一个放养型导师让每一站都按比例变难,而这件事不是
  * 多投两格精力能补上的。这正是"导师是最大的随机变量"在数值上的样子。
  */
+/**
+ * **虚构人名 + 真实建制**(GAME_DESIGN 19.2)。
+ *
+ * 姓名一个都不能真:六原型里有"边界感差的"(挂名、抢一作、要求陪同应酬),
+ * 安在真实可查的人身上就是诽谤。而 `institutionId` 必须指向真实存在的机构——
+ * 共鸣度几乎全在建制和方向上,这样既保住了质感,又把风险归零。
+ * 规则 11 同时查这两条:姓名不许命中人名表,机构必须存在。
+ */
 export const advisors: AdvisorDef[] = [
   {
     id: 'adv_star',
+    institutionId: 'inst_pku',
     archetype: 'star',
     name: '沈遇春',
     publicImpression:
@@ -39,6 +48,7 @@ export const advisors: AdvisorDef[] = [
   },
   {
     id: 'adv_young_pi',
+    institutionId: 'inst_szu',
     archetype: 'young_pi',
     name: '柯一鸣',
     publicImpression:
@@ -55,6 +65,7 @@ export const advisors: AdvisorDef[] = [
   },
   {
     id: 'adv_hands_off',
+    institutionId: 'inst_bnu',
     archetype: 'hands_off',
     name: '罗慕安',
     publicImpression:
@@ -80,6 +91,7 @@ export const advisors: AdvisorDef[] = [
   },
   {
     id: 'adv_clinical',
+    institutionId: 'inst_ecnu',
     archetype: 'clinical',
     name: '万淑宜',
     publicImpression:
@@ -96,6 +108,7 @@ export const advisors: AdvisorDef[] = [
   },
   {
     id: 'adv_boundary',
+    institutionId: 'inst_swu',
     archetype: 'boundary',
     name: '皮崇岳',
     publicImpression:
@@ -112,6 +125,7 @@ export const advisors: AdvisorDef[] = [
   },
   {
     id: 'adv_warm',
+    institutionId: 'inst_scnu',
     archetype: 'warm',
     name: '苗知白',
     publicImpression:

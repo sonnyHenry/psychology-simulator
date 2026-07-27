@@ -1,3 +1,4 @@
+import type { GradApplyKind } from './institution';
 import type { BackgroundCard, TraitCard } from './content';
 import type { Gender, StatDeltas, Stats, Track } from './stats';
 
@@ -52,6 +53,34 @@ export type ViewModel =
       /** 岔口分组 id,同一个屏服务多个岔口(大四 / 硕士) */
       group: string;
       options: { id: string; label: string; text: string; hint?: string }[];
+    }
+  | {
+      /**
+       * 读研 / 读博 / 出国的院校清单。**一屏三用**,靠 `kind` 区分。
+       *
+       * 概率**只给模糊档位**(稳/较稳/冲/悬),不给精确值:
+       * 真实的申请里没有人知道自己的确切概率,你只知道"这个有点冒险"。
+       * 给了精确数字,这一屏就从一次选择变成一道最优化题。
+       */
+      kind: 'GRAD_APPLY';
+      year: number;
+      applyKind: GradApplyKind;
+      /** 顶部常驻声明:条款是游戏化设定。**validate 规则 12 要求非空** */
+      notice: string;
+      maxPicks: number;
+      options: {
+        id: string;
+        name: string;
+        unit: string;
+        lab?: string;
+        city: string;
+        impression: string;
+        /** 方向匹配上的标签,让玩家看见本科四年在这里兑现 */
+        matchedDomains: string[];
+        terms: string[];
+        /** '稳' | '较稳' | '冲' | '悬' | '基本无望' */
+        chanceLabel: string;
+      }[];
     }
   | {
       kind: 'ADVISOR_DRAW';
@@ -193,4 +222,5 @@ export type PlayerAction =
   /** 提交年度投入分配。`picks` 长度必须等于本回合格数,同一项可重复出现 */
   | { type: 'ALLOCATE'; picks: string[] }
   | { type: 'JOIN_ADVISOR'; advisorId: string }
+  | { type: 'APPLY_GRAD'; institutionIds: string[] }
   | { type: 'CHOOSE'; choiceId: string };

@@ -599,3 +599,41 @@ body {
 .alloc-item-text p {
   margin: 0;
 }
+
+/* ── GRAD_APPLY:院校清单 ─────────────────────────────────
+   卡片流。概率只给模糊档位(稳/较稳/冲/悬),所以档位标签是唯一的颜色信号——
+   它要显眼到一眼能扫完整列,又不能显眼到把院校名压下去。 */
+.apply-notice {
+  margin: 0 0 1rem;
+  padding: 0.6rem 0.8rem;
+  border-left: 3px solid var(--line, #ddd);
+  font-size: 0.82rem;
+  opacity: 0.72;
+}
+.apply-notice p { margin: 0; }
+.apply-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.apply-card {
+  width: 100%;
+  text-align: left;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line, #e2ded6);
+  border-radius: 10px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.apply-card.on { border-color: var(--accent, #a33); background: rgba(163, 51, 51, 0.06); }
+.apply-card.dim { opacity: 0.45; cursor: not-allowed; }
+.apply-card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.apply-name { font-weight: 700; }
+.apply-chance { font-size: 0.78rem; white-space: nowrap; opacity: 0.85; }
+.apply-chance.c-稳 { color: #2f7a4f; }
+.apply-chance.c-较稳 { color: #4a7a2f; }
+.apply-chance.c-冲 { color: #a3701f; }
+.apply-chance.c-悬 { color: #a33; }
+.apply-chance.c-基本无望 { color: #a33; opacity: 0.7; }
+.apply-unit { font-size: 0.8rem; opacity: 0.7; margin-top: 0.15rem; }
+.apply-impression { font-size: 0.86rem; margin-top: 0.45rem; }
+.apply-match { font-size: 0.78rem; margin-top: 0.4rem; color: #2f7a4f; }
+.apply-terms { font-size: 0.78rem; margin-top: 0.35rem; opacity: 0.62; }

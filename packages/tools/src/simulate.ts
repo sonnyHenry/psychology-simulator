@@ -136,6 +136,25 @@ function botAction(
   switch (view.kind) {
     case 'TITLE':
       return { type: 'START' };
+    case 'GRAD_APPLY': {
+      // **投递策略是这一屏真正要测的东西**,所以四个 bot 在这里必须不一样:
+      // 全冲高的人有相当概率一个都不中(GAME_DESIGN 9.3),而那是设计要的结果。
+      //
+      // 顺带,`--check` 的"每所院校被选中率 ≥0.5%"门禁靠随机 bot 保证:
+      // 清单里有 20 多所但实际只有 3 所可达 = 这份数据白做了。
+      const byChance = (label: string) => view.options.filter(o => o.chanceLabel === label);
+      const reach = [...byChance('冲'), ...byChance('悬'), ...byChance('基本无望')];
+      const safe = [...byChance('稳'), ...byChance('较稳')];
+      let picks: typeof view.options;
+      if (strategy === 'score') picks = [...reach, ...safe]; // 尽量冲高
+      else if (strategy === 'state') picks = [...safe, ...reach]; // 求稳
+      else picks = bot.sample(view.options, Math.min(view.maxPicks, view.options.length));
+      const chosen = picks.slice(0, view.maxPicks);
+      return {
+        type: 'APPLY_GRAD',
+        institutionIds: (chosen.length > 0 ? chosen : view.options.slice(0, 1)).map(o => o.id),
+      };
+    }
     case 'BACKGROUND_DRAW':
       // 随机选满 pickCount 个特质(策略 bot 不做特质期望计算)
       return {
@@ -280,6 +299,8 @@ export interface RunResult {
    * 所以 `eventSlots: 2` 的阶段实际可能放七八幕,**而配置里任何一个数字都看不出来。**
    */
   eventsPerYear: Array<[number, number]>;
+  /** 这一局投递过的院校。**门禁"每所院校被选中率 ≥0.5%"读它** */
+  institutionsPicked: string[];
 }
 
 function fmtDeltas(deltas: Record<string, number | undefined>): string {
@@ -299,6 +320,7 @@ export function runOne(
   let state = engine.start(seed);
   const bot = new Rng(botSeed);
   const eventsPerYear = new Map<number, number>();
+  const institutionsPicked = new Set<string>();
   const stateByYear: Array<[number, number]> = [];
   const presentationHits: string[] = [];
   const contextLineHits: string[] = [];
@@ -333,6 +355,7 @@ export function runOne(
         presentationHits,
         contextLineHits,
         eventsPerYear: [...eventsPerYear.entries()],
+        institutionsPicked: [...institutionsPicked],
       };
     }
     const action = botAction(view, bot, strategy, state, examSkill);
@@ -421,6 +444,16 @@ export function runOne(
         log(`\n===== ${view.year} 年 · ${view.phaseLabel} =====`);
         log(view.text);
         break;
+      case 'GRAD_APPLY': {
+        if (action.type === 'APPLY_GRAD') {
+          for (const id of action.institutionIds) institutionsPicked.add(id);
+          const names = action.institutionIds
+            .map(id => view.options.find(o => o.id === id))
+            .map(o => (o ? `${o.name}(${o.chanceLabel})` : '?'));
+          log(`\n🏫 ${view.applyKind} 投递: ${names.join(' · ')}`);
+        }
+        break;
+      }
       case 'EVENT':
         eventsPerYear.set(state.date.year, (eventsPerYear.get(state.date.year) ?? 0) + 1);
         if (action.type === 'CHOOSE') {
@@ -490,6 +523,8 @@ interface BatchStats {
    * 的分布是 `{0: 323, 1: 1}`——而在此之前所有门禁都是绿的。
    */
   abandonReasons: Map<string, number>;
+  /** 每所院校在多少局里被投递过 */
+  institutionPicks: Map<string, number>;
   /** 节奏:每个自然年放了几幕事件 */
   eventsYearly: Map<number, number[]>;
   npcStats: Map<string, { active: number; completed: number; special: number; stages: Map<string, number> }>;
@@ -521,6 +556,7 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
     byCareer: new Map(),
     stateYearly: new Map(),
     abandonReasons: new Map(),
+    institutionPicks: new Map(),
     eventsYearly: new Map(),
     npcStats: new Map(),
   };
@@ -604,6 +640,9 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
       const arr = stats.stateYearly.get(year) ?? [];
       arr.push(state);
       stats.stateYearly.set(year, arr);
+    }
+    for (const id of result.institutionsPicked) {
+      stats.institutionPicks.set(id, (stats.institutionPicks.get(id) ?? 0) + 1);
     }
     for (const [year, count] of result.eventsPerYear) {
       const arr = stats.eventsYearly.get(year) ?? [];
@@ -708,6 +747,21 @@ function printBatch(s: BatchStats): void {
     console.log(`每年事件数中位数: ${line}`);
   }
 
+  // **每所院校被选中率**(TECH 里程碑门禁)。清单里有 27 所但实际只有 3 所可达 = 这份数据白做。
+  if (s.institutionPicks.size > 0) {
+    const total = s.runs;
+    const rows = (contentPack.institutions ?? []).map(inst => ({
+      name: inst.name,
+      rate: (s.institutionPicks.get(inst.id) ?? 0) / total,
+    }));
+    const cold = rows.filter(r => r.rate < 0.005);
+    console.log(
+      `院校被投递率: 最高 ${(Math.max(...rows.map(r => r.rate)) * 100).toFixed(1)}% · ` +
+        `最低 ${(Math.min(...rows.map(r => r.rate)) * 100).toFixed(2)}%` +
+        (cold.length > 0 ? ` · ⚠️ 低于 0.5% 的 ${cold.length} 所: ${cold.map(r => r.name).join('、')}` : ''),
+    );
+  }
+
   if (s.abandonReasons.size > 0) {
     const total = [...s.abandonReasons.values()].reduce((a, b) => a + b, 0);
     const line = [...s.abandonReasons.entries()]
@@ -723,6 +777,24 @@ function printBatch(s: BatchStats): void {
 // 分布类门禁(结局占比、提前结局、NPC 收官率)仍只看主队列,基线不受影响。
 function runCheck(s: BatchStats, extra?: BatchStats): void {
   const failures: string[] = [];
+  // **每所院校被选中率 ≥0.5%**(M3.5 里程碑门禁)。
+  // 清单里有 27 所但实际只有 3 所可达 = 这份数据白做了,而且没有任何别的检查会发现——
+  // validate 只看数据完整性,它不知道玩家实际能不能走到。
+  {
+    const picks = new Map<string, number>();
+    for (const [id, n] of s.institutionPicks) picks.set(id, n);
+    for (const [id, n] of extra?.institutionPicks ?? []) picks.set(id, (picks.get(id) ?? 0) + n);
+    const total = s.runs + (extra?.runs ?? 0);
+    const cold = (contentPack.institutions ?? []).filter(
+      inst => (picks.get(inst.id) ?? 0) / total < 0.005,
+    );
+    if (total > 0 && picks.size > 0 && cold.length > 0) {
+      failures.push(
+        `院校被投递率过低(<0.5%): ${cold.map(i => i.name).join('、')}` +
+          '——清单里有但走不到的院校等于没写',
+      );
+    }
+  }
   const seenEvents = new Set([...s.eventsSeen, ...(extra?.eventsSeen ?? [])]);
   const reachedEndings = new Set([
     ...s.endingCounts.keys(),

@@ -73,6 +73,110 @@ interface Case {
 }
 
 const CASES: Case[] = [
+  // ── 真实素材层(M3.5,规则 9–15)──────────────────────────────
+  //
+  // 这七条守的是**内容真实性**,它们能拦住的错误都不会崩、不会红、玩家也不会立刻发现,
+  // 但发布出去伤的是真实的人或真实的文献。**所以它们比别的规则更需要反例证明自己活着。**
+  {
+    rule: '规则 9:引用没核对就进构建',
+    break: pack => {
+      const cit = pack.citations?.[0];
+      if (!cit) throw new Error('引用池是空的,反例夹具需要更新');
+      cit.verified = false;
+    },
+    expect: '引用未核对',
+  },
+  {
+    rule: '规则 9:引用在 LEDGER.md 里没有条目',
+    break: pack => {
+      const cit = pack.citations?.[0];
+      if (!cit) throw new Error('引用池是空的');
+      cit.id = 'cit_not_in_ledger';
+    },
+    expect: '没有核对条目',
+  },
+  {
+    rule: '规则 10:正文出现真实研究者姓名',
+    break: pack => {
+      const ev = pack.events[0];
+      if (!ev) throw new Error('事件池是空的');
+      ev.text = `${ev.text}\n\n那天 Wagenmakers 在推特上说了一句话。`;
+    },
+    expect: '正文出现真实研究者姓名',
+  },
+  {
+    rule: '规则 10:白名单人名被当成人物(书名可以,让作者开口不行)',
+    break: pack => {
+      const ev = pack.events[0];
+      if (!ev) throw new Error('事件池是空的');
+      ev.text = `${ev.text}\n\n张厚粲说你这个设计有问题。`;
+    },
+    expect: '被当成人物使用',
+  },
+  {
+    rule: '规则 11:导师姓名命中真实人名',
+    break: pack => {
+      const adv = pack.advisors?.[0];
+      if (!adv) throw new Error('导师表是空的');
+      adv.name = 'Wagenmakers';
+    },
+    expect: '导师姓名命中真实人名',
+  },
+  {
+    rule: '规则 11:导师挂在不存在的机构上',
+    break: pack => {
+      const adv = pack.advisors?.[0];
+      if (!adv) throw new Error('导师表是空的');
+      adv.institutionId = 'inst_nowhere';
+    },
+    expect: 'institutionId 指向不存在的机构',
+  },
+  {
+    rule: '规则 12:游戏化条款声明被删掉',
+    break: pack => {
+      pack.gameifiedTermsNotice = '   ';
+    },
+    expect: '没有 gameifiedTermsNotice',
+  },
+  {
+    rule: '规则 13:有 GRAD_APPLY 步骤却没写 gradApplyKind',
+    break: pack => {
+      const phase = pack.timeline.find(p => p.kind === 'flow' && p.steps.includes('GRAD_APPLY'));
+      if (phase?.kind !== 'flow') throw new Error('没有 GRAD_APPLY 阶段');
+      delete phase.gradApplyKind;
+    },
+    expect: '没写 gradApplyKind',
+  },
+  {
+    rule: '规则 14:机构的 domain 不在注册表里',
+    break: pack => {
+      const inst = pack.institutions?.[0];
+      if (!inst) throw new Error('院校表是空的');
+      inst.domains = ['domain_typo'];
+    },
+    expect: 'domain 不在注册表里',
+  },
+  {
+    rule: '规则 14:职位挂在不存在的机构上',
+    break: pack => {
+      const pos = pack.positions?.[0];
+      if (!pos) throw new Error('职位表是空的');
+      pos.institutionId = 'inst_nowhere';
+    },
+    expect: '指向不存在的机构',
+  },
+  {
+    rule: '规则 15:某种申请的可选院校不足 8 所',
+    break: pack => {
+      for (const inst of pack.institutions ?? []) {
+        inst.admits = inst.admits.filter(k => k !== 'master');
+      }
+      const keep = (pack.institutions ?? []).slice(0, 3);
+      for (const inst of keep) inst.admits = [...inst.admits, 'master'];
+    },
+    expect: '清单选择退化成没得选',
+  },
+
   // ── 阶段路由(M1)────────────────────────────────────────────
   {
     rule: '非终局阶段漏写 nextPhaseId',

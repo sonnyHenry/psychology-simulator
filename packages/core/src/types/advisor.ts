@@ -17,6 +17,12 @@ import type { ProjectStage } from './project';
  * 所以 `archetype`(真实原型)**绝对不能出现在 ViewModel 里**。
  */
 export interface AdvisorDef {
+  /**
+   * 导师所属机构(GAME_DESIGN 19.2)。**虚构人名 + 真实建制**——
+   * 共鸣度几乎不损失,而把"边界感差"这类原型安在真实个体上的风险归零。
+   * validate 规则 11 要求它指向真实存在的 `Institution`。
+   */
+  institutionId?: string;
   id: string;
   /** 真实原型。**不进 ViewModel** */
   archetype: string;

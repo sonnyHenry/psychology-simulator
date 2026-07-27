@@ -1,4 +1,5 @@
 import type { ContentPack, ExamQuestion, PhaseConfig } from '../types/content';
+import type { GameifiedTerms, GradApplyKind } from '../types/institution';
 import type { Condition, Effect } from '../types/dsl';
 import type { GameState } from '../types/state';
 import type { PlayerAction, ViewModel } from '../types/view';
@@ -34,6 +35,7 @@ import {
   MAX_STARTUP_ADVANCES,
 } from '../systems/project';
 import { advisorDefOf, drawAdvisorOffer, joinAdvisor } from '../systems/advisor';
+import { admissionTierFor, institutionsFor, MAX_SHORTLIST, resolveAdmission } from '../systems/admission';
 import { readNumericFlag } from '../dsl/evaluate';
 
 export interface Engine {
@@ -153,6 +155,33 @@ export function createEngine(pack: ContentPack): Engine {
     const tier = CHANCE_TIERS.find(t => diff >= t.minDiff);
     if (!tier) throw new Error('unreachable: admission tier not found');
     return tier;
+  }
+
+  /** 当前阶段声明的申请种类。声明了 GRAD_APPLY 步骤就必须写(validate 规则 13) */
+  function gradApplyKindOf(state: GameState): GradApplyKind | undefined {
+    const phase = phaseAt(state.phaseIndex);
+    return phase.kind === 'flow' ? phase.gradApplyKind : undefined;
+  }
+
+  /**
+   * 把游戏化条款渲染成几行短句。
+   *
+   * **一律不出现精确金额**:启动经费写"30 万–150 万"这样的区间,
+   * 因为这些数字是游戏化近似,而精确值会被读成"这个学校就是给这么多"。
+   */
+  function describeTerms(inst: { gameified: GameifiedTerms }): string[] {
+    const g = inst.gameified;
+    const lines: string[] = [];
+    if (g.admissionQuota) lines.push(g.admissionQuota);
+    if (g.tenured) lines.push('有编制');
+    if (g.tenureYears) lines.push(`预聘期约 ${g.tenureYears} 年`);
+    if (g.tenureBar) lines.push(g.tenureBar);
+    if (g.startupFunds && g.startupFunds[1] > 0) {
+      lines.push(`启动经费 ${Math.round(g.startupFunds[0] / 10000)} 万–${Math.round(g.startupFunds[1] / 10000)} 万`);
+    }
+    if (g.teachingLoad) lines.push(g.teachingLoad);
+    if (g.housing) lines.push(g.housing);
+    return lines;
   }
 
   /**
@@ -303,6 +332,27 @@ export function createEngine(pack: ContentPack): Engine {
           kind: 'LIFE_GOAL',
           goals: pack.lifeGoals.map(goal => ({ id: goal.id, label: goal.label, text: goal.text })),
         };
+      case 'GRAD_APPLY': {
+        const kind = gradApplyKindOf(state) ?? 'master';
+        return {
+          kind: 'GRAD_APPLY',
+          year: state.date.year,
+          applyKind: kind,
+          notice: pack.gameifiedTermsNotice ?? '',
+          maxPicks: MAX_SHORTLIST,
+          options: institutionsFor(pack, kind).map(inst => ({
+            id: inst.id,
+            name: inst.name,
+            unit: inst.unit,
+            ...(inst.lab ? { lab: inst.lab } : {}),
+            city: inst.city,
+            impression: inst.impression,
+            matchedDomains: inst.domains.filter(d => Boolean(state.flags[d])),
+            terms: describeTerms(inst),
+            chanceLabel: admissionTierFor(state, inst, kind).label,
+          })),
+        };
+      }
       case 'CROSSROAD': {
         const group = crossroadGroup(state);
         const rng = new Rng(state.rngState);
@@ -670,6 +720,17 @@ export function createEngine(pack: ContentPack): Engine {
       case 'CROSSROAD':
         state.screen = 'CROSSROAD';
         break;
+      case 'GRAD_APPLY': {
+        const kind = gradApplyKindOf(state);
+        // 清单为空(内容还没给这一种申请配院校)就直接跳过,不要卡住玩家
+        if (!kind || institutionsFor(pack, kind).length === 0) {
+          nextStep(state, rng);
+          return;
+        }
+        state.gradApplication = { kind, shortlist: [], outcomes: {}, landed: null };
+        state.screen = 'GRAD_APPLY';
+        break;
+      }
       case 'ADVISOR_DRAW': {
         state.advisorOffer = drawAdvisorOffer(state, pack, rng, ADVISOR_OFFER_COUNT);
         if (state.advisorOffer.length === 0) {
@@ -1248,6 +1309,24 @@ export function createEngine(pack: ContentPack): Engine {
         if (action.type !== 'CHOOSE_CROSSROAD') invalid(state, action);
         handleCrossroad(state, rng, action.optionId);
         return;
+      case 'GRAD_APPLY': {
+        if (action.type !== 'APPLY_GRAD') invalid(state, action);
+        const kind = gradApplyKindOf(state);
+        if (!kind) invalid(state, action);
+        const listed = new Set(institutionsFor(pack, kind).map(i => i.id));
+        const picks = [...new Set(action.institutionIds)].filter(id => listed.has(id));
+        if (picks.length === 0 || picks.length > MAX_SHORTLIST) {
+          throw new Error(`APPLY_GRAD needs 1-${MAX_SHORTLIST} listed institutions`);
+        }
+        const result = resolveAdmission(state, pack, kind, picks, rng);
+        state.gradApplication = { kind, shortlist: picks, outcomes: result.outcomes, landed: result.landed };
+        state.admissions = { ...(state.admissions ?? {}), [kind]: result.landed };
+        // 去向写成 flag,内容侧就能直接门控("你在北师大"这件事要能被事件读到)
+        if (result.landed) state.flags[`admitted_${result.landed}`] = true;
+        else state.flags.admission_shutout = true;
+        nextStep(state, rng);
+        return;
+      }
       case 'ADVISOR_DRAW': {
         if (action.type !== 'JOIN_ADVISOR') invalid(state, action);
         if (!(state.advisorOffer ?? []).includes(action.advisorId)) {

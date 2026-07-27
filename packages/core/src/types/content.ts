@@ -1,3 +1,4 @@
+import type { Citation, Foundation, GradApplyKind, Institution, Position } from './institution';
 import type { Condition, Effect } from './dsl';
 import type { AdvisorDef } from './advisor';
 import type { ProjectStage, ProjectTemplate } from './project';
@@ -87,15 +88,23 @@ export type StepScreen =
   | 'CROSSROAD'
   | 'ALLOCATION'
   | 'ADVISOR_DRAW'
-  | 'PROJECT_BOARD';
+  | 'PROJECT_BOARD'
+  // 读研/读博/博后的真实院校清单选择。**一屏三用**,靠阶段声明的 kind 区分
+  | 'GRAD_APPLY';
 
 export type PhaseConfig =
   | {
       kind: 'flow';
       id: string;
       label: string;
-      date: GameDate;
+      /** 省略 = 沿用当前日期。理由同 rounds 分支:被多个入口共用的阶段不能写死年份 */
+      date?: GameDate;
       steps: StepScreen[];
+      /**
+       * 本阶段的 `GRAD_APPLY` 屏按哪一种申请来。**一屏三用就是靠这个字段。**
+       * 声明了 `GRAD_APPLY` 步骤就必须写(validate 规则 13)。
+       */
+      gradApplyKind?: GradApplyKind;
       /** 显式指定下一阶段。见 rounds 分支下的说明——两种阶段都强制要求写。 */
       nextPhaseId?: string;
     }
@@ -373,6 +382,17 @@ export interface ContentPack {
   courses?: Course[];
   projectTemplates?: ProjectTemplate[];
   advisors?: AdvisorDef[];
+  /** 真实素材层(M3.5)。院校/职位/文献是**数据源**,不是事件——由申请屏和事件引用 */
+  institutions?: Institution[];
+  positions?: Position[];
+  citations?: Citation[];
+  foundations?: Foundation[];
+  /** `GRAD_APPLY` 顶部的游戏化声明。**validate 规则 12 要求非空** */
+  gameifiedTermsNotice?: string;
+  /** 真实研究者姓名黑名单(规则 10):正文与人物定义里一律不许出现 */
+  researcherNameBlocklist?: string[];
+  /** 著作署名白名单:可以在正文里当书名用,但不许当人物 */
+  textbookAuthorAllowlist?: string[];
   allocationItems?: AllocationItem[];
   crossroadOptions?: CrossroadOption[];
   backgrounds: BackgroundCard[];

@@ -1,6 +1,7 @@
 import { contentPack } from '@psy-sim/content';
 import { StatsBar } from './components/StatsBar';
 import { AllocationScreen } from './screens/Allocation';
+import { GradApplyScreen } from './screens/GradApply';
 import {
   AdvisorDrawScreen,
   ApplicationScreen,
@@ -55,6 +56,9 @@ export default function App() {
               return <LifeGoalScreen view={view} act={act} />;
             case 'CROSSROAD':
               return <CrossroadScreen view={view} act={act} />;
+            case 'GRAD_APPLY':
+              // key 用阶段年份:三次申请复用同一个组件,换屏时要清掉上一次的勾选
+              return <GradApplyScreen key={`${view.applyKind}-${view.year}`} view={view} act={act} />;
             case 'ADVISOR_DRAW':
               return <AdvisorDrawScreen view={view} act={act} />;
             case 'PROJECT_BOARD':

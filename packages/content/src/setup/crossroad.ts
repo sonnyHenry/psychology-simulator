@@ -79,7 +79,7 @@ export const crossroadOptions: CrossroadOption[] = [
       { setFlag: 'path_phd_direct' },
       { setCareer: 'phd_direct' },
       { stats: { capital: 6, method: 3, state: -4 } },
-      { jumpToPhase: 'phd_direct' },
+      { jumpToPhase: 'apply_phd_direct' },
     ],
   },
   {
@@ -100,7 +100,7 @@ export const crossroadOptions: CrossroadOption[] = [
       { setFlag: 'path_master' },
       { setCareer: 'master' },
       { stats: { capital: 3, method: 2, state: -2 } },
-      { jumpToPhase: 'master' },
+      { jumpToPhase: 'apply_master' },
     ],
   },
   {
@@ -125,7 +125,7 @@ export const crossroadOptions: CrossroadOption[] = [
       { setFlag: 'overseas' },
       { setCareer: 'overseas_phd' },
       { stats: { capital: 5, method: 4, state: -6 } },
-      { jumpToPhase: 'overseas_phd' },
+      { jumpToPhase: 'apply_abroad' },
     ],
   },
   {
@@ -224,7 +224,7 @@ export const masterCrossroadOptions: CrossroadOption[] = [
       { setFlag: 'path_phd_after_master' },
       { setCareer: 'phd' },
       { stats: { capital: 4, state: -3 } },
-      { jumpToPhase: 'phd_after_master' },
+      { jumpToPhase: 'apply_phd' },
     ],
   },
   {

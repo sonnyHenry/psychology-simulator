@@ -146,7 +146,8 @@ export const crossroadOptions: CrossroadOption[] = [
       { setFlag: 'path_clinical' },
       { setCareer: 'clinical' },
       { stats: { clinical: 6, state: -2 } },
-      { jumpToPhase: 'clinical' },
+      // 专硕也要投申请:与学硕同一张院校表(一屏四用),门槛平移用 master 档
+      { jumpToPhase: 'apply_clinical' },
     ],
   },
   {
@@ -254,10 +255,12 @@ export const masterCrossroadOptions: CrossroadOption[] = [
     },
     hint: '需要临床底子',
     effects: [
+      { setFlag: 'track_clinical' },
       { setFlag: 'path_clinical' },
       { setCareer: 'clinical' },
       { stats: { clinical: 6, state: -1 } },
-      { jumpToPhase: 'clinical' },
+      // 学硕转临床不再读一个专硕:直接进执业阶段,从机构挂靠开始攒小时数
+      { jumpToPhase: 'clinical_practice' },
     ],
   },
   {

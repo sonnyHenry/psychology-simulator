@@ -15,6 +15,11 @@ import { positions } from './institutions/positions';
 import { citations, foundations } from './citations';
 import { researcherNameBlocklist, textbookAuthorAllowlist } from './citations/namelist';
 import { gradAllocationItems } from './setup/grad-allocation';
+import { clinicalAllocationItems } from './setup/clinical-allocation';
+import { caseTemplates } from './cases';
+import { caseStageEvents } from './events/clinical/cases';
+import { clinicalEvents } from './events/clinical';
+import { incomes } from './economy/incomes';
 import { courseExamBank } from './courses/exams';
 import { npcs } from './npcs';
 import { year1Events } from './events/undergrad/year1';
@@ -43,7 +48,7 @@ import { endings } from './endings';
 export const contentPack: ContentPack = {
   meta: {
     id: 'psy-sim-2014',
-    version: '0.3.0',
+    version: '0.4.0',
     title: '心理学模拟器',
     fallbackEndingId: 'end_m2_fallback',
     examQuestionCount: 6,
@@ -69,14 +74,17 @@ export const contentPack: ContentPack = {
     ...gradEvents,
     ...projectStageEvents,
     ...foundationEvents,
+    ...clinicalEvents,
+    ...caseStageEvents,
   ],
-  incomes: [],
+  incomes,
   endings,
   examBank,
   courseExamBank,
   courses,
   projectTemplates,
-  allocationItems: [...allocationItems, ...gradAllocationItems],
+  caseTemplates,
+  allocationItems: [...allocationItems, ...gradAllocationItems, ...clinicalAllocationItems],
   crossroadOptions: [...crossroadOptions, ...masterCrossroadOptions],
   advisors,
   institutions,

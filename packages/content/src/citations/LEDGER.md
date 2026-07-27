@@ -51,6 +51,21 @@
 | `cit_cepeda_2006` | Cepeda et al. (2006), Psychological Bulletin | Claude | 2026-07-27 | ☐ |
 | `cit_carney_2010` | Carney, Cuddy & Yap (2010), Psychological Science | Claude | 2026-07-27 | ☐ |
 | `cit_ranehill_2015` | Ranehill et al. (2015), Psychological Science | Claude | 2026-07-27 | ☐ |
+| `cit_bordin_1979` | Bordin (1979), Psychotherapy: Theory, Research & Practice | Claude | 2026-07-28 | ☐ |
+| `cit_cps_ethics_2018` | 中国心理学会《临床与咨询心理学工作伦理守则(第二版)》(2018) | Claude | 2026-07-28 | ☐ |
+| `cit_mental_health_law_2013` | 《中华人民共和国精神卫生法》(2013 年施行) | Claude | 2026-07-28 | ☐ |
+
+## M4 追加的三条:临床线的两块地基
+
+**`cit_bordin_1979` 是 `alliance` 变量的理论出处。** GAME_DESIGN 19.3 明确要求:
+"机制不是凭空设计的,这一点应该在游戏里被一个督导事件点出来"——那个事件是
+`ev_cs2_bordin`(督导在白板上写下任务/目标/纽带)。**事件文案不写姓氏**
+(引用池作者自动进人名黑名单),只写"1979 年就有人把它拆开了"。
+
+**后两条是制度文献,不是实证文献。** 初核口径相应调整:核对的是**颁布主体、
+年份、关键条款的方向**(伦理守则第二版 2018 年发布;精神卫生法 2013 年 5 月施行,
+其中"心理咨询人员不得从事心理治疗或者精神障碍的诊断、治疗"是临床线
+"咨询师不下诊断"这批文案的法律依据)。同样只写方向,不引条文原文。
 
 ## 加一条文献的流程
 

@@ -176,6 +176,23 @@ export type ViewModel =
        * 一个玩家看不见的状态字段和一个 flag 没有区别。
        */
       projects: { title: string; stage: string; yearsSpent: number; isThesis: boolean }[];
+      /**
+       * 手上的个案,一行一个(M4)。**联盟的数值不进 ViewModel**——
+       * 玩家看到的是走向("在变好 / 在变僵"),不是一个可以优化的数字。
+       * 把关系变成进度条,恰好毁掉这个机制想说的事。
+       */
+      cases: {
+        label: string;
+        status: string;
+        sessions: number;
+        /** 'warm' | 'strained' | null(今年没掷过) */
+        trend: string | null;
+        /** 脱落发生在第几次会谈,仅 dropped 时有 */
+        droppedAtSession: number | null;
+      }[];
+      /** 注册系统的两个累积量。临床线的年度回顾要能看到它们在涨 */
+      clinicalHours: number;
+      supervisionHours: number;
     }
   | {
       kind: 'ENDING';
@@ -200,6 +217,19 @@ export type ViewModel =
       }[];
       /** 做废的课题。跟论文清单一样重要——做废是这个职业最普遍的经验 */
       abandonedProjects: { title: string; stage: string; yearsSpent: number }[];
+      /**
+       * **你的来访者们。** 结局页三份清单里的第三份(GAME_DESIGN 十八节)。
+       * 脱落的写"他在第 N 次之后没有再来";结束的写"你不知道后来怎么样了,
+       * 咨询结束后就不该知道了"——这句由 UI 层写,数据只给事实。
+       */
+      cases: {
+        label: string;
+        presentingIssue: string;
+        status: string;
+        sessions: number;
+        startedYear: number;
+        droppedAtSession: number | null;
+      }[];
       /** 历年年末金钱快照,供结局页/分享图做趋势展示 */
       moneyTrend: { year: number; money: number }[];
       /** 本局真正完成的 NPC 关系收束,由核心层统一解释内部 flags。 */

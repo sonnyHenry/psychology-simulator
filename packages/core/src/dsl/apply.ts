@@ -4,6 +4,7 @@ import type { GameState } from '../types/state';
 import type { StatDeltas, StatKey } from '../types/stats';
 import { readNumericFlag } from './evaluate';
 import { applyProjectOp } from '../systems/project';
+import { applyCaseOp } from '../systems/case';
 import { changeAdvisorFavor, setAdvisorStage } from '../systems/advisor';
 
 function clampStat(key: StatKey, value: number): number {
@@ -46,6 +47,8 @@ export function applyEffects(effects: Effect[], state: GameState, pack: ContentP
       state.flags[key] = Math.max(min, Math.min(max, next));
     } else if ('project' in effect) {
       applyProjectOp(state, pack, effect.project);
+    } else if ('case' in effect) {
+      applyCaseOp(state, pack, effect.case);
     } else if ('advisorFavor' in effect) {
       changeAdvisorFavor(state, effect.advisorFavor);
     } else if ('advisorStage' in effect) {

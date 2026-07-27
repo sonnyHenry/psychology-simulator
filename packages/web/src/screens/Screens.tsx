@@ -408,6 +408,17 @@ const STAGE_LABEL: Record<string, string> = {
   abandoned: '放弃了',
 };
 
+/** 个案状态的中文名。措辞是行话:脱落不是"流失",结束不是"痊愈" */
+const CASE_STATUS_LABEL: Record<string, string> = {
+  intake: '初始访谈',
+  working: '工作期',
+  plateau: '停滞',
+  terminating: '结束期',
+  dropped: '脱落',
+  completed: '结束',
+  referred: '转介',
+};
+
 export function SettlementScreen(props: { view: Of<'SETTLEMENT'>; act: Act }) {
   const { view, act } = props;
   return (
@@ -443,6 +454,35 @@ export function SettlementScreen(props: { view: Of<'SETTLEMENT'>; act: Act }) {
               </span>
             </div>
           ))}
+        </div>
+      )}
+
+      {view.cases.length > 0 && (
+        <div className="review-block">
+          <div className="review-label">个案</div>
+          {view.cases
+            .filter(kase => kase.status !== 'completed' && kase.status !== 'referred')
+            .map((kase, i) => (
+              <div key={i} className="review-row">
+                <span>「{kase.label}」</span>
+                <span className="review-value">
+                  {kase.status === 'dropped'
+                    ? `脱落(第 ${kase.droppedAtSession ?? kase.sessions} 次)`
+                    : (CASE_STATUS_LABEL[kase.status] ?? kase.status) +
+                      // 联盟数值刻意不给,只给走向——把关系变成进度条,机制就毁了
+                      (kase.trend === 'warm' ? ' · 在变好' : kase.trend === 'strained' ? ' · 有点僵' : '')}
+                </span>
+              </div>
+            ))}
+          {view.clinicalHours > 0 && (
+            <div className="review-row">
+              <span>注册小时数</span>
+              <span className="review-value">
+                {view.clinicalHours}
+                {view.supervisionHours > 0 && ` · 督导 ${view.supervisionHours}`}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
@@ -537,6 +577,27 @@ export function EndingScreen(props: { view: Of<'ENDING'>; onRestart: () => void 
               <span className="review-value">{project.yearsSpent} 年</span>
             </div>
           ))}
+        </div>
+      )}
+      {view.cases.length > 0 && (
+        <div className="review-block">
+          <div className="review-label">你的来访者们</div>
+          {view.cases.map((kase, i) => (
+            <div key={i} className="review-row">
+              <span>「{kase.label}」</span>
+              <span className="review-value">
+                {kase.status === 'dropped'
+                  ? `在第 ${kase.droppedAtSession ?? kase.sessions} 次之后没有再来`
+                  : kase.status === 'completed'
+                    ? `${kase.sessions} 次 · 好好告别了`
+                    : kase.status === 'referred'
+                      ? '转介给了更合适的人'
+                      : '还在谈'}
+              </span>
+            </div>
+          ))}
+          {/* 后来怎么样了?**你不知道。咨询结束之后就不该知道了。** */}
+          <p className="hint">他们后来怎么样了,你多数不知道。咨询结束之后,就不该知道了。</p>
         </div>
       )}
       <MoneyTrend trend={view.moneyTrend} />

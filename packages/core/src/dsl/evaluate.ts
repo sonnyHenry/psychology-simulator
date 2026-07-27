@@ -3,6 +3,7 @@ import type { ContentPack } from '../types/content';
 import type { GameState } from '../types/state';
 import type { Rng } from '../rng/rng';
 import { countPapers, countProjects, resolveTarget } from '../systems/project';
+import { countCases, resolveCaseTarget } from '../systems/case';
 
 export interface EvalCtx {
   state: GameState;
@@ -81,6 +82,14 @@ export function evalCondition(cond: Condition | undefined, ctx: EvalCtx): boolea
   if ('projectRoll' in cond) {
     // 读当前事件绑定的那个课题的掷骰结果。没有绑定或没掷过 = 不匹配。
     return resolveTarget(state)?.lastRoll === cond.projectRoll;
+  }
+  if ('caseCount' in cond) {
+    const { op, value, ...query } = cond.caseCount;
+    return compare(countCases(state, query), op, value);
+  }
+  if ('caseTrend' in cond) {
+    // 读当前事件绑定的那个个案的联盟走向。没有绑定或没掷过 = 不匹配。
+    return resolveCaseTarget(state)?.lastTrend === cond.caseTrend;
   }
   if ('advisor' in cond) {
     const advisor = state.advisor;

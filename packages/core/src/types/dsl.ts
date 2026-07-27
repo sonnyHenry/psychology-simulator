@@ -1,4 +1,5 @@
 import type { Authorship, PaperTier, ProjectOp, ProjectStage } from './project';
+import type { CaseOp, CaseStatus, ClinicalCase } from './case';
 import type { StatKey } from './stats';
 
 export type Op = '>' | '>=' | '<' | '<=' | '==';
@@ -44,6 +45,26 @@ export type Condition =
    * 内容用它把同一个阶段事件分流成"推进了"和"卡住了"两种文案。
    */
   | { projectRoll: 'ok' | 'setback' }
+  /**
+   * 个案计数。个案阶段事件与"手上有个案在谈"类门控靠它:
+   * `{ caseCount: { status: 'plateau', op: '>=', value: 1 } }` = 有个案正卡在停滞期。
+   */
+  | {
+      caseCount: {
+        status?: CaseStatus;
+        riskLevel?: ClinicalCase['riskLevel'];
+        /** true = 只数还在谈的(不含脱落/结束/转介) */
+        active?: boolean;
+        op: Op;
+        value: number;
+      };
+    }
+  /**
+   * 当前事件绑定个案的**联盟走向**(见 `ClinicalCase.lastTrend`)。
+   * 与 `{ projectRoll }` 同一纪律:走向由引擎掷,内容只分流文案,
+   * 所以"这段关系在变好还是变僵"这句话永远和数值一致。
+   */
+  | { caseTrend: 'warm' | 'strained' }
   /** 导师。`archetype` 是真实原型——内容可以读,但**它不进 ViewModel** */
   | { advisor: { archetype?: string; stage?: string; favor?: { op: Op; value: number } } }
   | { chance: number }
@@ -80,6 +101,8 @@ export type Effect =
   | { extendPhase: { rounds: number } }
   /** 课题操作:create / advance / regress / abandon / setField(见 types/project.ts) */
   | { project: ProjectOp }
+  /** 个案操作:open / setStatus / drop / complete / refer / adjustAlliance / setField(见 types/case.ts) */
+  | { case: CaseOp }
   | { advisorFavor: number }
   | { advisorStage: string }
   /** 抽导师:亮出 `count` 张候选,进 ADVISOR_DRAW 屏 */

@@ -10,6 +10,7 @@ import {
   stageSuccessChance,
 } from '../systems/project';
 import { pendingAdvisorEvent } from '../systems/advisor';
+import { activeCases, openNewCasesForYear, rollCaseTrends } from '../systems/case';
 
 // ---------- 导演式选择器(storyteller) ----------
 // 只调整非 mandatory 事件进入随机槽位的相对概率;强制/NPC/schedule 事件不受影响。
@@ -38,6 +39,14 @@ const MAX_NPC_STAGE_EVENTS_PER_ROUND = 1;
  * 在年度回顾页用一行交代("还卡在收数据")。
  */
 const MAX_PIPELINE_EVENTS_PER_ROUND = 3;
+/**
+ * 每轮最多弹出的**个案阶段**事件数(TECH 4.5 的 ②'')。
+ *
+ * 上限比课题低:个案事件几乎都是一场会谈的特写,一年里连看三场特写,
+ * 每一场的分量都会掉。没轮到事件的个案照常做静默结算——
+ * 会谈还在发生,只是这一年没有值得单独讲的一幕。
+ */
+const MAX_CASE_EVENTS_PER_ROUND = 2;
 
 const valenceCache = new WeakMap<GameEvent, number>();
 
@@ -140,8 +149,9 @@ export function pickRoundEvents(
 
   const ctx = { state, pack, rng };
   const isEligible = (ev: GameEvent): boolean => {
-    // 管线阶段事件由 ②' 单独挑,不进普通池
+    // 管线阶段事件由 ②' 单独挑、个案阶段事件由 ②'' 单独挑,都不进普通池
     if (ev.projectStage !== undefined) return false;
+    if (ev.caseStatus !== undefined) return false;
     if (!ev.pools.some(p => phase.pools.includes(p))) return false;
     if (ev.once !== false && state.triggeredEventIds.includes(ev.id)) return false;
     if (picked.includes(ev.id)) return false;
@@ -215,6 +225,43 @@ export function pickRoundEvents(
     state.eventProjects[chosen.id] = project.id;
     pipelineSlotsLeft -= 1;
   }
+
+  // ②'' 个案阶段事件(TECH 4.5)。不占 `eventSlots` 名额,每轮上限 2。
+  //
+  // 顺序:先开今年的新案(容量由"接个案"的格数决定)、再给每个活跃个案掷这一年的
+  // 联盟走向(**骰子先掷,再挑文案**,与课题同一纪律),然后按优先级挑事件:
+  // 初始访谈期最优先(首访那一幕不该被别的个案挤掉),高风险个案其次。
+  state.eventCases = {};
+  openNewCasesForYear(state, pack, rng);
+  rollCaseTrends(state, rng);
+  const caseRank = (status: string, risk: string): number =>
+    status === 'intake' ? 0 : risk === 'high' ? 1 : 2;
+  const caseOrder = [...activeCases(state)].sort(
+    (a, b) => caseRank(a.status, a.riskLevel) - caseRank(b.status, b.riskLevel),
+  );
+  let caseSlotsLeft = MAX_CASE_EVENTS_PER_ROUND;
+  const savedCaseBinding = state.currentCaseId;
+  for (const kase of caseOrder) {
+    if (caseSlotsLeft <= 0) break;
+    // trigger 里的 `{ caseTrend }` 要能解析到"正在挑事件的这个个案",所以求值前先绑定
+    state.currentCaseId = kase.id;
+    const candidates = pack.events.filter(ev => {
+      if (ev.caseStatus !== kase.status) return false;
+      if (picked.includes(ev.id)) return false;
+      if (ev.once !== false && state.triggeredEventIds.includes(ev.id)) return false;
+      // 同一个个案不重复放同一幕(与课题的 seenEventIds 同源:
+      // 两个个案各自有一次"他迟到了二十分钟"是真实的,同一个个案两次不是)
+      if (kase.seenEventIds?.includes(ev.id)) return false;
+      return evalCondition(ev.trigger, ctx);
+    });
+    if (candidates.length === 0) continue;
+    const chosen = rng.weightedPick(candidates, ev => ev.weight ?? 1);
+    picked.push(chosen.id);
+    kase.seenEventIds = [...(kase.seenEventIds ?? []), chosen.id];
+    state.eventCases[chosen.id] = kase.id;
+    caseSlotsLeft -= 1;
+  }
+  state.currentCaseId = savedCaseBinding;
 
   // ③' 导师关系阶段事件。每轮上限 1,复用 NPC 那套"当前阶段声明了 eventId 就播"的形状。
   const advisorEventId = pendingAdvisorEvent(state, pack, rng);

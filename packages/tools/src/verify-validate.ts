@@ -597,6 +597,56 @@ const CASES: Case[] = [
     },
     expect: '不得用 chance 分流',
   },
+  // ── 规则 2:个案状态图无死锁(M4)────────────────────────
+  {
+    rule: '个案某个非终态一个阶段事件都没有(规则 2)',
+    break: pack => {
+      // 把停滞期的事件全删掉:个案在这一站的整年只剩年度回顾页一行摘要——
+      // 正是课题那边"817 次伦理审查、0 次收数据"的个案版
+      pack.events = pack.events.filter(e => e.caseStatus !== 'plateau');
+    },
+    expect: '个案状态无内容',
+  },
+  {
+    rule: '阶段事件挂在了个案终态上(规则 2)',
+    break: pack => {
+      pack.events.push(stubEvent('ev_bad_case_terminal', { pools: [], caseStatus: 'dropped', once: false }));
+    },
+    expect: '挂在了终态',
+  },
+  {
+    rule: '阶段事件声明了不存在的个案状态(规则 2)',
+    break: pack => {
+      pack.events.push(
+        stubEvent('ev_bad_case_status', {
+          pools: [],
+          caseStatus: 'workng' as never,
+          once: false,
+        }),
+      );
+    },
+    expect: '不存在;拼错了?',
+  },
+  {
+    rule: 'caseCount 引用了不存在的个案状态(规则 2)',
+    break: pack => {
+      pack.events.push(
+        stubEvent('ev_bad_case_count', {
+          trigger: { caseCount: { status: 'droped' as never, op: '>=', value: 1 } },
+        }),
+      );
+    },
+    expect: 'caseCount 引用了不存在的个案状态',
+  },
+  {
+    rule: '个案模板的取向不在注册表内(规则 2)',
+    break: pack => {
+      const template = (pack.caseTemplates ?? [])[0];
+      if (!template) throw new Error('反例夹具需要更新:内容包里没有个案模板');
+      template.orientationFit = ['orientation_cbtt'];
+    },
+    expect: '不在注册表内',
+  },
 ];
 
 let failures = 0;

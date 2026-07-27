@@ -34,6 +34,7 @@ import {
   acceptanceChance,
   MAX_STARTUP_ADVANCES,
 } from '../systems/project';
+import { activeCases, settleCaseYear } from '../systems/case';
 import { advisorDefOf, drawAdvisorOffer, joinAdvisor } from '../systems/advisor';
 import { admissionTierFor, institutionsFor, MAX_SHORTLIST, resolveAdmission } from '../systems/admission';
 import { collapseEventId, collapsingProjects, foundationOf, pickFoundation } from '../systems/foundation';
@@ -107,6 +108,7 @@ export function createEngine(pack: ContentPack): Engine {
   function renderText(text: string, state: GameState): string {
     const partner = state.flags.player_gender === 'female' ? '他' : '她';
     const project = state.projects?.find(p => p.id === state.currentProjectId);
+    const kase = state.cases?.find(c => c.id === state.currentCaseId);
     const advisor = advisorDefOf(state, pack);
     // 管线阶段文案**一律参数化**(TECH 第九节 M7.5 的两条纪律之一)。
     // 事后补参数化的成本是当初就那么写的三到五倍——前作补了九轮变体池,那就是学费。
@@ -114,7 +116,12 @@ export function createEngine(pack: ContentPack): Engine {
       .replace(/\{\{ta\}\}/g, partner)
       .replace(/\{\{project\}\}/g, project?.title ?? '你的课题')
       .replace(/\{\{years\}\}/g, String((project?.yearsSpent ?? 0) + 1))
-      .replace(/\{\{advisor\}\}/g, advisor?.name ?? '你导师');
+      .replace(/\{\{advisor\}\}/g, advisor?.name ?? '你导师')
+      // 个案的三个占位符。`{{case}}` 是行话式短名(「拒学的高三男生」),
+      // `{{issue}}` 是主诉原话;`{{caseYears}}` 是这个个案谈到第几年
+      .replace(/\{\{case\}\}/g, kase?.label ?? '你的来访者')
+      .replace(/\{\{issue\}\}/g, kase?.presentingIssue ?? '他带来的那件事')
+      .replace(/\{\{caseYears\}\}/g, String(state.date.year - (kase?.startedYear ?? state.date.year) + 1));
   }
 
   const traitLabelById = new Map(pack.traits.map(t => [t.id, t.label]));
@@ -199,6 +206,15 @@ export function createEngine(pack: ContentPack): Engine {
     if (explicit) return explicit;
     if (!ev.projectStage) return undefined;
     const match = [...activeProjects(state)].reverse().find(p => p.stage === ev.projectStage);
+    return match?.id;
+  }
+
+  /** 这个事件在说哪个个案。逻辑与 `boundProjectId` 同源 */
+  function boundCaseId(state: GameState, ev: { id: string; caseStatus?: string }): string | undefined {
+    const explicit = state.eventCases?.[ev.id];
+    if (explicit) return explicit;
+    if (!ev.caseStatus) return undefined;
+    const match = [...activeCases(state)].reverse().find(c => c.status === ev.caseStatus);
     return match?.id;
   }
 
@@ -474,10 +490,18 @@ export function createEngine(pack: ContentPack): Engine {
         const ev = evId ? eventsById.get(evId) : undefined;
         if (!ev) throw new Error('EVENT screen without a current event');
         const rng = new Rng(state.rngState);
-        // `view()` 是纯函数,不能改 state。但 `{{project}}` 和 `visibleIf` 里的
-        // `{ projectRoll }` 都需要知道这个事件绑定的是哪个课题,所以在**投影用的副本**上绑定。
+        // `view()` 是纯函数,不能改 state。但 `{{project}}`/`{{case}}` 和 `visibleIf` 里的
+        // `{ projectRoll }`/`{ caseTrend }` 都需要知道这个事件绑定的对象,所以在**投影用的副本**上绑定。
         const bound = boundProjectId(state, ev);
-        const state2 = bound ? { ...state, currentProjectId: bound } : state;
+        const boundCase = boundCaseId(state, ev);
+        const state2 =
+          bound || boundCase
+            ? {
+                ...state,
+                ...(bound ? { currentProjectId: bound } : {}),
+                ...(boundCase ? { currentCaseId: boundCase } : {}),
+              }
+            : state;
         const ctx = { state: state2, pack, rng };
         const presentation = ev.presentationVariants?.find(variant =>
           evalCondition(variant.condition, ctx),
@@ -545,6 +569,16 @@ export function createEngine(pack: ContentPack): Engine {
             yearsSpent: project.yearsSpent,
             isThesis: Boolean(project.isThesis),
           })),
+          // **联盟数值刻意不投影。** 玩家看到的是走向,不是一个可优化的数字。
+          cases: (state.cases ?? []).map(kase => ({
+            label: kase.label,
+            status: kase.status,
+            sessions: kase.sessions,
+            trend: kase.lastTrend ?? null,
+            droppedAtSession: kase.droppedAtSession ?? null,
+          })),
+          clinicalHours: readNumericFlag(state.flags.clinical_hours),
+          supervisionHours: readNumericFlag(state.flags.supervision_hours),
         };
       case 'ENDING': {
         const ending = pack.endings.find(e => e.id === state.endingId);
@@ -598,6 +632,16 @@ export function createEngine(pack: ContentPack): Engine {
           abandonedProjects: (state.projects ?? [])
             .filter(p => p.stage === 'abandoned')
             .map(p => ({ title: p.title, stage: p.stage, yearsSpent: p.yearsSpent })),
+          // **你的来访者们**(结局页第三份清单)。数据只给事实,
+          // "你不知道后来怎么样了"那句由 UI 层写。
+          cases: (state.cases ?? []).map(kase => ({
+            label: kase.label,
+            presentingIssue: kase.presentingIssue,
+            status: kase.status,
+            sessions: kase.sessions,
+            startedYear: kase.startedYear,
+            droppedAtSession: kase.droppedAtSession ?? null,
+          })),
           moneyTrend: state.yearlySnapshots ?? [],
           relationships: relationshipDefinitions
             .filter(relationship => Boolean(state.flags[relationship.flag]))
@@ -968,6 +1012,9 @@ export function createEngine(pack: ContentPack): Engine {
   function enterSettlement(state: GameState, rng: Rng): void {
     const ctx = { state, pack, rng };
     settleProjectAdvances(state, rng);
+    // 个案的年度结算(会谈、联盟漂移兑现、脱落判定、状态机、小时数、案量的耗竭账)。
+    // 排在恢复判定之前:今年接的案量吃掉的是**今年**的恢复能力。
+    settleCaseYear(state, rng);
     settleAnnualRecovery(state);
     // 未终结的课题记一年。"第 3 年"这个数字是课题管线里最有分量的一个,
     // 因为它是玩家自己看着它一年一年涨上去的。
@@ -1140,9 +1187,10 @@ export function createEngine(pack: ContentPack): Engine {
     const evId = state.eventQueue[state.eventCursor];
     const ev = evId ? eventsById.get(evId) : undefined;
     if (!ev) throw new Error('CHOOSE without a current event');
-    // 管线阶段事件是替某个具体课题弹出来的。绑定要在求值**之前**设好:
-    // `{ projectRoll }` 条件和 `{{project}}` 文案都靠它找到"这个事件在说哪个课题"。
+    // 管线阶段事件是替某个具体课题/个案弹出来的。绑定要在求值**之前**设好:
+    // `{ projectRoll }`/`{ caseTrend }` 条件和 `{{project}}`/`{{case}}` 文案都靠它。
     state.currentProjectId = boundProjectId(state, ev);
+    state.currentCaseId = boundCaseId(state, ev);
     const ctx = { state, pack, rng };
     const choice = ev.choices.find(
       c => c.id === choiceId && evalCondition(c.visibleIf, ctx),

@@ -20,6 +20,15 @@ import {
   admissionBar,
   resolveAdmission,
   tierForQuality,
+  applyCaseOp,
+  countCases,
+  dropoutChance,
+  rollCaseTrends,
+  settleCaseYear,
+  openNewCasesForYear,
+  MIN_DROPOUT_CHANCE,
+  ALLOC_CASEWORK_ID,
+  ALLOC_SUPERVISION_ID,
   MIN_SETBACK_CHANCE,
   MAX_REJECTIONS,
   NEGLECT_YEARS_TO_ABANDON,
@@ -2714,5 +2723,289 @@ describe('M3.6 地基塌方', () => {
     // **不是隐藏一个提示,是这条信息对别人根本不存在。**
     // 它给的只是一个当时就印在论文里的数字,不告诉你结论——要不要往下想是你的事。
     expect(boardHint(false)).toBeUndefined();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// M4 个案状态机(临床线骨架)
+// ─────────────────────────────────────────────────────────────
+
+function casePack(): ContentPack {
+  const pack = miniPack();
+  pack.caseTemplates = [
+    {
+      id: 'tpl_low',
+      label: '低风险个案',
+      presentingIssues: ['主诉一', '主诉二'],
+      riskLevel: 'low',
+      orientationFit: ['orientation_cbt'],
+    },
+    {
+      id: 'tpl_dyn',
+      label: '动力学顺手的个案',
+      presentingIssues: ['主诉甲'],
+      riskLevel: 'moderate',
+      orientationFit: ['orientation_dynamic'],
+    },
+    {
+      id: 'tpl_high',
+      label: '高风险个案',
+      presentingIssues: ['主诉危'],
+      riskLevel: 'high',
+      // 机构不会把高风险个案分给没有底子的新手
+      availableWhen: { stat: 'clinical', op: '>=', value: 55 },
+      orientationFit: ['orientation_cbt'],
+    },
+  ];
+  pack.events.push(
+    {
+      id: 'ev_case_w1',
+      pools: [],
+      caseStatus: 'working',
+      once: false,
+      title: '会谈',
+      text: '「{{case}}」',
+      choices: [
+        { id: 'ok', text: '好', outcomes: [{ weight: 1, text: '好', effects: [{ stats: { clinical: 1 } }] }] },
+      ],
+    },
+    {
+      id: 'ev_case_w2',
+      pools: [],
+      caseStatus: 'working',
+      once: false,
+      title: '会谈二',
+      text: '{{issue}}',
+      choices: [
+        { id: 'ok', text: '好', outcomes: [{ weight: 1, text: '好', effects: [{ stats: { clinical: 1 } }] }] },
+      ],
+    },
+    {
+      id: 'ev_case_w3',
+      pools: [],
+      caseStatus: 'working',
+      once: false,
+      title: '会谈三',
+      text: '第三幕',
+      choices: [
+        { id: 'ok', text: '好', outcomes: [{ weight: 1, text: '好', effects: [{ stats: { clinical: 1 } }] }] },
+      ],
+    },
+  );
+  return pack;
+}
+
+describe('M4 个案状态机', () => {
+  const pack = casePack();
+  const engine = createEngine(pack);
+
+  function fresh() {
+    const state = engine.start(4242);
+    state.date = { year: 2022, month: 7 };
+    state.stats.clinical = 50;
+    return state;
+  }
+
+  it('open 按模板初始化,主诉轮取,取向匹配分三档', () => {
+    const state = fresh();
+    // 没有取向:中性 55
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+    expect(state.cases?.[0]?.id).toBe('case_1');
+    expect(state.cases?.[0]?.status).toBe('intake');
+    expect(state.cases?.[0]?.presentingIssue).toBe('主诉一');
+    expect(state.cases?.[0]?.orientationMatch).toBe(55);
+
+    // 有取向且命中:72;有取向不命中:46。**不命中不是不能做,是慢**——匹配只进漂移公式。
+    state.flags.orientation_cbt = true;
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+    expect(state.cases?.[1]?.presentingIssue).toBe('主诉二');
+    expect(state.cases?.[1]?.orientationMatch).toBe(72);
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_dyn' });
+    expect(state.cases?.[2]?.orientationMatch).toBe(46);
+  });
+
+  it('caseCount 与 caseTrend 条件', () => {
+    const state = fresh();
+    const rng = new Rng(1);
+    const ctx = { state, pack, rng };
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_dyn' });
+    expect(countCases(state, { active: true })).toBe(2);
+    expect(evalCondition({ caseCount: { status: 'intake', op: '==', value: 2 } }, ctx)).toBe(true);
+    applyCaseOp(state, pack, { op: 'drop', target: 'case_2' });
+    expect(evalCondition({ caseCount: { status: 'dropped', op: '==', value: 1 } }, ctx)).toBe(true);
+    expect(countCases(state, { active: true })).toBe(1);
+
+    // caseTrend 读"当前事件绑定的那个个案"的走向
+    state.cases![0]!.lastTrend = 'strained';
+    state.currentCaseId = 'case_1';
+    expect(evalCondition({ caseTrend: 'strained' }, ctx)).toBe(true);
+    expect(evalCondition({ caseTrend: 'warm' }, ctx)).toBe(false);
+  });
+
+  it('drop 记下第几次会谈并打击状态;complete 是干净的好事', () => {
+    const state = fresh();
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+    state.cases![0]!.sessions = 8;
+    const stateBefore = state.stats.state;
+    applyCaseOp(state, pack, { op: 'drop' });
+    // **脱落打击状态**——螺旋的"回击"半环。第 8 次这个数字结局页还会用。
+    expect(state.cases![0]!.droppedAtSession).toBe(8);
+    expect(state.stats.state).toBe(stateBefore - 5);
+
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_dyn' });
+    const clinicalBefore = state.stats.clinical;
+    applyCaseOp(state, pack, { op: 'complete' });
+    expect(state.stats.clinical).toBe(clinicalBefore + 2);
+  });
+
+  it('脱落概率有下限;督导压脱落;低状态抬脱落(螺旋的下行半环)', () => {
+    const state = fresh();
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+    const kase = state.cases![0]!;
+    // 联盟满、有督导、状态很好——**他仍然可能不再来,而且你永远不会知道为什么**
+    kase.alliance = 100;
+    kase.supervised = true;
+    state.stats.state = 80;
+    expect(dropoutChance(state, kase)).toBe(MIN_DROPOUT_CHANCE);
+
+    kase.supervised = false;
+    const unsupervised = dropoutChance(state, kase);
+    kase.supervised = true;
+    expect(dropoutChance(state, kase)).toBeLessThanOrEqual(unsupervised);
+
+    // 状态跌破 40,脱落率 +0.10:状态低 → 脱落 → 状态更低。这个螺旋必须真的存在。
+    kase.alliance = 50;
+    kase.supervised = false;
+    state.stats.state = 60;
+    const okState = dropoutChance(state, kase);
+    state.stats.state = 30;
+    expect(dropoutChance(state, kase)).toBeCloseTo(okState + 0.1, 5);
+  });
+
+  it('年度结算:会谈长小时数(在脱落判定之前),督导长督导小时,案量记耗竭账', () => {
+    const state = fresh();
+    state.allocation = { slots: 3, picks: [ALLOC_CASEWORK_ID, ALLOC_CASEWORK_ID, ALLOC_SUPERVISION_ID] };
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_dyn' });
+    for (const kase of state.cases!) {
+      kase.status = 'working';
+      kase.alliance = 58;
+    }
+    rollCaseTrends(state, new Rng(9));
+    // 督导按年生效:本年有督导格,所有活跃个案都算在督导中
+    expect(state.cases!.every(c => c.supervised)).toBe(true);
+    settleCaseYear(state, new Rng(9));
+    // 会谈数在脱落判定**之前**入账(工作期 14 + 2 格投入 ×8 = 30/个案),
+    // 所以哪怕年底脱落,那些小时也是真实发生过的。
+    expect(state.flags.clinical_hours).toBe(60);
+    expect(state.flags.supervision_hours).toBe(20);
+    // 案量的耗竭账:2 个个案 = 2×4−2 = 6,督导一格 −3
+    expect(state.flags.burnout).toBe(3);
+  });
+
+  it('督导按年清零:去年做过督导不等于今年还在做', () => {
+    const state = fresh();
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+    state.cases![0]!.supervised = true;
+    state.allocation = { slots: 3, picks: [] };
+    rollCaseTrends(state, new Rng(3));
+    expect(state.cases![0]!.supervised).toBe(false);
+  });
+
+  it('状态机:工作期只会走向 结束期/停滞/脱落 之一,结束期一年后自然收束', () => {
+    // 脱落判定有随机性,所以按种子集合验证:所有落点都必须在合法集合里,
+    // 且"联盟高会谈够 → 结束期"这条主路真的会发生。
+    const landed = new Set<string>();
+    for (let seed = 1; seed <= 24; seed++) {
+      const state = fresh();
+      state.allocation = { slots: 3, picks: [ALLOC_CASEWORK_ID] };
+      applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+      const kase = state.cases![0]!;
+      kase.status = 'working';
+      kase.alliance = 80;
+      kase.sessions = 40;
+      settleCaseYear(state, new Rng(seed));
+      landed.add(kase.status);
+    }
+    expect([...landed].every(s => ['terminating', 'dropped'].includes(s))).toBe(true);
+    expect(landed.has('terminating')).toBe(true);
+
+    const finished = new Set<string>();
+    for (let seed = 1; seed <= 24; seed++) {
+      const state = fresh();
+      state.allocation = { slots: 3, picks: [] };
+      applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+      const kase = state.cases![0]!;
+      kase.status = 'terminating';
+      kase.alliance = 80;
+      kase.sessions = 50;
+      settleCaseYear(state, new Rng(seed));
+      finished.add(kase.status);
+    }
+    expect([...finished].every(s => ['completed', 'dropped'].includes(s))).toBe(true);
+    expect(finished.has('completed')).toBe(true);
+  });
+
+  it('开新案由"接个案"的格数决定容量,高风险模板有门槛', () => {
+    const state = fresh();
+    state.stats.clinical = 40; // 够不到 tpl_high 的门槛
+    state.allocation = { slots: 3, picks: [ALLOC_CASEWORK_ID] };
+    openNewCasesForYear(state, pack, new Rng(11));
+    // 一格 = 容量 2,每年最多补 2 个
+    expect(countCases(state, { active: true })).toBe(2);
+    expect(state.cases!.every(c => c.templateId !== 'tpl_high')).toBe(true);
+    // 容量满了就不再开
+    openNewCasesForYear(state, pack, new Rng(12));
+    expect(countCases(state, { active: true })).toBe(2);
+    // 不投入的年份不开新案
+    const idle = fresh();
+    idle.allocation = { slots: 3, picks: [] };
+    openNewCasesForYear(idle, pack, new Rng(11));
+    expect(idle.cases ?? []).toHaveLength(0);
+  });
+
+  it("调度器 ②'':按个案状态挑事件、绑定、按个案去重、每轮上限 2", () => {
+    const state = fresh();
+    const phase = pack.timeline[1];
+    if (phase?.kind !== 'rounds') throw new Error('fixture changed');
+    state.phaseIndex = 1;
+    state.allocation = { slots: 3, picks: [] };
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_low' });
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_dyn' });
+    applyCaseOp(state, pack, { op: 'open', templateId: 'tpl_high' });
+    for (const kase of state.cases!) kase.status = 'working';
+
+    const picked = pickRoundEvents(state, pack, new Rng(21), phase);
+    const caseEvents = picked.filter(id => id.startsWith('ev_case_w'));
+    // 三个个案也只放两幕:个案事件几乎都是一场会谈的特写,连看三场分量就掉了
+    expect(caseEvents).toHaveLength(2);
+    for (const id of caseEvents) {
+      const boundCase = state.eventCases?.[id];
+      expect(boundCase).toBeDefined();
+      const kase = state.cases!.find(c => c.id === boundCase);
+      expect(kase?.seenEventIds).toContain(id);
+    }
+    // 掷骰也发生了:每个活跃个案都有今年的走向
+    expect(state.cases!.every(c => c.lastTrend === 'warm' || c.lastTrend === 'strained')).toBe(true);
+
+    // 同一个个案不重复看同一幕(跨年去重记在个案上,不在全局)
+    const seenBefore = state.cases!.map(c => [...(c.seenEventIds ?? [])]);
+    const again = pickRoundEvents(state, pack, new Rng(22), phase);
+    for (const [index, kase] of state.cases!.entries()) {
+      for (const id of seenBefore[index]!) {
+        expect((kase.seenEventIds ?? []).filter(e => e === id)).toHaveLength(1);
+      }
+    }
+    void again;
+  });
+
+  it('个案阶段事件不进普通池:没有个案时它一个都不该出现', () => {
+    const state = fresh();
+    const phase = pack.timeline[1];
+    if (phase?.kind !== 'rounds') throw new Error('fixture changed');
+    state.phaseIndex = 1;
+    const picked = pickRoundEvents(state, pack, new Rng(5), phase);
+    expect(picked.some(id => id.startsWith('ev_case_w'))).toBe(false);
   });
 });

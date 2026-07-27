@@ -1,5 +1,6 @@
 import type { GradApplicationState, GradApplyKind } from './institution';
 import type { AdvisorState } from './advisor';
+import type { ClinicalCase } from './case';
 import type { Paper, Project } from './project';
 import type { Flags, StatDeltas, Stats, Track } from './stats';
 
@@ -118,6 +119,19 @@ export interface GameState {
   projects?: Project[];
   /** 已发表的论文。**结局页的招牌清单**,也是所有门槛判定的实质依据 */
   papers?: Paper[];
+  /**
+   * 个案列表(P5 的第三个使用者,临床线的骨架)。
+   * 与课题一样跨年存在;终结的个案(脱落/结束/转介)留在列表里——
+   * 结局页"你的来访者们"那份清单要用。旧存档没有此字段时按空数组处理。
+   */
+  cases?: ClinicalCase[];
+  /**
+   * 本回合"这个事件是替哪个个案弹出来的"。由调度器写,回合开始时重建。
+   * (与 `eventProjects` 同源:阶段事件必须知道自己在说哪个个案。)
+   */
+  eventCases?: Record<string, string>;
+  /** 当前正在处理的事件绑定的个案 id。`resolveChoice` 写,effects 读 */
+  currentCaseId?: string;
   /** 导师。大三或研一抽卡后写入 */
   advisor?: AdvisorState | null;
   /** 本次申请的状态。走完 GRAD_APPLY 后保留,内容侧用 `landed` 读去向 */

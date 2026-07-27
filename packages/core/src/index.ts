@@ -1,5 +1,6 @@
 export * from './types/stats';
 export * from './types/project';
+export * from './types/case';
 export * from './types/advisor';
 export * from './types/dsl';
 export * from './types/content';
@@ -41,6 +42,26 @@ export {
   resolveTarget,
   thesisOf,
 } from './systems/project';
+export {
+  activeCases,
+  allianceDrift,
+  applyCaseOp,
+  caseloadBurnoutDelta,
+  caseworkSlots,
+  countCases,
+  dropoutChance,
+  findCaseTemplate,
+  openNewCasesForYear,
+  orientationMatchFor,
+  resolveCaseTarget,
+  rollCaseTrends,
+  settleCaseYear,
+  supervisionSlots,
+  ALLOC_CASEWORK_ID,
+  ALLOC_PERSONAL_THERAPY_ID,
+  ALLOC_SUPERVISION_ID,
+  MIN_DROPOUT_CHANCE,
+} from './systems/case';
 export {
   allocationIdForCourse,
   coursesForYear,

@@ -175,6 +175,35 @@ export const citations: Citation[] = [
     gist: '在更大样本下重复高权力姿势研究,未能复现其激素与行为效应。',
     verified: true,
   },
+
+  // ── 临床线(M4)。**这些姓名会自动进入人名黑名单**,
+  //    所以事件文案里只写内容("1979 年就有人把它拆成三样"),不写姓氏。
+  {
+    id: 'cit_bordin_1979',
+    authors: 'Bordin',
+    year: 1979,
+    venue: 'Psychotherapy: Theory, Research & Practice',
+    gist: '提出跨流派的工作联盟概念,把它拆为任务、目标与纽带三个成分——`alliance` 变量的理论出处。',
+    verified: true,
+  },
+  {
+    id: 'cit_cps_ethics_2018',
+    // 署名用发布主体的全称:短名"中国心理学会"在正文里是正常用语(2017 那幕就有),
+    // 进了黑名单会误伤;全称不会出现在任何叙事文本里。
+    authors: '中国心理学会临床心理学注册工作委员会',
+    year: 2018,
+    venue: '《临床与咨询心理学工作伦理守则(第二版)》',
+    gist: '规定知情同意、保密及其突破情形、多重关系回避、专业胜任力边界等临床与咨询工作的伦理要求。',
+    verified: true,
+  },
+  {
+    id: 'cit_mental_health_law_2013',
+    authors: '全国人民代表大会常务委员会',
+    year: 2013,
+    venue: '《中华人民共和国精神卫生法》(2013 年 5 月 1 日施行)',
+    gist: '规定心理咨询人员不得从事心理治疗或者精神障碍的诊断、治疗——"咨询师不下诊断、没有处方权"的法律来源。',
+    verified: true,
+  },
 ];
 
 const byId = new Map(citations.map(c => [c.id, c]));

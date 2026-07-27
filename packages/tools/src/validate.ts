@@ -442,8 +442,9 @@ for (const event of contentPack.events) {
   );
   if (
     event.pools.length === 0 &&
-    // 管线阶段事件由调度器按课题当前阶段挑,不进普通池
+    // 管线阶段事件由调度器按课题当前阶段挑,不进普通池;个案阶段事件同理(②'')
     event.projectStage === undefined &&
+    event.caseStatus === undefined &&
     !isAdvisorStageEvent &&
     !scheduledEventIds.has(event.id) &&
     // 塌方事件由 `systems/foundation.ts` 在真实历史年份 schedule 进来,
@@ -799,8 +800,10 @@ for (const background of contentPack.backgrounds) {
  *
  * `retake_slots` 由课程的 `failed` effects 写入、由 `systems/allocation.ts` 的
  * `effectiveSlots` 读取——读的那一端在引擎里,内容侧扫不到。
+ * `clinical_hours` / `supervision_hours` 由 `systems/case.ts` 在年度结算里累积
+ * (会谈数与督导格数),内容侧只读——写的那一端在引擎里。
  */
-const ENGINE_HANDLED_NUMERIC_FLAGS = new Set(['retake_slots']);
+const ENGINE_HANDLED_NUMERIC_FLAGS = new Set(['retake_slots', 'clinical_hours', 'supervision_hours']);
 
 for (const [key, owners] of accumulatorWrites) {
   if (accumulatorReads.has(key) || ENGINE_HANDLED_NUMERIC_FLAGS.has(key)) continue;
@@ -936,6 +939,85 @@ for (const event of contentPack.events) {
     error(
       `事件 ${event.id} 声明的阶段 ${stage} 没有任何课题模板会经过;拼错了?`,
     );
+  }
+}
+
+// ---------- 规则 2:个案状态图无死锁(TECH 7.1) ----------
+//
+// 个案的状态机在**引擎**里(与课题相反,课题的序列在模板里),所以这里不查出口——
+// 引擎保证任何个案都会走到终态。会静默失效的是另外三样,和课题那边的教训一一对应:
+//
+// 1. **某个非终态一个阶段事件都没有** = 个案在那一站的整年没有故事,
+//    只剩年度回顾页一行摘要(对应"817 次伦理审查、0 次收数据")。
+// 2. **`caseStatus` 写了终态或拼错的状态** = 这个事件永远不会被调度器挑中,
+//    而且不报错(对应课题那条"读了没有模板会经过的阶段")。
+// 3. **取向 flag 拼错** = 那个取向的匹配加成永远不生效,个案只是"莫名慢"(规则 7 的同类)。
+{
+  const CASE_STATUSES = new Set(['intake', 'working', 'plateau', 'terminating', 'dropped', 'completed', 'referred']);
+  const CASE_TERMINAL = new Set(['dropped', 'completed', 'referred']);
+  const CASE_ACTIVE = ['intake', 'working', 'plateau', 'terminating'] as const;
+  const ORIENTATION_REGISTRY = new Set([
+    'orientation_cbt',
+    'orientation_dynamic',
+    'orientation_humanistic',
+    'orientation_integrative',
+  ]);
+
+  const templates = contentPack.caseTemplates ?? [];
+  checkUnique('caseTemplate', templates.map(t => t.id));
+  for (const template of templates) {
+    if (!template.label.trim()) error(`个案模板缺少 label: ${template.id}`);
+    if (template.presentingIssues.length === 0) {
+      error(`个案模板没有主诉候选: ${template.id}`);
+    }
+    for (const fit of template.orientationFit) {
+      if (!ORIENTATION_REGISTRY.has(fit)) {
+        error(`个案模板 ${template.id} 的取向 ${fit} 不在注册表内;拼错会让匹配加成永远不生效`);
+      }
+    }
+  }
+
+  // 内容里 setFlag 的取向也要对上注册表(引擎按 `orientation_` 前缀读它们)
+  for (const { owner, effects } of allEffectSources()) {
+    visitEffects(effects, effect => {
+      if ('setFlag' in effect && effect.setFlag.startsWith('orientation_') && !ORIENTATION_REGISTRY.has(effect.setFlag)) {
+        error(`取向 flag 不在注册表内: ${effect.setFlag}(${owner})`);
+      }
+    });
+  }
+
+  if (templates.length > 0) {
+    // 每个非终态至少一个阶段事件。个案不像课题分领域,所以只查全局覆盖。
+    for (const status of CASE_ACTIVE) {
+      const covered = contentPack.events.some(event => event.caseStatus === status);
+      if (!covered) {
+        error(
+          `个案状态无内容:状态 ${status} 一个阶段事件都没有` +
+            `(个案在这一站的整年只剩年度回顾页的一行摘要)`,
+        );
+      }
+    }
+  }
+
+  for (const event of contentPack.events) {
+    if (event.caseStatus === undefined) continue;
+    if (!CASE_STATUSES.has(event.caseStatus)) {
+      error(`事件 ${event.id} 声明的个案状态 ${event.caseStatus} 不存在;拼错了?`);
+    } else if (CASE_TERMINAL.has(event.caseStatus)) {
+      error(
+        `事件 ${event.id} 把阶段事件挂在了终态 ${event.caseStatus} 上` +
+          `(调度器只给还在谈的个案挑事件,这个事件永远不会出现)`,
+      );
+    }
+  }
+
+  // `{ caseCount: { status } }` 的状态引用也要合法——条件恒假连 simulate 都看不出异常
+  for (const { owner, condition } of allConditionSources()) {
+    visitCondition(condition, cond => {
+      if ('caseCount' in cond && cond.caseCount.status !== undefined && !CASE_STATUSES.has(cond.caseCount.status)) {
+        error(`caseCount 引用了不存在的个案状态 ${cond.caseCount.status}(${owner})`);
+      }
+    });
   }
 }
 

@@ -240,6 +240,9 @@ function botAction(
           // 均匀随机会让每个课题每年只分到三分之一格,于是所有课题都因无人问津而烂掉——
           // 那不是"随机玩家"的模型,那是"根本没在读研的人"的模型。
           if (item.id.startsWith('alloc_project_')) return 4;
+          // 同理,**接个案是咨询师的默认动作**:不接个案的年份,临床线什么都不发生
+          // (开案容量 = 2 × 接个案格数,见 systems/case.ts)。
+          if (item.id === 'alloc_casework') return 4;
           if (preferred[strategy].includes(item.category)) return 3;
           return 1;
         });
@@ -521,9 +524,26 @@ interface AcademicStats {
   paperSamples: number[];
 }
 
+/**
+ * 临床线专项统计(M4)。
+ *
+ * **脱落率的分母是"已终结的个案"**(脱落 + 自然结束 + 转介),不是全部个案——
+ * 一个还在谈的个案没有"结束方式"可言。TECH 7.2 的门禁区间 15%–40% 用的就是这个口径。
+ */
+interface ClinicalStats {
+  runs: number;
+  cases: number;
+  dropped: number;
+  completed: number;
+  referred: number;
+  activeAtEnd: number;
+  hoursSamples: number[];
+}
+
 interface BatchStats {
   strategy: Strategy;
   academic: AcademicStats;
+  clinical: ClinicalStats;
   runs: number;
   examSkill: number;
   endingCounts: Map<string, { title: string; count: number; moneySum: number; scoreSum: number }>;
@@ -571,6 +591,7 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
     eventsSeen: new Set(),
     totalRounds: 0,
     academic: { runs: 0, papers: 0, emptyLists: 0, withAbandoned: 0, paperSamples: [] },
+    clinical: { runs: 0, cases: 0, dropped: 0, completed: 0, referred: 0, activeAtEnd: 0, hoursSamples: [] },
     statSums: { method: 0, money: 0, state: 0, capital: 0, clinical: 0 },
     scoreSum: 0,
     moneySamples: [],
@@ -629,6 +650,20 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
           : (p.neglectedYears ?? 0) >= NEGLECT_YEARS_TO_ABANDON ? '烂在手里'
           : '做太久没写完 / 玩家主动放弃';
         stats.abandonReasons.set(why, (stats.abandonReasons.get(why) ?? 0) + 1);
+      }
+    }
+    // 临床线专项统计(M4)。分母只算走了临床线的对局。
+    if (fs.flags.track_clinical) {
+      stats.clinical.runs++;
+      stats.clinical.hoursSamples.push(
+        typeof fs.flags.clinical_hours === 'number' ? fs.flags.clinical_hours : 0,
+      );
+      for (const kase of fs.cases ?? []) {
+        stats.clinical.cases++;
+        if (kase.status === 'dropped') stats.clinical.dropped++;
+        else if (kase.status === 'completed') stats.clinical.completed++;
+        else if (kase.status === 'referred') stats.clinical.referred++;
+        else stats.clinical.activeAtEnd++;
       }
     }
     stats.scoreSum += result.endingScore;
@@ -730,6 +765,19 @@ function printBatch(s: BatchStats): void {
         ` (p10=${percentile(sorted, 10)} p50=${percentile(sorted, 50)} p90=${percentile(sorted, 90)})` +
         ` · 清单为空 ${((a.emptyLists / a.runs) * 100).toFixed(1)}%` +
         ` · 至少一个课题做废 ${((a.withAbandoned / a.runs) * 100).toFixed(1)}%`,
+    );
+  }
+
+  if (s.clinical.runs > 0) {
+    const c = s.clinical;
+    const terminal = c.dropped + c.completed + c.referred;
+    const hours = [...c.hoursSamples].sort((x, y) => x - y);
+    console.log(
+      `临床线 ${c.runs} 局:` +
+        ` 个案 ${(c.cases / c.runs).toFixed(1)} 个/局` +
+        ` · 脱落率 ${terminal > 0 ? ((c.dropped / terminal) * 100).toFixed(1) : '—'}%` +
+        `(结束 ${c.completed} · 脱落 ${c.dropped} · 转介 ${c.referred} · 局末仍在谈 ${c.activeAtEnd})` +
+        ` · 注册小时数 p50=${percentile(hours, 50)} p90=${percentile(hours, 90)}`,
     );
   }
 
@@ -961,6 +1009,25 @@ function runCheck(s: BatchStats, extra?: BatchStats): void {
         `至少一个课题做废的比例过低(<70%): ${(abandonRate * 100).toFixed(1)}%` +
           `——做废是这个职业最普遍的经验,不该是稀有事件`,
       );
+    }
+  }
+
+  // ── 临床线门禁(TECH 7.2:个案脱落率 15%–40%)────────────────────
+  //
+  // 上限和下限守的是两件不同的事:低于 15% 说明脱落被优化没了
+  // (而"来了就不会走"的咨询在真实世界里不存在);高于 40% 说明联盟机制在空转,
+  // 玩家做什么都留不住人。样本不足时不判——泊松噪声会把门禁变成抽签。
+  {
+    const c = s.clinical;
+    const terminal = c.dropped + c.completed + c.referred;
+    if (terminal >= 100) {
+      const dropoutRate = c.dropped / terminal;
+      if (dropoutRate < 0.15 || dropoutRate > 0.4) {
+        failures.push(
+          `个案脱落率超出 15%–40%: ${(dropoutRate * 100).toFixed(1)}%` +
+            `(脱落 ${c.dropped} / 终结 ${terminal})`,
+        );
+      }
     }
   }
 

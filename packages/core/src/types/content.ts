@@ -1,6 +1,7 @@
 import type { Citation, Foundation, GradApplyKind, Institution, Position } from './institution';
 import type { Condition, Effect } from './dsl';
 import type { AdvisorDef } from './advisor';
+import type { CaseStatus, CaseTemplate } from './case';
 import type { ProjectStage, ProjectTemplate } from './project';
 import type { StatKey, Track } from './stats';
 
@@ -57,6 +58,14 @@ export interface GameEvent {
   projectStage?: ProjectStage;
   /** 只对这些领域的课题出现。不写 = 所有领域通用 */
   projectDomains?: string[];
+  /**
+   * 个案阶段事件:这个事件属于个案的哪个状态。
+   *
+   * 带这个字段的事件**不走普通事件池**——调度器按每个活跃个案的当前状态单独挑
+   * (TECH 4.5 的 ②''),每轮上限 2 个,不占 `eventSlots` 名额。
+   * 只允许非终态(validate 规则 2):脱落之后没有"下一次会谈"可讲。
+   */
+  caseStatus?: CaseStatus;
   choices: EventChoice[];
 }
 
@@ -381,6 +390,8 @@ export interface ContentPack {
   courseExamBank?: ExamQuestion[];
   courses?: Course[];
   projectTemplates?: ProjectTemplate[];
+  /** 个案模板(M4 临床线)。主诉、风险分级、取向匹配面都在数据里 */
+  caseTemplates?: CaseTemplate[];
   advisors?: AdvisorDef[];
   /** 真实素材层(M3.5)。院校/职位/文献是**数据源**,不是事件——由申请屏和事件引用 */
   institutions?: Institution[];

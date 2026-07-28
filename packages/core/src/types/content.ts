@@ -1,9 +1,26 @@
 import type { Citation, Foundation, GradApplyKind, Institution, Position } from './institution';
 import type { Condition, Effect } from './dsl';
-import type { AdvisorDef } from './advisor';
+import type { AdvisorDef, AdvisorSwitchOption } from './advisor';
 import type { CaseStatus, CaseTemplate } from './case';
 import type { ProjectStage, ProjectTemplate } from './project';
 import type { StatKey, Track } from './stats';
+import type { RumorDef } from './social';
+
+/**
+ * 影子竞争者的候选设定(M4.5,GAME_DESIGN 13.1)。
+ *
+ * 遇到他那一幕从这里随机抽一个,所以**同一个存档里他是谁是随机的**——
+ * 这一局是拼命三郎,下一局可能是那个一直在挣扎的人,而这两个人后面十年
+ * 会在同样的五个交汇点上给你完全不同的东西。
+ */
+export interface RivalArchetypeDef {
+  archetype: string;
+  /** 虚构姓名(validate 规则 10:不得命中真实研究者姓名黑名单) */
+  name: string;
+  /** 遇到他那一幕之后,他在你眼里是什么样。**这句话不能透露 archetype 的机制含义** */
+  impression: string;
+  weight?: number;
+}
 
 export interface GameDate {
   year: number;
@@ -423,6 +440,12 @@ export interface ContentPack {
   positions?: Position[];
   citations?: Citation[];
   foundations?: Foundation[];
+  /** 可打听的情报(M4.5)。`accurate` 在这儿,**永远不许走到 ViewModel** */
+  rumors?: RumorDef[];
+  /** 影子竞争者的候选设定(M4.5)。遇到他那一幕从这里抽一个 */
+  rivalArchetypes?: RivalArchetypeDef[];
+  /** 换导师的入口(M4.5)。**必须有一个 late 档**(validate 规则 22) */
+  advisorSwitchOptions?: AdvisorSwitchOption[];
   /** `GRAD_APPLY` 顶部的游戏化声明。**validate 规则 12 要求非空** */
   gameifiedTermsNotice?: string;
   /** 真实研究者姓名黑名单(规则 10):正文与人物定义里一律不许出现 */

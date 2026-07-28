@@ -95,6 +95,34 @@ export {
   ADVISOR_CONSULT_FLAG,
   ALLOC_ADVISOR_CONSULT_ID,
 } from './systems/advisor';
+export * from './types/social';
+export {
+  advanceRivalYear,
+  applyRivalOp,
+  baseMomentumFor,
+  meetRival,
+  rivalAheadOfPlayer,
+  rivalStatusLine,
+} from './systems/rival';
+export {
+  applyFavorOp,
+  effectiveWeight,
+  favorBalance,
+  favorTotal,
+  openFavors,
+  settleOwingPressure,
+  OWING_PRESSURE_BAR,
+} from './systems/favor';
+export {
+  accuracyRatioByTopic,
+  askableRumors,
+  askRumor,
+  asksLeft,
+  hasHeard,
+  rumorAccuracyStats,
+  MAX_ASKS_PER_ROUND,
+  type AskableRumor,
+} from './systems/rumor';
 export { findEnding } from './systems/ending';
 export { selectContextLine } from './systems/context-lines';
 export { createEngine, type Engine } from './engine/engine';

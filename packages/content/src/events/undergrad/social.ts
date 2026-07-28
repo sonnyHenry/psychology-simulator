@@ -44,6 +44,9 @@ export const socialSeedEvents: GameEvent[] = [
             effects: [
               { stats: { capital: 4, method: 2, state: 1 } },
               { addFlag: { key: 'favor_owed_senior', delta: 2, min: 0, max: 5 } },
+              // **人情账记的是具体那件事**,不是一个分数。
+              // 「她帮过你」没有分量,「她替你跑了两趟财务」才有。
+              { favor: { op: 'add', who: 'npc_senior_sister', direction: 'owing', weight: 3, reason: '她替你重排了报销单、跑了两趟财务' } },
               { setFlag: 'has_senior_channel' },
             ],
           },
@@ -53,6 +56,7 @@ export const socialSeedEvents: GameEvent[] = [
             effects: [
               { stats: { capital: 2, state: -1 } },
               { addFlag: { key: 'favor_owed_senior', delta: 1, min: 0, max: 5 } },
+              { favor: { op: 'add', who: 'npc_senior_sister', direction: 'owing', weight: 2, reason: '她替你把那笔被试费报了' } },
               { setFlag: 'has_senior_channel' },
             ],
           },
@@ -68,6 +72,7 @@ export const socialSeedEvents: GameEvent[] = [
             effects: [
               { stats: { capital: 5, method: 1 } },
               { addFlag: { key: 'favor_owed_senior', delta: 1, min: 0, max: 5 } },
+              { favor: { op: 'add', who: 'npc_senior_sister', direction: 'owing', weight: 2, reason: '她替你把那笔被试费报了' } },
               { setFlag: 'lab_logistics' },
             ],
           },
@@ -83,6 +88,7 @@ export const socialSeedEvents: GameEvent[] = [
             effects: [
               { stats: { capital: 1, state: 1 } },
               { addFlag: { key: 'favor_owed_senior', delta: 1, min: 0, max: 5 } },
+              { favor: { op: 'add', who: 'npc_senior_sister', direction: 'owing', weight: 2, reason: '她替你把那笔被试费报了' } },
             ],
           },
         ],
@@ -120,6 +126,10 @@ export const socialSeedEvents: GameEvent[] = [
             effects: [
               { stats: { method: 5, capital: 2 } },
               { setFlag: 'rival_appeared' },
+              // **这里才真的把他变成一个对象。** flag 只说明遇到过,
+              // 而 13.1 要的是一个有自己数值、每年都在推进的人。
+              // (`{ op: 'meet' }` 只标记意图,抽哪个原型要 RNG,在引擎里做)
+              { rival: { op: 'meet' } },
               { setFlag: 'rival_is_friend' },
             ],
           },
@@ -129,6 +139,10 @@ export const socialSeedEvents: GameEvent[] = [
             effects: [
               { stats: { method: 3, state: -2 } },
               { setFlag: 'rival_appeared' },
+              // **这里才真的把他变成一个对象。** flag 只说明遇到过,
+              // 而 13.1 要的是一个有自己数值、每年都在推进的人。
+              // (`{ op: 'meet' }` 只标记意图,抽哪个原型要 RNG,在引擎里做)
+              { rival: { op: 'meet' } },
             ],
           },
         ],
@@ -143,6 +157,10 @@ export const socialSeedEvents: GameEvent[] = [
             effects: [
               { stats: { method: 6, state: -5 } },
               { setFlag: 'rival_appeared' },
+              // **这里才真的把他变成一个对象。** flag 只说明遇到过,
+              // 而 13.1 要的是一个有自己数值、每年都在推进的人。
+              // (`{ op: 'meet' }` 只标记意图,抽哪个原型要 RNG,在引擎里做)
+              { rival: { op: 'meet' } },
               { addFlag: { key: 'burnout', delta: 8, min: 0, max: 100 } },
             ],
           },
@@ -152,6 +170,10 @@ export const socialSeedEvents: GameEvent[] = [
             effects: [
               { stats: { method: 3, state: -2 } },
               { setFlag: 'rival_appeared' },
+              // **这里才真的把他变成一个对象。** flag 只说明遇到过,
+              // 而 13.1 要的是一个有自己数值、每年都在推进的人。
+              // (`{ op: 'meet' }` 只标记意图,抽哪个原型要 RNG,在引擎里做)
+              { rival: { op: 'meet' } },
               { setFlag: 'found_own_question' },
             ],
           },
@@ -167,6 +189,10 @@ export const socialSeedEvents: GameEvent[] = [
             effects: [
               { stats: { state: 4, method: 2 } },
               { setFlag: 'rival_appeared' },
+              // **这里才真的把他变成一个对象。** flag 只说明遇到过,
+              // 而 13.1 要的是一个有自己数值、每年都在推进的人。
+              // (`{ op: 'meet' }` 只标记意图,抽哪个原型要 RNG,在引擎里做)
+              { rival: { op: 'meet' } },
               { setFlag: 'refuses_to_compare' },
             ],
           },

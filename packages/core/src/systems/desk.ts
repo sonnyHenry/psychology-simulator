@@ -1,6 +1,6 @@
 import type { ContentPack } from '../types/content';
 import type { GameState } from '../types/state';
-import type { DeskView } from '../types/view';
+import type { AskAroundBlock, DeskView } from '../types/view';
 import type { PaperTier, Project } from '../types/project';
 import type { Rng } from '../rng/rng';
 import {
@@ -12,6 +12,7 @@ import {
 } from './project';
 import { activeCases } from './case';
 import { advisorDefOf } from './advisor';
+import { favorTotal, openFavors, OWING_PRESSURE_BAR } from './favor';
 import { availableItems, RETAKE_FLAG } from './allocation';
 import { readNumericFlag } from '../dsl/evaluate';
 
@@ -298,6 +299,10 @@ export function buildDeskView(
     phaseLabel: string;
     coursebookOf: (courseId: string) => string | undefined;
     render: (text: string) => string;
+    /** 竞争者的一句处境。聚合在 `systems/rival.ts` 里做,这一层只转发 */
+    rivalLine: string | null;
+    /** 打听区块。构造在引擎里做(它要按屏挑 topic),这一层只转发 */
+    ask: AskAroundBlock;
   },
 ): DeskView {
   const advisorDef = advisorDefOf(state, pack);
@@ -362,6 +367,18 @@ export function buildDeskView(
     })),
     clinicalHours: readNumericFlag(state.flags.clinical_hours),
     supervisionHours: readNumericFlag(state.flags.supervision_hours),
+    rivalLine: options.rivalLine,
+    // **复述的是具体那件事**,不是一个分数——"他帮过你"没有分量
+    favors: openFavors(state).map(favor => ({
+      who: favor.who,
+      direction: favor.direction,
+      reason: favor.reason,
+      year: favor.year,
+    })),
+    owingPressure: favorTotal(state, state.date.year, { direction: 'owing' })
+      - favorTotal(state, state.date.year, { direction: 'owed' })
+      > OWING_PRESSURE_BAR,
+    ask: options.ask,
     advisor:
       advisorDef && state.advisor
         ? {

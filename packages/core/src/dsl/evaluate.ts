@@ -4,6 +4,9 @@ import type { GameState } from '../types/state';
 import type { Rng } from '../rng/rng';
 import { countPapers, countProjects, resolveTarget } from '../systems/project';
 import { countCases, resolveCaseTarget } from '../systems/case';
+import { rivalAheadOfPlayer } from '../systems/rival';
+import { favorBalance, favorTotal } from '../systems/favor';
+import { hasHeard } from '../systems/rumor';
 
 export interface EvalCtx {
   state: GameState;
@@ -105,6 +108,36 @@ export function evalCondition(cond: Condition | undefined, ctx: EvalCtx): boolea
     }
     return true;
   }
+  if ('rival' in cond) {
+    const rival = state.rival;
+    const query = cond.rival;
+    // `met: false` 是"还没遇到他"——这是唯一一个没有 rival 时也能成立的查询
+    if (query.met !== undefined) {
+      if (query.met !== Boolean(rival)) return false;
+      if (!rival) return true;
+    }
+    if (!rival) return false;
+    if (query.track !== undefined && rival.track !== query.track) return false;
+    if (query.struggling !== undefined && Boolean(rival.struggling) !== query.struggling) return false;
+    if (query.aheadOfPlayer !== undefined && rivalAheadOfPlayer(state) !== query.aheadOfPlayer) {
+      return false;
+    }
+    return true;
+  }
+  if ('favorBalance' in cond) {
+    const q = cond.favorBalance;
+    // **读的是贬值之后的分量**,不是原始 weight——五年前的恩情兑现不了今年的推荐信
+    const value =
+      q.direction === undefined
+        ? favorBalance(state, state.date.year, q.who)
+        : favorTotal(state, state.date.year, {
+            ...(q.who === undefined ? {} : { who: q.who }),
+            direction: q.direction,
+          });
+    return compare(value, q.op, q.value);
+  }
+  // **读的是"听到过没有",不是"这条是真是假"。** `accurate` 在这一层都不该被看见
+  if ('heardRumor' in cond) return hasHeard(state, cond.heardRumor);
   if ('chance' in cond) return ctx.rng.chance(cond.chance);
   if ('all' in cond) return cond.all.every(c => evalCondition(c, ctx));
   if ('any' in cond) return cond.any.some(c => evalCondition(c, ctx));

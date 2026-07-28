@@ -6,6 +6,8 @@ import { readNumericFlag } from './evaluate';
 import { applyProjectOp } from '../systems/project';
 import { applyCaseOp } from '../systems/case';
 import { changeAdvisorFavor, setAdvisorStage } from '../systems/advisor';
+import { applyRivalOp } from '../systems/rival';
+import { applyFavorOp } from '../systems/favor';
 
 function clampStat(key: StatKey, value: number): number {
   if (key === 'money') return Math.max(0, Math.round(value));
@@ -53,6 +55,11 @@ export function applyEffects(effects: Effect[], state: GameState, pack: ContentP
       changeAdvisorFavor(state, effect.advisorFavor);
     } else if ('advisorStage' in effect) {
       setAdvisorStage(state, effect.advisorStage);
+    } else if ('rival' in effect) {
+      applyRivalOp(state, effect.rival);
+    } else if ('favor' in effect) {
+      // **年份由引擎填。** 内容不该也不需要知道今年是哪年,而人情贬值全靠这个年份
+      applyFavorOp(state, state.date.year, effect.favor);
     } else if ('advisorLine' in effect) {
       // 导师面板上的"他上次说的那句话"。没有导师时静默丢弃——
       // 这行字是给面板看的,不是一个会被门控读到的状态。

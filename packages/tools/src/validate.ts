@@ -34,6 +34,11 @@ function warn(message: string): void {
   issues.push({ level: 'warn', message });
 }
 
+/** 去掉注释再做源码级检查。规则 19/36 都要用:**注释里必须能写出被禁的那个词** */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+}
+
 function checkUnique(label: string, ids: string[]): void {
   const seen = new Set<string>();
   for (const id of ids) {
@@ -1128,6 +1133,204 @@ for (const event of contentPack.events) {
   if (event.once === false) error(`危机事件不能可重复触发: ${event.id}`);
   if (event.variantGroup !== undefined) {
     error(`危机事件不得进变体池(全局唯一一次): ${event.id}`);
+  }
+}
+
+// ---------- 规则 16–22:社会层(GAME_DESIGN 十三节 / TECH 7.1) ----------
+//
+// 这七条守的是三个新机制**不退化**:竞争者不变成固定难度曲线、人情账不变成只进不出的数字、
+// 情报不变成攻略。三种退化都不会崩、不会红,只会让机制悄悄变成装饰。
+
+{
+  // 规则 16:五个交汇点齐全,而且每个都有"他领先"与"你领先"两个版本。
+  //
+  // **同一件事在这两种处境下根本不是同一件事**:一作之争在你落后时是屈辱,
+  // 在你领先时是你手上有一张可以让出去的牌。只写一个版本 = 这一幕只有一种读法。
+  const ENCOUNTERS = ['authorship', 'review', 'conference', 'struggle', 'same_position'];
+  const encounterEvents = contentPack.events.filter(event =>
+    event.choices.some(choice =>
+      choice.outcomes.some(outcome =>
+        outcome.effects.some(
+          effect => 'rival' in effect && effect.rival.op === 'encounter',
+        ),
+      ),
+    ),
+  );
+  const marksEncounter = (event: (typeof encounterEvents)[number], id: string): boolean =>
+    event.choices.some(choice =>
+      choice.outcomes.some(outcome =>
+        outcome.effects.some(
+          effect => 'rival' in effect && effect.rival.op === 'encounter' && effect.rival.id === id,
+        ),
+      ),
+    );
+  /** 这个事件的 trigger 里必然要求 `aheadOfPlayer === 期望值` */
+  const requiresAhead = (cond: Condition | undefined, expected: boolean): boolean => {
+    let hit = false;
+    visitCondition(cond, c => {
+      if ('rival' in c && c.rival.aheadOfPlayer === expected) hit = true;
+    });
+    return hit;
+  };
+  for (const id of ENCOUNTERS) {
+    const forId = encounterEvents.filter(event => marksEncounter(event, id));
+    if (forId.length === 0) {
+      error(`规则 16:交汇点「${id}」没有任何内容事件`);
+      continue;
+    }
+    if (!forId.some(event => requiresAhead(event.trigger, true))) {
+      error(`规则 16:交汇点「${id}」缺"他领先"的版本(trigger 里没有 aheadOfPlayer: true)`);
+    }
+    if (!forId.some(event => requiresAhead(event.trigger, false))) {
+      error(`规则 16:交汇点「${id}」缺"你领先"的版本(trigger 里没有 aheadOfPlayer: false)`);
+    }
+  }
+
+  // 规则 16b:`momentum` 必须真的能被玩家行为改。
+  // 不能被修正的对手是**一条固定难度曲线,不是人**——13.1 第一条设计约束就落空了。
+  const nudgesMomentum = [...allEffectsInPack()].some(
+    effect => 'rival' in effect && effect.rival.op === 'nudge' && effect.rival.momentum !== undefined,
+  );
+  if ((contentPack.rivalArchetypes ?? []).length > 0 && !nudgesMomentum) {
+    error('规则 16:没有任何内容改过竞争者的 momentum,他退化成了一条固定难度曲线');
+  }
+
+  // 规则 17:人情必须能兑现。**只能欠不能还的账是死机制**(与规则 4 同源)。
+  {
+    const written = new Set<string>();
+    const settled = new Set<string>();
+    for (const effect of allEffectsInPack()) {
+      if (!('favor' in effect)) continue;
+      if (effect.favor.op === 'add') written.add(effect.favor.direction);
+      else if (effect.favor.op === 'settle') {
+        // 不写 direction 的 settle 两个方向都能结
+        if (effect.favor.direction === undefined) {
+          settled.add('owed');
+          settled.add('owing');
+        } else settled.add(effect.favor.direction);
+      }
+    }
+    for (const direction of written) {
+      if (!settled.has(direction)) {
+        error(`规则 17:方向为 ${direction} 的人情有人记、没有人兑现——只能欠不能还的账是死机制`);
+      }
+    }
+  }
+
+  // 规则 18:`RumorDef` 的真伪配比守在 40%–70%。
+  //
+  // **全真 = 情报变成攻略**(玩家照着抄);**全假 = 玩家两局之后学会无视这个入口**。
+  // 落在中间,玩家才会去做那件现实中大家都在做的事:打听三个人,取交集。
+  {
+    const byTopic = new Map<string, { total: number; accurate: number }>();
+    for (const rumor of contentPack.rumors ?? []) {
+      const row = byTopic.get(rumor.topic) ?? { total: 0, accurate: 0 };
+      row.total += 1;
+      if (rumor.accurate) row.accurate += 1;
+      byTopic.set(rumor.topic, row);
+    }
+    for (const [topic, row] of byTopic) {
+      // 单条的话题没有"配比"可言,不判——判了只会逼内容凑数
+      if (row.total < 2) continue;
+      const ratio = row.accurate / row.total;
+      if (ratio < 0.4 || ratio > 0.7) {
+        error(
+          `规则 18:话题「${topic}」的情报真伪配比 ${(ratio * 100).toFixed(0)}% 超出 40%–70%(${row.accurate}/${row.total})`,
+        );
+      }
+    }
+  }
+
+  // 规则 19:`accurate` 不得泄漏。**这是 13.3 全部设计的支点,必须机械守住。**
+  //
+  // 静态检查 `systems/rumor.ts`:除了明确标注"只给引擎和 simulate 统计用"的两个函数,
+  // 没有任何地方把 `accurate` 放进出参。照规则 36 的写法。
+  {
+    const source = stripComments(
+      readFileSync(new URL('../../core/src/systems/rumor.ts', import.meta.url), 'utf-8'),
+    );
+    // `AskableRumor` 是摆到玩家面前的那个类型,它必须是残缺的——缺的那一块就是支点
+    const askable = source.match(/export interface AskableRumor \{[^}]*\}/)?.[0] ?? '';
+    if (askable.includes('accurate')) {
+      error('规则 19:AskableRumor 里出现了 accurate——可靠度只能由玩家自己推断');
+    }
+    // `askRumor` 的返回类型里也不许有
+    const askFn = source.match(/export function askRumor\([\s\S]*?\n\) \{/)?.[0] ?? '';
+    if (askFn.includes('accurate')) {
+      error('规则 19:askRumor 的返回类型里出现了 accurate');
+    }
+    // **注释里要能写这个词。** 第一版直接扫全文,结果被
+    // "`accurate` 不在这里,也不在任何地方"这句注释判红了——
+    // 一条会被自己的说明文字触发的规则,下一个人只会把它删掉。
+    const viewSource = stripComments(
+      readFileSync(new URL('../../core/src/types/view.ts', import.meta.url), 'utf-8'),
+    );
+    if (/accurate/.test(viewSource)) {
+      error('规则 19:ViewModel 类型里出现了 accurate');
+    }
+  }
+
+  // 规则 20:Drama 事件"两边都有道理"。
+  //
+  // `category: 'drama'` 的事件,**每个 choice 的数值变化必须有正有负**。
+  // 这是 14.1 第 1 条的机械化版本:如果一个选项明显正确,它就不是 drama,是道德测试题。
+  for (const event of contentPack.events) {
+    if (event.category !== 'drama') continue;
+    for (const choice of event.choices) {
+      let hasUp = false;
+      let hasDown = false;
+      for (const outcome of choice.outcomes) {
+        for (const effect of outcome.effects) {
+          if (!('stats' in effect)) continue;
+          for (const [key, value] of Object.entries(effect.stats)) {
+            if (typeof value !== 'number' || value === 0) continue;
+            // **钱的处理是不对称的**:挣到钱算一份好处(接下那个指标,收入确实涨了),
+            // 但花钱**不算代价**——花钱办事是合理的,不该因此被判成"这个选项有代价"。
+            // 对称处理会同时冤枉两类事件:一律排除会把"挣钱但伤身"判成全是代价,
+            // 一律计入会把"花钱买个安心"判成两边都有道理。
+            if (key === 'money') {
+              if (value > 0) hasUp = true;
+              continue;
+            }
+            if (value > 0) hasUp = true;
+            else hasDown = true;
+          }
+        }
+      }
+      if (!hasUp || !hasDown) {
+        error(
+          `规则 20:drama 事件的选项不是"两边都有道理"(${!hasUp ? '全是代价' : '纯优势'}): ${event.id}.${choice.id}`,
+        );
+      }
+    }
+  }
+
+  // 规则 21:黑天鹅必须有处置空间。
+  // ≥2 个真实可行的选项,而且**不许直接 triggerEnding**——
+  // 一记闷棍不是黑天鹅,是作者在替玩家做决定(14.4 第 2、3 条)。
+  for (const event of contentPack.events) {
+    if (event.category !== 'blackswan') continue;
+    if (event.choices.length < 2) {
+      error(`规则 21:黑天鹅事件只有 ${event.choices.length} 个选项(要求 ≥2): ${event.id}`);
+    }
+    for (const choice of event.choices) {
+      for (const outcome of choice.outcomes) {
+        if (outcome.effects.some(effect => 'triggerEnding' in effect)) {
+          error(`规则 21:黑天鹅事件不得直接触发结局: ${event.id}.${choice.id}`);
+        }
+      }
+    }
+  }
+
+  // 规则 22:换导师的窗口必须一直开着。
+  //
+  // 至少有一个 `costTier: 'late'` 的入口存在,否则"**代价极高但始终可行**"
+  // 就变成了"后期不可行"——而那两句话是完全不同的设计。
+  {
+    const switchOptions = (contentPack.advisorSwitchOptions ?? []);
+    if (switchOptions.length > 0 && !switchOptions.some(option => option.costTier === 'late')) {
+      error('规则 22:换导师没有 late 档的入口,"代价极高但始终可行"变成了"后期不可行"');
+    }
   }
 }
 

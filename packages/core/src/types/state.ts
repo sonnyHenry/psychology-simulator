@@ -2,6 +2,7 @@ import type { GradApplicationState, GradApplyKind } from './institution';
 import type { AdvisorState } from './advisor';
 import type { ClinicalCase } from './case';
 import type { Paper, Project } from './project';
+import type { Favor, RivalState, Rumor } from './social';
 import type { Flags, StatDeltas, Stats, Track } from './stats';
 
 export type ScreenId =
@@ -68,6 +69,11 @@ export interface SettlementReport {
   moneyDelta: number;
   /** 跨越财富里程碑时的一句话提示,无则为 null */
   milestone: string | null;
+  /**
+   * 本年净欠额压力扣掉的状态(M4.5)。0 = 没触发。
+   * **这一笔必须在年度回顾页上说出来**——说不出理由的惩罚等于一个 bug。
+   */
+  owingPressure?: number;
 }
 
 export interface GameState {
@@ -134,6 +140,29 @@ export interface GameState {
   currentCaseId?: string;
   /** 导师。大三或研一抽卡后写入 */
   advisor?: AdvisorState | null;
+  /**
+   * 影子竞争者(M4.5,GAME_DESIGN 13.1)。大二进实验室遇到那个人时写入。
+   * **他不跑完整引擎**——每年由 `systems/rival.ts` 按 momentum 推进几行。
+   * 旧存档没有此字段时按"还没遇到"处理。
+   */
+  rival?: RivalState | null;
+  /**
+   * 人情账(M4.5,13.2)。**只能欠不能还的账是死机制**,所以兑现事件和它成对存在
+   * (validate 规则 17)。已结清的留在列表里:年度回顾页要能复述"你还过谁"。
+   */
+  favors?: Favor[];
+  /**
+   * 已经打听到的情报(M4.5,13.3)。只记 id 和年份——
+   * **`accurate` 在内容里,不在这儿**,更不在 ViewModel 里。
+   */
+  rumors?: Rumor[];
+  /** 本回合已经打听过几次。每回合开始清零(打听要花代价,不能无限问) */
+  asksThisRound?: number;
+  /**
+   * `{ rival: { op: 'meet' } }` 标记的"该抽竞争者了"。
+   * 抽样需要 RNG,而 `applyEffects` 没有(也不该有)——照 `pendingAdvisorDraw` 的写法。
+   */
+  pendingRivalMeet?: boolean;
   /** 本次申请的状态。走完 GRAD_APPLY 后保留,内容侧用 `landed` 读去向 */
   gradApplication?: GradApplicationState | null;
   /** 历次申请去向:`master` → 'inst_bnu'。结局页和后续门控读它 */

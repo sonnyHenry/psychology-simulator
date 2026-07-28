@@ -102,6 +102,8 @@ export const advisorConsultEvents: GameEvent[] = [
             effects: [
               { stats: { capital: 5, method: 2, state: 1 } },
               { project: { op: 'setField', quality: 6 } },
+              // 他动用了自己的关系。**这笔是你欠的**
+              { favor: { op: 'add', who: 'advisor', direction: 'owing', weight: 3, reason: '他打了个电话,你才拿到那批数据' } },
               { advisorLine: '"这个数据我们没有,我跟他说一声,你去联系。"' },
             ],
           },
@@ -194,6 +196,8 @@ export const advisorConsultEvents: GameEvent[] = [
               { stats: { capital: 4, state: -4 } },
               { advisorFavor: 8 },
               { addFlag: { key: 'advisor_chores', delta: 2, min: 0, max: 12 } },
+              // 你替他干了三周的活。**这笔记在账上**——兑现点在推荐信那一年
+              { favor: { op: 'add', who: 'advisor', direction: 'owed', weight: 3, reason: '你替他赶完了基金本子那一段' } },
               { advisorLine: '"正好,还有两件事。"' },
             ],
           },
@@ -411,6 +415,7 @@ export const advisorConsultEvents: GameEvent[] = [
               { advisorFavor: 10 },
               { addFlag: { key: 'advisor_chores', delta: 2, min: 0, max: 12 } },
               { project: { op: 'setField', quality: 4 } },
+              { favor: { op: 'add', who: 'advisor', direction: 'owed', weight: 2, reason: '你替他去了那趟验收会,还陪了饭局' } },
               { advisorLine: '"周六有个事,你跟我去一趟。"' },
             ],
           },
@@ -452,6 +457,7 @@ export const advisorConsultEvents: GameEvent[] = [
             effects: [
               { stats: { capital: 6, money: 12000, state: -3 } },
               { advisorFavor: 6 },
+              { favor: { op: 'add', who: 'advisor', direction: 'owing', weight: 3, reason: '那个横向是他把你介绍进去的' } },
               { addFlag: { key: 'advisor_chores', delta: 1, min: 0, max: 12 } },
               { advisorLine: '"我这个学生很能干。"' },
             ],

@@ -28,6 +28,17 @@ import {
   openNewCasesForYear,
   MIN_DROPOUT_CHANCE,
   ALLOC_CASEWORK_ID,
+  meetRival,
+  advanceRivalYear,
+  rivalStatusLine,
+  favorTotal,
+  openFavors,
+  settleOwingPressure,
+  askableRumors,
+  askRumor,
+  asksLeft,
+  hasHeard,
+  MAX_ASKS_PER_ROUND,
   ALLOC_ADVISOR_CONSULT_ID,
   ADVISOR_CONSULT_FLAG,
   acceptanceChanceFor,
@@ -3279,5 +3290,198 @@ describe('M4.6 工作台', () => {
     if (view2.kind !== 'DESK') throw new Error('expected DESK');
     expect(view2.years[0]?.notes).toEqual([]);
     expect(view2.years[0]?.phaseLabel).toBeNull();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// M4.5 社会层:竞争者 · 人情账 · 情报
+// ─────────────────────────────────────────────────────────────
+
+describe('M4.5 社会层', () => {
+  describe('影子竞争者', () => {
+    function rivalPack(): ContentPack {
+      const pack = miniPack();
+      pack.rivalArchetypes = [
+        { archetype: 'grinder', name: '郑允之', impression: '他每天最后一个走。' },
+      ];
+      return pack;
+    }
+
+    it('`meet` 只标记意图,真正抽样在有 RNG 的地方', () => {
+      const pack = rivalPack();
+      const state = createEngine(pack).start(1);
+      // **applyEffects 没有 RNG,也不该有**——引擎偷偷消耗随机流会让同种子的回放漂移
+      applyEffects([{ rival: { op: 'meet' } }], state, pack);
+      expect(state.rival).toBeUndefined();
+      expect(state.pendingRivalMeet).toBe(true);
+      meetRival(state, pack, new Rng(7));
+      expect(state.rival?.name).toBe('郑允之');
+      expect(state.rival?.visibility).toBe(0);
+    });
+
+    it('本科那几年他不发论文,2019 起才开始出东西', () => {
+      const pack = rivalPack();
+      const state = createEngine(pack).start(2);
+      meetRival(state, pack, new Rng(7));
+      state.date = { year: 2017, month: 6 };
+      for (let i = 0; i < 30; i++) advanceRivalYear(state, new Rng(i));
+      // **对手领先的那几篇不能从一个玩家根本没有参赛的赛段里来**
+      expect(state.rival!.papers).toBe(0);
+      state.date = { year: 2021, month: 6 };
+      for (let i = 0; i < 60; i++) advanceRivalYear(state, new Rng(i + 100));
+      expect(state.rival!.papers).toBeGreaterThan(0);
+    });
+
+    it('玩家行为能改他的成长速度——不能改的话他就是一条固定难度曲线', () => {
+      const pack = rivalPack();
+      const state = createEngine(pack).start(3);
+      meetRival(state, pack, new Rng(7));
+      const before = state.rival!.momentum;
+      applyEffects([{ rival: { op: 'nudge', momentum: 0.2 } }], state, pack);
+      expect(state.rival!.momentum).toBeCloseTo(before + 0.2, 6);
+      // 钳位:上不封顶的对手不好玩,压到 0 的对手不真实
+      applyEffects([{ rival: { op: 'nudge', momentum: -99 } }], state, pack);
+      expect(state.rival!.momentum).toBeGreaterThan(0);
+    });
+
+    it('处境那一行按 visibility 分层:不打听就只知道名字', () => {
+      const pack = rivalPack();
+      const state = createEngine(pack).start(4);
+      meetRival(state, pack, new Rng(7));
+      state.rival!.papers = 4;
+      // 只知道名字的时候,**他几篇这件事你根本不知道**
+      expect(rivalStatusLine(state)).not.toContain('4');
+      applyEffects([{ rival: { op: 'reveal', visibility: 3 } }], state, pack);
+      expect(rivalStatusLine(state)).toContain('4');
+    });
+  });
+
+  describe('人情账', () => {
+    function favorState() {
+      const pack = miniPack();
+      const state = createEngine(pack).start(11);
+      state.date = { year: 2020, month: 6 };
+      return { pack, state };
+    }
+
+    it('人情会贬值:五年前的恩情兑现不了一封今年的推荐信', () => {
+      const { pack, state } = favorState();
+      applyEffects(
+        [{ favor: { op: 'add', who: 'advisor', direction: 'owed', weight: 4, reason: '你替他赶完了本子' } }],
+        state,
+        pack,
+      );
+      expect(favorTotal(state, 2020, { direction: 'owed' })).toBeCloseTo(4, 6);
+      // 五年后只剩一小半
+      const aged = favorTotal(state, 2025, { direction: 'owed' });
+      expect(aged).toBeLessThan(2);
+      // **但它不会归零。** 十年前那件事的分量很小,可它没有消失
+      expect(favorTotal(state, 2040, { direction: 'owed' })).toBeGreaterThan(0);
+    });
+
+    it('记账年份由引擎填,内容不需要知道今年是哪年', () => {
+      const { pack, state } = favorState();
+      applyEffects(
+        [{ favor: { op: 'add', who: 'rival', direction: 'owing', weight: 2, reason: '他替你说了话' } }],
+        state,
+        pack,
+      );
+      expect(state.favors?.[0]?.year).toBe(2020);
+    });
+
+    it('兑现按贬值后的分量从高到低结,结不满就结到没有为止', () => {
+      const { pack, state } = favorState();
+      applyEffects(
+        [
+          { favor: { op: 'add', who: 'a', direction: 'owed', weight: 1, reason: '小忙' } },
+          { favor: { op: 'add', who: 'b', direction: 'owed', weight: 4, reason: '大忙' } },
+        ],
+        state,
+        pack,
+      );
+      applyEffects([{ favor: { op: 'settle', direction: 'owed', weight: 3 } }], state, pack);
+      // 先结掉分量大的那笔
+      expect(state.favors?.find(f => f.who === 'b')?.settled).toBe(true);
+      expect(state.favors?.find(f => f.who === 'a')?.settled).toBeUndefined();
+      // **人情不够用是常态,不是错误**:结不满不报错
+      applyEffects([{ favor: { op: 'settle', direction: 'owed', weight: 99 } }], state, pack);
+      expect(openFavors(state)).toHaveLength(0);
+    });
+
+    it('欠太多本身是压力,而且扣了多少要说得出来', () => {
+      const { pack, state } = favorState();
+      for (let i = 0; i < 4; i++) {
+        applyEffects(
+          [{ favor: { op: 'add', who: `p${i}`, direction: 'owing', weight: 3, reason: '一件事' } }],
+          state,
+          pack,
+        );
+      }
+      const before = state.stats.state;
+      const hit = settleOwingPressure(state, 2020);
+      expect(hit).toBeGreaterThan(0);
+      expect(state.stats.state).toBe(before - hit);
+      // 欠得不多的时候不该有任何惩罚——欠一两笔是这一行的常态
+      const light = favorState();
+      applyEffects(
+        [{ favor: { op: 'add', who: 'x', direction: 'owing', weight: 2, reason: '小事' } }],
+        light.state,
+        light.pack,
+      );
+      expect(settleOwingPressure(light.state, 2020)).toBe(0);
+    });
+  });
+
+  describe('情报', () => {
+    function rumorPack(): ContentPack {
+      const pack = miniPack();
+      pack.rumors = [
+        {
+          id: 'rum_a', topic: 'advisor:a1', source: '师姐',
+          text: '"老师人挺好的。"', caveat: '她 2016 年毕业。', accurate: false,
+        },
+        {
+          id: 'rum_b', topic: 'advisor:a1', source: '师兄',
+          text: '"他很忙。"', caveat: '他是组里第七个学生。', accurate: true,
+        },
+        {
+          id: 'rum_c', topic: 'advisor:a2', source: '同门',
+          text: '"那个组在上升期。"', caveat: '这条只发过一次。', accurate: false,
+        },
+      ];
+      return pack;
+    }
+
+    it('可靠度不进任何出参——这是 13.3 全部设计的支点', () => {
+      const pack = rumorPack();
+      const state = createEngine(pack).start(21);
+      const options = askableRumors(state, pack, new Rng(1), ['advisor:a1']);
+      expect(options).toHaveLength(2);
+      // **`accurate` 一个字都不许出去。** 可靠度只能由玩家自己推断
+      expect(JSON.stringify(options)).not.toContain('accurate');
+      const heard = askRumor(state, pack, 'rum_a');
+      expect(JSON.stringify(heard)).not.toContain('accurate');
+      // 括注给的是一个事实,不是"这条可能不准"
+      expect(heard?.caveat).toBe('她 2016 年毕业。');
+    });
+
+    it('听过的不再列出来:同一个人不会把同一句话说两遍', () => {
+      const pack = rumorPack();
+      const state = createEngine(pack).start(22);
+      askRumor(state, pack, 'rum_a');
+      const options = askableRumors(state, pack, new Rng(1), ['advisor:a1']);
+      expect(options.map(o => o.id)).toEqual(['rum_b']);
+      expect(hasHeard(state, 'rum_a')).toBe(true);
+    });
+
+    it('打听次数每回合有限,而且只列这一屏的话题', () => {
+      const pack = rumorPack();
+      const state = createEngine(pack).start(23);
+      expect(asksLeft(state)).toBe(MAX_ASKS_PER_ROUND);
+      askRumor(state, pack, 'rum_a');
+      expect(asksLeft(state)).toBe(MAX_ASKS_PER_ROUND - 1);
+      // 别的导师的话题不该出现在这一屏上
+      expect(askableRumors(state, pack, new Rng(1), ['advisor:a1']).map(o => o.id)).not.toContain('rum_c');
+    });
   });
 });

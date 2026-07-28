@@ -2,7 +2,7 @@ import type { ContentPack, ExamQuestion, PhaseConfig } from '../types/content';
 import type { GameifiedTerms, GradApplyKind } from '../types/institution';
 import type { Condition, Effect } from '../types/dsl';
 import type { GameState } from '../types/state';
-import type { PlayerAction, ViewModel } from '../types/view';
+import type { AskAroundBlock, PlayerAction, ViewModel } from '../types/view';
 import type { StatDeltas, StatKey } from '../types/stats';
 import { Rng, randomSeed } from '../rng/rng';
 import { applyEffects } from '../dsl/apply';
@@ -37,6 +37,9 @@ import {
 } from '../systems/project';
 import { activeCases, settleCaseYear } from '../systems/case';
 import { advisorDefOf, drawAdvisorOffer, joinAdvisor, rollAdvisorConsult } from '../systems/advisor';
+import { advanceRivalYear, meetRival, rivalStatusLine } from '../systems/rival';
+import { openFavors, settleOwingPressure } from '../systems/favor';
+import { askableRumors, askRumor, asksLeft } from '../systems/rumor';
 import { admissionTierFor, institutionsFor, MAX_SHORTLIST, resolveAdmission } from '../systems/admission';
 import { collapseEventId, collapsingProjects, foundationOf, pickFoundation } from '../systems/foundation';
 import { readNumericFlag } from '../dsl/evaluate';
@@ -123,6 +126,49 @@ export function createEngine(pack: ContentPack): Engine {
       .replace(/\{\{case\}\}/g, kase?.label ?? '你的来访者')
       .replace(/\{\{issue\}\}/g, kase?.presentingIssue ?? '他带来的那件事')
       .replace(/\{\{caseYears\}\}/g, String(state.date.year - (kase?.startedYear ?? state.date.year) + 1));
+  }
+
+  /**
+   * 打听区块(13.3)。**同一份构造器给三个屏用**——抽卡屏、院校清单、工作台。
+   * 打听不是一个 screen,是一个 action,所以这里只做投影,不做流程。
+   *
+   * **`accurate` 不经过这个函数**:`askableRumors` 的出参类型里就没有它,
+   * 已听到的那几条也只投影原话和括注。规则 19 静态守着这条。
+   */
+  function askBlock(state: GameState, topics: string[]): AskAroundBlock {
+    const rng = new Rng(state.rngState);
+    const heard = (state.rumors ?? [])
+      .map(rumor => (pack.rumors ?? []).find(def => def.id === rumor.defId))
+      .filter((def): def is NonNullable<typeof def> => Boolean(def))
+      .filter(def => topics.includes(def.topic))
+      .map(def => ({
+        id: def.id,
+        source: def.source,
+        text: renderText(def.text, state),
+        caveat: def.caveat,
+      }));
+    return {
+      asksLeft: asksLeft(state),
+      options: askableRumors(state, pack, rng, topics).map(rumor => ({
+        id: rumor.id,
+        source: rumor.source,
+      })),
+      heard,
+    };
+  }
+
+  /** 这一屏能打听的话题。抽卡屏问候选导师,工作台问你导师和手上课题的地基 */
+  function advisorTopics(state: GameState): string[] {
+    return (state.advisorOffer ?? []).map(id => `advisor:${id}`);
+  }
+
+  function deskTopics(state: GameState): string[] {
+    const topics: string[] = [];
+    if (state.advisor) topics.push(`advisor:${state.advisor.id}`);
+    for (const project of activeProjects(state)) {
+      if (project.foundationId) topics.push(`foundation:${project.foundationId}`);
+    }
+    return topics;
   }
 
   const traitLabelById = new Map(pack.traits.map(t => [t.id, t.label]));
@@ -427,6 +473,9 @@ export function createEngine(pack: ContentPack): Engine {
             name: a.name,
             publicImpression: renderText(a.publicImpression, state),
           })),
+          // **选导师之前可以先打听。** 这一屏是本作最重要的一次抽卡,
+          // 而 13.3 的全部意义就是把它从"闭眼选"变成"调查后选"。
+          ask: askBlock(state, advisorTopics(state)),
         };
       }
       case 'DESK': {
@@ -438,6 +487,8 @@ export function createEngine(pack: ContentPack): Engine {
           phaseLabel: phase.label,
           coursebookOf: courseId => coursesById.get(courseId)?.textbook,
           render: text => renderText(text, state),
+          rivalLine: rivalStatusLine(state),
+          ask: askBlock(state, deskTopics(state)),
         });
       }
       case 'BRIEF': {
@@ -543,6 +594,17 @@ export function createEngine(pack: ContentPack): Engine {
           })),
           clinicalHours: readNumericFlag(state.flags.clinical_hours),
           supervisionHours: readNumericFlag(state.flags.supervision_hours),
+          // **年度回顾页必须有一行竞争者的进度**(GAME_DESIGN 4.5 第二条规矩)。
+          // 你发了 2 篇不知道算好算坏,"他发了 5 篇"你立刻就懂了。
+          rivalLine: rivalStatusLine(state),
+          // 复述的是具体那件事,不是一个分数——"他帮过你"没有分量
+          favors: openFavors(state).map(favor => ({
+            who: favor.who,
+            direction: favor.direction,
+            reason: favor.reason,
+            year: favor.year,
+          })),
+          owingPressure: state.lastSettlement?.owingPressure ?? 0,
         };
       case 'ENDING': {
         const ending = pack.endings.find(e => e.id === state.endingId);
@@ -827,6 +889,8 @@ export function createEngine(pack: ContentPack): Engine {
   ): void {
     // 精力格的临时增减只影响当年
     state.grantedSlots = 0;
+    // 打听的次数也是每年重置的。**打听要花代价**,不能攒着一次问二十条
+    state.asksThisRound = 0;
     // 先走开场屏(年度投入分配),走完在 enterBrief 里才抽事件
     state.flowStepIndex = 0;
     enterStep(state, rng);
@@ -972,6 +1036,11 @@ export function createEngine(pack: ContentPack): Engine {
     // 个案的年度结算(会谈、联盟漂移兑现、脱落判定、状态机、小时数、案量的耗竭账)。
     // 排在恢复判定之前:今年接的案量吃掉的是**今年**的恢复能力。
     settleCaseYear(state, rng);
+    // 竞争者的一年。**他不跑完整引擎**,几行就够——玩家需要的只是一个可比的数字
+    advanceRivalYear(state, rng);
+    // 净欠额吃状态(13.2"欠太多本身是压力")。扣多少要能在回顾页上说出来,
+    // 一个说不出理由的惩罚等于一个 bug
+    const owingHit = settleOwingPressure(state, state.date.year);
     settleAnnualRecovery(state);
     // 未终结的课题记一年。"第 3 年"这个数字是课题管线里最有分量的一个,
     // 因为它是玩家自己看着它一年一年涨上去的。
@@ -1001,6 +1070,7 @@ export function createEngine(pack: ContentPack): Engine {
       incomes,
       moneyDelta: state.stats.money - moneyBefore,
       milestone,
+      owingPressure: owingHit,
     };
     // **快照就是「这些年」那一页的存档。** 结算屏是那一年结束时的一次正式回顾
     // (一次性、有仪式感),工作台的「这些年」是它的存档(随时可翻)——
@@ -1236,6 +1306,11 @@ export function createEngine(pack: ContentPack): Engine {
       finishWithEnding(state, early.id);
       return;
     }
+    // 竞争者同理:`{ rival: { op: 'meet' } }` 只标记,抽样在这里做
+    if (state.pendingRivalMeet) {
+      state.pendingRivalMeet = false;
+      meetRival(state, pack, rng);
+    }
     // `{ drawAdvisor }` 只标记"该抽了"(effects 没有 RNG),真正的抽样在这里做
     if (state.pendingAdvisorDraw) {
       const count = state.pendingAdvisorDraw;
@@ -1275,6 +1350,32 @@ export function createEngine(pack: ContentPack): Engine {
   }
 
   function handle(state: GameState, action: PlayerAction, rng: Rng): void {
+    /**
+     * **打听不是一个 screen,是一个 action**(TECH 4.7.3)。
+     *
+     * 所以它在按屏分发**之前**就处理掉,而且**不改变 `state.screen`**——
+     * 玩家在抽卡屏问完一句,还站在抽卡屏上。这条和 `DESK_ACTION` 同一形状:
+     * 不推进流程的动作一律当场结算、原地返回。
+     *
+     * 挂在哪几个屏上由这里的白名单决定,而白名单要和 `view()` 里投影 `ask` 的
+     * 那几个屏严格对应——**能看见的一定能点,看不见的一定点不动**。
+     */
+    if (action.type === 'ASK_AROUND') {
+      const topics =
+        state.screen === 'ADVISOR_DRAW'
+          ? advisorTopics(state)
+          : state.screen === 'DESK'
+            ? deskTopics(state)
+            : null;
+      if (topics === null) invalid(state, action);
+      if (asksLeft(state) <= 0) throw new Error('ASK_AROUND: 本回合已经问完了');
+      const available = askableRumors(state, pack, rng, topics);
+      if (!available.some(rumor => rumor.id === action.rumorId)) {
+        throw new Error(`ASK_AROUND: 这条现在打听不到: ${action.rumorId}`);
+      }
+      askRumor(state, pack, action.rumorId);
+      return;
+    }
     switch (state.screen) {
       case 'TITLE':
         if (action.type !== 'START') invalid(state, action);

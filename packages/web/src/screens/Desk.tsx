@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { PlayerAction, ViewModel } from '@psy-sim/core';
 import { Card, ContinueButton, RichText } from '../components/ui';
+import { AskAround } from '../components/AskAround';
 
 type DeskView = Extract<ViewModel, { kind: 'DESK' }>;
 type DeskItem = DeskView['items'][number];
@@ -167,7 +168,9 @@ export function DeskScreen(props: { view: DeskView; act: (action: PlayerAction) 
         </button>
       </div>
 
-      {tab === 'desk' && <DeskTab view={view} items={deskItems} countOf={countOf} slotControls={slotControls} />}
+      {tab === 'desk' && (
+        <DeskTab view={view} items={deskItems} countOf={countOf} slotControls={slotControls} act={act} />
+      )}
 
       {tab === 'projects' && (
         <div className="desk-pane">
@@ -392,8 +395,9 @@ function DeskTab(props: {
   items: DeskItem[];
   countOf: (id: string) => number;
   slotControls: (item: DeskItem) => JSX.Element;
+  act: (action: PlayerAction) => void;
 }) {
-  const { view, items, countOf, slotControls } = props;
+  const { view, items, countOf, slotControls, act } = props;
   const grouped = useMemo(() => {
     const byCategory = new Map<string, DeskItem[]>();
     for (const item of items) {
@@ -407,6 +411,9 @@ function DeskTab(props: {
 
   return (
     <div className="desk-pane">
+      {/* 同期那个人。**一行,只陈述**——你发了 2 篇不知道算好算坏,他的数字你立刻就懂 */}
+      {view.rivalLine && <div className="rival-line">{view.rivalLine}</div>}
+
       {/* 手上有什么的一行摘要:对象在别的页签里,但**它们必须在做决定的这一屏上可见** */}
       {(view.projects.length > 0 || view.cases.length > 0) && (
         <div className="desk-summary">
@@ -429,6 +436,27 @@ function DeskTab(props: {
           ))}
         </div>
       )}
+      {(view.favors.length > 0 || view.owingPressure) && (
+        <div className="alloc-group">
+          <div className="alloc-group-label">
+            人情账
+            {/* 净欠额到了会吃状态的地步。**说得出理由的压力才是压力** */}
+            {view.owingPressure && <span className="favor-warn">欠得有点多了</span>}
+          </div>
+          {view.favors.map((favor, i) => (
+            <div key={i} className="favor-row">
+              <span>{favor.reason}</span>
+              <span className={favor.direction === 'owing' ? 'favor-owing' : 'favor-owed'}>
+                {favor.direction === 'owing' ? '你欠着' : '他欠你'} · {favor.year}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 打听挂在工作台上:问的是你导师和手上课题的地基 */}
+      <AskAround ask={view.ask} act={act} about="手上的东西" />
+
       {grouped.map(group => (
         <div key={group.category} className="alloc-group">
           <div className="alloc-group-label">{CATEGORY_LABELS[group.category] ?? group.category}</div>

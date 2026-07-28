@@ -38,6 +38,25 @@ export interface PublicExamQuestion {
  * **给了数字,一屏选择就从一次判断变成一道最优化题,而那道题的答案通常很无聊。**
  * 同理 `advisor.archetype` 不进来,可及性三档的映射也必须多对一(规则 35)。
  */
+/**
+ * 打听区块。挂在抽卡屏、院校清单、工作台上的一个**次要入口**。
+ *
+ * **`accurate` 不在这里,也不在任何地方。** 玩家看到的永远是"某人说了一句话 +
+ * 一句让人不安的括注",可靠度只能自己推断——这是 13.3 全部设计的支点,
+ * validate 规则 19 静态守着它。
+ */
+export interface AskAroundBlock {
+  /** 本回合还能问几次。问完这一栏就只剩已经听到的那几句 */
+  asksLeft: number;
+  /** 还能问的:只给来源和一个 id,**问之前你不知道他会说什么** */
+  options: { id: string; source: string }[];
+  /**
+   * 已经听到的。排版是**引文 + 灰色括注**两行:正文是那个人的原话,
+   * 括注是那句让人不安的补充。
+   */
+  heard: { id: string; source: string; text: string; caveat: string }[];
+}
+
 export interface DeskView {
   kind: 'DESK';
   year: number;
@@ -132,6 +151,21 @@ export interface DeskView {
     /** 他上次说的那句话。没有则为 null */
     lastLine: string | null;
   } | null;
+  /**
+   * 影子竞争者的一句处境(13.1)。**按 `visibility` 分层**——
+   * 你对他了解多少决定你看到多细,而打听正是提高 visibility 的通道。
+   * `null` = 还没遇到他。
+   */
+  rivalLine: string | null;
+  /**
+   * 未结清的人情账(13.2)。**复述的是具体那件事**("他把被试池分给你"),
+   * 不是一个分数——"他帮过你"没有分量。
+   */
+  favors: { who: string; direction: string; reason: string; year: number }[];
+  /** 净欠额已经到了会吃状态的地步。年度回顾页会把扣掉的那几点说出来 */
+  owingPressure: boolean;
+  /** 打听(13.3)。工作台上问的是手上课题的地基和你导师 */
+  ask: AskAroundBlock;
   /** 「这些年」页签:历年流水,可以往回翻。纯读,零机制 */
   years: {
     year: number;
@@ -256,6 +290,11 @@ export type ViewModel =
        * 它要两三年才由关系事件揭示完。这个信息差是"换导师窗口逐年关闭"的全部前提。
        */
       candidates: { id: string; name: string; publicImpression: string }[];
+      /**
+       * **选导师之前可以先打听。** 这一屏是本作最重要的一次抽卡,
+       * 而 13.3 的全部意义就是把它从"闭眼选"变成"调查后选"。
+       */
+      ask: AskAroundBlock;
     }
   | DeskView
   | { kind: 'BRIEF'; phaseLabel: string; year: number; text: string }
@@ -305,6 +344,16 @@ export type ViewModel =
       /** 注册系统的两个累积量。临床线的年度回顾要能看到它们在涨 */
       clinicalHours: number;
       supervisionHours: number;
+      /**
+       * **这一年他怎么样。** 年度回顾页必须有一行竞争者的进度(GAME_DESIGN 4.5 第二条规矩)——
+       * 你发了 2 篇不知道算好算坏,"他发了 5 篇"你立刻就懂了。
+       * `null` = 还没遇到他。
+       */
+      rivalLine: string | null;
+      /** 未结清的人情账,一行一笔 */
+      favors: { who: string; direction: string; reason: string; year: number }[];
+      /** 净欠额压力今年扣掉的状态。0 = 没触发。**扣了就要说出来** */
+      owingPressure: number;
     }
   | {
       kind: 'ENDING';
@@ -392,6 +441,11 @@ export type PlayerAction =
    * validate 规则 37 机械地守住这条:`DESK_ACTION` 的效果里不许出现 `grantSlots`。
    */
   | { type: 'DESK_ACTION'; actionId: string; targetId?: string; value?: string }
+  /**
+   * 打听一条情报(M4.5,13.3)。**不是一个 screen,是一个 action**——
+   * 它挂在抽卡屏 / 院校清单 / 工作台这几个已有的屏上,所以零新屏。
+   */
+  | { type: 'ASK_AROUND'; rumorId: string }
   | { type: 'JOIN_ADVISOR'; advisorId: string }
   | { type: 'APPLY_GRAD'; institutionIds: string[] }
   | { type: 'CHOOSE'; choiceId: string };

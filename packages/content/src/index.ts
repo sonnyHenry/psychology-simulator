@@ -9,6 +9,7 @@ import { crossroadOptions, lifeGoals, masterCrossroadOptions } from './setup/cro
 import { courses } from './courses';
 import { projectTemplates } from './projects';
 import { advisors } from './advisors';
+import { advisorSwitchEvents, advisorSwitchOptions } from './advisors/switch';
 import { foundationEvents } from './events/foundation';
 import { GAMEIFIED_TERMS_NOTICE, institutions } from './institutions';
 import { positions } from './institutions/positions';
@@ -32,6 +33,10 @@ import { crisisEvents } from './events/undergrad/crisis';
 import { masteryEvents } from './events/undergrad/mastery';
 import { thesisEvents } from './events/undergrad/thesis';
 import { gradEvents } from './events/grad';
+import { rivalArchetypes } from './social/rivals';
+import { rumors } from './social/rumors';
+import { rivalEncounterEvents } from './events/social/encounters';
+import { favorEvents } from './events/social/favors';
 import { advisorConsultEvents } from './events/advisor/consult';
 import { projectStageEvents } from './events/project/stages';
 import { endings } from './endings';
@@ -74,6 +79,9 @@ export const contentPack: ContentPack = {
     ...thesisEvents,
     ...gradEvents,
     ...advisorConsultEvents,
+    ...rivalEncounterEvents,
+    ...favorEvents,
+    ...advisorSwitchEvents,
     ...projectStageEvents,
     ...foundationEvents,
     ...clinicalEvents,
@@ -89,10 +97,13 @@ export const contentPack: ContentPack = {
   allocationItems: [...allocationItems, ...gradAllocationItems, ...clinicalAllocationItems],
   crossroadOptions: [...crossroadOptions, ...masterCrossroadOptions],
   advisors,
+  advisorSwitchOptions,
   institutions,
   positions,
   citations,
   foundations,
+  rumors,
+  rivalArchetypes,
   gameifiedTermsNotice: GAMEIFIED_TERMS_NOTICE,
   researcherNameBlocklist,
   textbookAuthorAllowlist,

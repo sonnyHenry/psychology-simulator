@@ -549,3 +549,34 @@ M1 的核心验收是**六条培养路径不串线**。夹具 `routingPack()` �
 已经顶在 `1 − MIN_SETBACK_CHANCE` 上,这时候投得再稳也压不掉那 22%。
 这不是漏洞,是五节那条硬约束("不存在稳定刷论文的最优解")照常生效——选刊不该是它的后门。
 单测把这条钉住了。
+
+---
+
+## M4.5:社会层的三个新 state 字段
+
+`rival` / `favors` / `rumors` 三个字段进 `GameState`,理由和 `projects` / `cases` 一样
+(P5:需要枚举成列表的东西才该占 state 字段)。前作三样都没有,所以没有可对照的移植关系。
+值得记下来的是两条**这一轮才第一次踩到的**规矩:
+
+### 一、`applyEffects` 仍然不许有 RNG,所以"遇到他"要分两步
+
+`{ rival: { op: 'meet' } }` 只写 `pendingRivalMeet`,真正抽哪个原型在
+`continueAfterOutcome` 里做——照 `{ drawAdvisor }` 的写法。第三次用这个模式了
+(抽导师、分配地基、抽竞争者),它已经是本作的一条固定套路:
+**effect 表达意图,引擎在有 RNG 的地方兑现。**
+
+### 二、先算分量再标记已结清
+
+`applyFavorOp` 的 settle 分支第一版写成:
+
+```ts
+favor.settled = true;
+budget -= effectiveWeight(favor, currentYear);   // ← 永远是 0
+```
+
+而 `effectiveWeight` 对已结清的favor返回 0,于是预算永远不减,
+**一次 settle 会把这个方向上的账全部清空**。单测抓到的:结 3 分的一笔,
+结果 4 分和 1 分两笔都结了。
+
+这类"读一个自己刚改过的派生值"的 bug 不会崩、不会报错,只会让机制静默失效。
+同类的还有 M4.6 那个"先算 `stillNeed` 再判 `met`"——**改状态和读派生值之间要留一行距离。**

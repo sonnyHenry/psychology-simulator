@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { PlayerAction, ViewModel } from '@psy-sim/core';
 import { devJumpTargets } from '@psy-sim/content';
 import { Card, ChoiceButton, ContinueButton, DeltaChips, MoneyTrend, RichText } from '../components/ui';
+import { AskAround } from '../components/AskAround';
 
 type Act = (action: PlayerAction) => void;
 type Of<K extends ViewModel['kind']> = Extract<ViewModel, { kind: K }>;
@@ -328,6 +329,8 @@ export function AdvisorDrawScreen(props: { view: Of<'ADVISOR_DRAW'>; act: Act })
           <strong>剩下的要两三年才知道。</strong>
         </p>
       </div>
+      {/* **选之前可以先打听。** 13.3 的全部意义就是把这一屏从"闭眼选"变成"调查后选" */}
+      <AskAround ask={props.view.ask} act={props.act} about="这几个人" />
       {props.view.candidates.map(advisor => (
         <ChoiceButton
           key={advisor.id}
@@ -475,6 +478,38 @@ export function SettlementScreen(props: { view: Of<'SETTLEMENT'>; act: Act }) {
                 {view.clinicalHours}
                 {view.supervisionHours > 0 && ` · 督导 ${view.supervisionHours}`}
               </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* **年度回顾页必须有一行竞争者的进度**(GAME_DESIGN 4.5 第二条规矩)。
+          你发了 2 篇不知道算好算坏,"他发了 5 篇"你立刻就懂了。
+          **只陈述,不评价**——这一行不加任何情绪词。 */}
+      {view.rivalLine && (
+        <div className="review-block">
+          <div className="review-label">同期</div>
+          <div className="review-row review-plain">{view.rivalLine}</div>
+        </div>
+      )}
+
+      {(view.favors.length > 0 || view.owingPressure > 0) && (
+        <div className="review-block">
+          <div className="review-label">人情账</div>
+          {view.favors.map((favor, i) => (
+            <div key={i} className="review-row">
+              {/* 复述的是**具体那件事**,不是一个分数 */}
+              <span>{favor.reason}</span>
+              <span className={`review-value ${favor.direction === 'owing' ? 'favor-owing' : 'favor-owed'}`}>
+                {favor.direction === 'owing' ? '你欠着' : '他欠你'} · {favor.year}
+              </span>
+            </div>
+          ))}
+          {/* **扣了就要说出来。** 一个说不出理由的惩罚等于一个 bug */}
+          {view.owingPressure > 0 && (
+            <div className="review-row">
+              <span>欠的人太多了,见谁都得先笑一下</span>
+              <span className="review-value stat-low">状态 −{view.owingPressure}</span>
             </div>
           )}
         </div>

@@ -648,6 +648,96 @@ const CASES: Case[] = [
     expect: '不在注册表内',
   },
 
+  // ── 社会层(M4.5,规则 16–22)──────────────────────────────
+  {
+    rule: '交汇点缺"你领先"的版本(规则 16)',
+    break: pack => {
+      // 把"你领先"那一版的 trigger 改成也要求他领先 → 这个交汇点只剩一种读法
+      const event = pack.events.find(e => e.id === 'ev_rv_authorship_ahead');
+      if (!event) throw new Error('反例夹具需要更新:找不到 ev_rv_authorship_ahead');
+      event.trigger = { rival: { met: true, aheadOfPlayer: true } };
+    },
+    expect: '缺"你领先"的版本',
+  },
+  {
+    rule: '没有任何内容改过竞争者的 momentum(规则 16)',
+    break: pack => {
+      for (const event of pack.events) {
+        for (const choice of event.choices) {
+          for (const outcome of choice.outcomes) {
+            outcome.effects = outcome.effects.map(effect =>
+              'rival' in effect && effect.rival.op === 'nudge'
+                ? { rival: { op: 'nudge', papers: 1 } }
+                : effect,
+            );
+          }
+        }
+      }
+    },
+    expect: '固定难度曲线',
+  },
+  {
+    rule: '人情只能欠不能还(规则 17)',
+    break: pack => {
+      for (const event of pack.events) {
+        for (const choice of event.choices) {
+          for (const outcome of choice.outcomes) {
+            outcome.effects = outcome.effects.filter(
+              effect => !('favor' in effect) || effect.favor.op !== 'settle',
+            );
+          }
+        }
+      }
+    },
+    expect: '没有人兑现',
+  },
+  {
+    rule: '某个话题的情报全是真的(规则 18)',
+    break: pack => {
+      for (const rumor of pack.rumors ?? []) {
+        if (rumor.topic === 'advisor:adv_star') rumor.accurate = true;
+      }
+    },
+    expect: '真伪配比',
+  },
+  {
+    rule: 'drama 事件有一个纯优势选项(规则 20)',
+    break: pack => {
+      const event = pack.events.find(e => e.category === 'drama');
+      if (!event) throw new Error('反例夹具需要更新:内容包里没有 drama 事件');
+      event.choices[0]!.outcomes[0]!.effects = [{ stats: { method: 5, capital: 5 } }];
+    },
+    expect: '两边都有道理',
+  },
+  {
+    rule: '黑天鹅直接把玩家推进结局(规则 21)',
+    break: pack => {
+      pack.events.push(
+        stubEvent('ev_fixture_blackswan', {
+          category: 'blackswan',
+          choices: [
+            {
+              id: 'a',
+              text: 'A',
+              outcomes: [{ weight: 1, text: 'A', effects: [{ triggerEnding: pack.endings[0]!.id }] }],
+            },
+            { id: 'b', text: 'B', outcomes: [{ weight: 1, text: 'B', effects: [{ stats: { state: -1 } }] }] },
+          ],
+        }),
+      );
+    },
+    expect: '黑天鹅事件不得直接触发结局',
+  },
+  {
+    rule: '换导师的 late 档被删掉了(规则 22)',
+    break: pack => {
+      pack.advisorSwitchOptions = (pack.advisorSwitchOptions ?? []).filter(
+        option => option.costTier !== 'late',
+      );
+    },
+    expect: '后期不可行',
+  },
+
   // ── 工作台(M4.6,规则 33–37)──────────────────────────────
   //
   // 规则 36 在这里**没有反例**:它静态检查 `systems/desk.ts` 的源码,与内容包无关,

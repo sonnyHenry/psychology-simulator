@@ -67,6 +67,38 @@ export interface AdvisorDef {
   stages: Record<string, { advanceWhen?: Condition; eventId?: string }>;
 }
 
+/**
+ * 换导师的一个入口(GAME_DESIGN 七节)。
+ *
+ * ## 逐年关闭的窗口 + 递增的成本
+ *
+ * | 时机 | 你知道多少 | 代价 |
+ * |---|---|---|
+ * | 研一 / 直博一年级 | 很少 | 小。损失半年,资本小挫 |
+ * | 研二 / 博二 | 差不多摸清了 | 中。损失一年,课题清零 |
+ * | 博三及以后 | 全都知道了 | 极高,但**仍然可行** |
+ *
+ * **你什么都不知道的时候可以换,等你什么都知道了就走不了了。**
+ * 这是这个机制全部的意思,也是很多人真实的处境。
+ *
+ * ## `late` 档必须存在(validate 规则 22)
+ *
+ * 换导师**必须一直可行**,即使代价极高——因为现实中它可行,而且有人应该这么做。
+ * 少了 late 档,"代价极高但始终可行"就变成了"后期不可行",
+ * 而那是完全不同的一句话。
+ */
+export interface AdvisorSwitchOption {
+  id: string;
+  /** 'early' | 'mid' | 'late' —— 决定代价档位,也决定它在哪几年出现 */
+  costTier: 'early' | 'mid' | 'late';
+  label: string;
+  /** 这一档的代价说明。**明码标价**,与工作台同一条纪律 */
+  cost: string;
+  availableWhen?: Condition;
+  /** 触发的事件。换导师是一幕戏,不是一个按钮 */
+  eventId: string;
+}
+
 export interface AdvisorState {
   id: string;
   favor: number;

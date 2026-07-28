@@ -1,5 +1,6 @@
 import type { Authorship, PaperTier, ProjectOp, ProjectStage } from './project';
 import type { CaseOp, CaseStatus, ClinicalCase } from './case';
+import type { FavorOp, RivalOp } from './social';
 import type { StatKey } from './stats';
 
 export type Op = '>' | '>=' | '<' | '<=' | '==';
@@ -67,6 +68,22 @@ export type Condition =
   | { caseTrend: 'warm' | 'strained' }
   /** 导师。`archetype` 是真实原型——内容可以读,但**它不进 ViewModel** */
   | { advisor: { archetype?: string; stage?: string; favor?: { op: Op; value: number } } }
+  /**
+   * 影子竞争者的处境(M4.5,13.1)。
+   *
+   * `aheadOfPlayer` 是五个交汇点分流的主条件——**每个交汇点都必须有
+   * "他领先"和"你领先"两个版本**(validate 规则 16),否则那一幕只有一种读法。
+   * `struggling` 是"他从对手变成同类"那几幕的开关。
+   */
+  | { rival: { aheadOfPlayer?: boolean; struggling?: boolean; track?: string; met?: boolean } }
+  /**
+   * 人情账的余额(M4.5,13.2)。读的是**贬值之后**的分量之和,不是原始值——
+   * 五年前的恩情兑现不了一封今年的推荐信。
+   * `direction` 省略时读净额(他欠我 − 我欠他)。
+   */
+  | { favorBalance: { who?: string; direction?: 'owed' | 'owing'; op: Op; value: number } }
+  /** 玩家有没有听到过某条情报。**读的是"听到过没有",不是"这条是真是假"** */
+  | { heardRumor: string }
   | { chance: number }
   | { all: Condition[] }
   | { any: Condition[] }
@@ -105,6 +122,10 @@ export type Effect =
   | { case: CaseOp }
   | { advisorFavor: number }
   | { advisorStage: string }
+  /** 竞争者操作:nudge(改成长速度)/ reveal(提高了解)/ encounter(记一次交汇) */
+  | { rival: RivalOp }
+  /** 人情账:add(记一笔)/ settle(兑现或抵消) */
+  | { favor: FavorOp }
   /**
    * 记下**导师上次说的那句话**,常驻在工作台的导师面板上(M4.6)。
    * 一行文本,把一个幕后乘数变回一个人——由内容自己决定哪句话值得留着。

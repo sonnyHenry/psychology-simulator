@@ -265,10 +265,20 @@ function botAction(
     case 'LIFE_GOAL':
       return { type: 'CHOOSE_LIFE_GOAL', goalId: bot.pick(view.goals).id };
     case 'ADVISOR_DRAW':
-      // bot 只能看到公开印象——**跟玩家第一次抽卡时知道的一样多**,
-      // 所以随机挑是对这个机制最诚实的模拟。
+      // **先打听,再选。** 13.3 的全部意义就是把这一屏从"闭眼选"变成"调查后选",
+      // 所以 bot 也要真的问——不问的话"打听使用率"这条门禁量的永远是 0。
+      if (view.ask.asksLeft > 0 && view.ask.options.length > 0) {
+        return { type: 'ASK_AROUND', rumorId: bot.pick(view.ask.options).id };
+      }
+      // 问完之后 bot 仍然随机挑:**它读不懂那几句话**。
+      // 这恰恰是对这个机制最诚实的模拟——情报不给数值优势,只减少方差,
+      // 能不能用是玩家的事,不是 bot 的事。
       return { type: 'JOIN_ADVISOR', advisorId: bot.pick(view.candidates).id };
     case 'DESK': {
+      // 工作台上也能打听(手上课题的地基、你导师)。同样先问再投
+      if (view.ask.asksLeft > 0 && view.ask.options.length > 0 && bot.chance(0.5)) {
+        return { type: 'ASK_AROUND', rumorId: bot.pick(view.ask.options).id };
+      }
       // ── 先做不花格数的当场决策(选刊 / 降档改投),再分配格子 ──
       //
       // 两种动作走两条通路(TECH 4.4),bot 也照这个顺序:`DESK_ACTION` 不离开这一屏,
@@ -413,6 +423,20 @@ export interface RunResult {
   resubmitCount: number;
   /** 局终有没有达到所在院校的毕业指标 + 那所院校的档次(门禁:A+ vs 双非 ≥15pp) */
   graduation: { tier: string; met: boolean } | null;
+  // ── M4.5 社会层门禁读的四笔账 ────────────────────────────
+  /** 打听这个入口出现过没有 / 用过没有(门禁:出现过的对局里 ≥60% 用过) */
+  askOffered: boolean;
+  askUsed: boolean;
+  /**
+   * **被假消息误导过没有**(门禁:15%–35%)。
+   *
+   * 口径是"误导",不是"听到假的":玩家听到一条关于某导师的假消息、**而且真的进了那个组**,
+   * 才算被它误导。只数"假消息占比"的话量到的是内容配比(规则 18 已经在管),
+   * 跟这个机制有没有真的干扰过决策没关系。
+   */
+  misledByRumor: boolean | null;
+  /** 局终玩家论文数 vs 竞争者(门禁:玩家胜出 35%–65%) */
+  rivalCompare: { playerPapers: number; rivalPapers: number } | null;
 }
 
 function fmtDeltas(deltas: Record<string, number | undefined>): string {
@@ -441,6 +465,11 @@ export function runOne(
   const submitTierPicks: string[] = [];
   let resubmitCount = 0;
   let graduation: { tier: string; met: boolean } | null = null;
+  let askOffered = false;
+  let askUsed = false;
+  /** 听到过假消息的导师话题。JOIN_ADVISOR 时用它判"有没有被误导" */
+  const heardFalseAbout = new Set<string>();
+  let misledByRumor: boolean | null = null;
   const stateByYear: Array<[number, number]> = [];
   const presentationHits: string[] = [];
   const contextLineHits: string[] = [];
@@ -485,6 +514,12 @@ export function runOne(
         submitTierPicks: [...submitTierPicks],
         resubmitCount,
         graduation,
+        askOffered,
+        askUsed,
+        misledByRumor,
+        rivalCompare: state.rival
+          ? { playerPapers: (state.papers ?? []).length, rivalPapers: state.rival.papers }
+          : null,
       };
     }
     const action = botAction(view, bot, strategy, state, examSkill);
@@ -539,11 +574,24 @@ export function runOne(
         }
         break;
       case 'ADVISOR_DRAW':
+        if (view.ask.options.length > 0 || view.ask.heard.length > 0) askOffered = true;
+        if (action.type === 'ASK_AROUND') {
+          askUsed = true;
+          // **只有工具能看 accurate。** ViewModel 里没有它,所以这里从内容包直接读——
+          // 门禁要量"这个机制有没有真的干扰过决策",而那必须知道哪条是假的。
+          const def = contentPack.rumors?.find(r => r.id === action.rumorId);
+          if (def && !def.accurate) heardFalseAbout.add(def.topic);
+          log(`  🗣 打听(${def?.source}):${def?.text}`);
+        }
         if (action.type === 'JOIN_ADVISOR') {
+          // 听过关于他的假话、而且真的进了他的组 = 被误导了
+          if (askOffered) misledByRumor = heardFalseAbout.has(`advisor:${action.advisorId}`);
           log(`\n🎓 进组:${view.candidates.find(c => c.id === action.advisorId)?.name}`);
         }
         break;
       case 'DESK':
+        if (view.ask.options.length > 0 || view.ask.heard.length > 0) askOffered = true;
+        if (action.type === 'ASK_AROUND') askUsed = true;
         // **选刊要记账**:门禁"各档 ≥10%""降档改投 15%–40%"读的就是这两笔
         if (action.type === 'DESK_ACTION' && action.value) {
           if (action.actionId === 'desk_choose_tier') submitTierPicks.push(action.value);
@@ -708,6 +756,23 @@ interface BatchStats {
   npcStats: Map<string, { active: number; completed: number; special: number; stages: Map<string, number> }>;
   /** M4.6 工作台门禁的五组统计 */
   desk: DeskStats;
+  /** M4.5 社会层门禁的三组统计 */
+  social: SocialStats;
+}
+
+/**
+ * 社会层门禁(TECH 7.2 / M4.5)。三条各守一个机制**不退化**:
+ * 竞争者不变成固定难度曲线、打听不变成没人点的入口、假消息不变成攻略或噪声。
+ */
+interface SocialStats {
+  askOfferedRuns: number;
+  askUsedRuns: number;
+  rumorJudgedRuns: number;
+  misledRuns: number;
+  rivalRuns: number;
+  playerAheadRuns: number;
+  rivalPapersSum: number;
+  playerPapersSum: number;
 }
 
 /**
@@ -761,6 +826,16 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
     collapseChoicePicks: new Map(),
     eventsYearly: new Map(),
     npcStats: new Map(),
+    social: {
+      askOfferedRuns: 0,
+      askUsedRuns: 0,
+      rumorJudgedRuns: 0,
+      misledRuns: 0,
+      rivalRuns: 0,
+      playerAheadRuns: 0,
+      rivalPapersSum: 0,
+      playerPapersSum: 0,
+    },
     desk: {
       withAdvisor: 0,
       consultRuns: 0,
@@ -830,6 +905,28 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
         else stats.clinical.activeAtEnd++;
       }
     }
+    // ── M4.5 社会层统计 ──
+    if (result.askOffered) {
+      stats.social.askOfferedRuns++;
+      if (result.askUsed) stats.social.askUsedRuns++;
+    }
+    if (result.misledByRumor !== null) {
+      stats.social.rumorJudgedRuns++;
+      if (result.misledByRumor) stats.social.misledRuns++;
+    }
+    if (result.rivalCompare) {
+      const { playerPapers, rivalPapers } = result.rivalCompare;
+      // **分母只算学术线。** 论文数是学术线的记分方式;一个去了大厂的玩家
+      // 和一个还在发论文的旧同学之间,"谁领先"这个问题本身就没有定义。
+      // 算进去的话这条门禁量的是路径分布,不是这个对手强不强。
+      if (fs.flags.track_academic && playerPapers + rivalPapers > 0) {
+        stats.social.rivalRuns++;
+        if (playerPapers > rivalPapers) stats.social.playerAheadRuns++;
+        stats.social.playerPapersSum += playerPapers;
+        stats.social.rivalPapersSum += rivalPapers;
+      }
+    }
+
     // ── M4.6 工作台统计 ──
     if (result.consultOffered) {
       stats.desk.withAdvisor++;
@@ -971,6 +1068,27 @@ function printBatch(s: BatchStats): void {
         `(结束 ${c.completed} · 脱落 ${c.dropped} · 转介 ${c.referred} · 局末仍在谈 ${c.activeAtEnd})` +
         ` · 注册小时数 p50=${percentile(hours, 50)} p90=${percentile(hours, 90)}`,
     );
+  }
+
+  // ── 社会层(M4.5)──
+  {
+    const so = s.social;
+    if (so.askOfferedRuns > 0) {
+      console.log(
+        `\n社会层 · 打听(入口出现过 ${so.askOfferedRuns} 局):` +
+          ` 使用率 ${((so.askUsedRuns / so.askOfferedRuns) * 100).toFixed(1)}%` +
+          (so.rumorJudgedRuns > 0
+            ? ` · 被假消息误导 ${((so.misledRuns / so.rumorJudgedRuns) * 100).toFixed(1)}%(可判定 ${so.rumorJudgedRuns} 局)`
+            : ''),
+      );
+    }
+    if (so.rivalRuns > 0) {
+      console.log(
+        `社会层 · 竞争者(可比 ${so.rivalRuns} 局):` +
+          ` 玩家胜出 ${((so.playerAheadRuns / so.rivalRuns) * 100).toFixed(1)}%` +
+          ` · 平均论文 你 ${(so.playerPapersSum / so.rivalRuns).toFixed(2)} vs 他 ${(so.rivalPapersSum / so.rivalRuns).toFixed(2)}`,
+      );
+    }
   }
 
   // ── 工作台(M4.6)。**每一行都对着 TECH 7.2 的一条门禁** ──
@@ -1258,6 +1376,43 @@ function runCheck(s: BatchStats, extra?: BatchStats): void {
         failures.push(
           `个案脱落率超出 15%–40%: ${(dropoutRate * 100).toFixed(1)}%` +
             `(脱落 ${c.dropped} / 终结 ${terminal})`,
+        );
+      }
+    }
+  }
+
+  // ── 社会层门禁(M4.5,TECH 7.2)────────────────────────────
+  //
+  // 三条各守一个机制**不退化**。三种退化都不会崩、不会红,只会让机制悄悄变成装饰。
+  {
+    const so = s.social;
+    // **打听使用率。** 这条守的和「寻求指导」那条一样是定价:
+    // 没人点说明这个入口摆错了地方或者代价定错了,不是玩家不感兴趣。
+    if (so.askOfferedRuns >= 50) {
+      const rate = so.askUsedRuns / so.askOfferedRuns;
+      if (rate < 0.6) {
+        failures.push(
+          `打听使用率过低(<60%): ${(rate * 100).toFixed(1)}%(这个入口出现过的 ${so.askOfferedRuns} 局)`,
+        );
+      }
+    }
+    // **假消息误导率。** 太低 = 情报变成攻略(照着抄就行);
+    // 太高 = 玩家两局之后学会无视这个入口,而那等于把机制关掉。
+    if (so.rumorJudgedRuns >= 50) {
+      const rate = so.misledRuns / so.rumorJudgedRuns;
+      if (rate < 0.15 || rate > 0.35) {
+        failures.push(
+          `假消息误导率超出 15%–35%: ${(rate * 100).toFixed(1)}%(可判定的 ${so.rumorJudgedRuns} 局)`,
+        );
+      }
+    }
+    // **玩家胜出率。** 他不能总赢也不能总输——13.1 第 2 条。
+    // 总赢的对手不构成参照系,总输的对手是一堵墙。
+    if (so.rivalRuns >= 50) {
+      const rate = so.playerAheadRuns / so.rivalRuns;
+      if (rate < 0.35 || rate > 0.65) {
+        failures.push(
+          `玩家论文数超过竞争者的比例超出 35%–65%: ${(rate * 100).toFixed(1)}%(可比的 ${so.rivalRuns} 局)`,
         );
       }
     }

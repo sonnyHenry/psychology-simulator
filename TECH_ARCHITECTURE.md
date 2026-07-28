@@ -222,7 +222,7 @@ type Effect =
 type PhaseConfig =
   | { kind: 'flow'; id; label; date; steps: ScreenId[] }
   | { kind: 'rounds'; id; label; date; rounds; eventSlots; pools; briefs;
-      roundOpeners?: ScreenId[];   // ← 新:每轮开场先走这些屏(如 ALLOCATION)
+      roundOpeners?: ScreenId[];   // ← 新:每轮开场先走这些屏(如 DESK 工作台)
       yearsPerRound?: number;      // ← 新:默认 1;设 2 则每轮推进 2 年
       allocationSlots?: number;    // ← 新:本阶段默认精力格数
       nextPhaseId?: string;        // ← 新:显式指定下一阶段,见下
@@ -264,17 +264,30 @@ type ScreenId =
   | 'NPC_SELECTION' | 'LIFE_GOAL' | 'CROSSROAD' | 'BRIEF' | 'EVENT' | 'OUTCOME'
   | 'SETTLEMENT' | 'ENDING'
   | 'ADVISOR_DRAW'        // ← 导师抽卡(照 BACKGROUND_DRAW 的写法)
-  | 'ALLOCATION'          // ← 年度投入分配
+  | 'DESK'                // ← 工作台:年度投入分配 + 课题/个案/导师面板 + 历年流水
   | 'INVENTORY'           // ← 量表自评(多题,照 EXAM 的 cursor 写法)
-  | 'PROJECT_BOARD'       // ← 课题看板(只读,可从 ALLOCATION 进入查看)
   | 'GRAD_APPLY'          // ← 读研/读博/博后的真实院校清单选择(一屏三用,靠 kind 区分)
   | 'JOB_MARKET'          // ← 教职求职季(七步,内部靠 jobMarket.step 走)
   | 'TENURE_REVIEW';      // ← 长聘首考结算清单
 ```
 
-对应 `PlayerAction` 新增:`DRAW_ADVISOR` / `ALLOCATE` / `ANSWER_INVENTORY` / `SUBMIT_APPLICATIONS` / `JOB_MARKET_STEP` / `ASK_AROUND` / `CONTINUE`(复用)。
+对应 `PlayerAction` 新增:`DRAW_ADVISOR` / `ALLOCATE` / `DESK_ACTION` / `ANSWER_INVENTORY` / `SUBMIT_APPLICATIONS` / `JOB_MARKET_STEP` / `ASK_AROUND` / `CONTINUE`(复用)。
 
-**社会层三机制不需要任何新屏**:`ASK_AROUND` 挂在已有的抽卡/清单/分配屏上;人情账和竞争者进度显示在年度回顾页和 `StatsBar` 徽章里;`SETTLEMENT` 屏改造成年度回顾页(见六节),不新增 ScreenId。这是这三个机制能便宜的原因。
+**`DESK` 吃掉 `ALLOCATION` 与 `PROJECT_BOARD`**(GAME_DESIGN 4.1)。这两个屏已经落地,合并的改动量比看起来小:`roundOpeners: ['ALLOCATION']` 改成 `['DESK']`,两份 ViewModel 变成 `DESK` 的两个页签块,引擎侧的分配校验与结算逻辑一行不动。`verify-jumps` 会当场变红(它盯着阶段 id 与屏 id),那是对的。
+
+**两种动作,两条通路——这条分工要先定死:**
+
+| | 走哪条 | 何时结算 | 例子 |
+|---|---|---|---|
+| **花精力格的** | `ALLOCATE`(一次原子提交) | 提交时统一结算 | 投课题、接案、寻求指导、帮导师干活、休息 |
+| **不花精力格的** | `DESK_ACTION { actionId, targetId? }` | 当场生效 | 选刊、降档改投、放弃课题 |
+| **纯浏览** | 不进引擎,UI 本地 state | —— | 切页签、翻「这些年」、展开一张卡 |
+
+**理由是格数守恒只能有一个校验点。** 分配没提交之前玩家要能反复加减格子,所以花格数的动作一律不当场结算;反过来,不花格数的决策当场生效才有手感,而且它们不参与格数校验,不会把那条不变式搞乱。**新加动作时先问这一格花不花精力,答案决定它走哪条通路。**
+
+**第三行同样要紧:切页签绝对不能走 `dispatch`。** 工作台会显著增加玩家的点击量,如果这些点击进了 `actionLog`,存档、重放和 `devJump` 产出的 action 序列都会被浏览操作淹没——**动作日志只记改变状态的事**。
+
+**社会层三机制不需要任何新屏**:`ASK_AROUND` 挂在已有的抽卡/清单/工作台上;人情账和竞争者进度显示在工作台的桌面页签、年度回顾页和 `StatsBar` 徽章里;`SETTLEMENT` 屏改造成年度回顾页(见六节),不新增 ScreenId。这是这三个机制能便宜的原因。
 
 `EXAM` 的多题游标逻辑和 `BACKGROUND_DRAW` 的抽卡逻辑可以直接复制给 `INVENTORY` 和 `ADVISOR_DRAW`,这两个屏的引擎侧成本很低。
 
@@ -325,6 +338,7 @@ type ScreenId =
 | `systems/review.ts` | 年度回顾页的数据聚合(课题/论文/个案/收支/状态/竞争者进度),纯读取,不改 state |
 | `systems/course.ts` | 课程三档判定(投入格数 × 属性 × 期末小测 × 随机)、能力标签写入、重修代价(4.7.5) |
 | `systems/slots.ts` | 叙事功能位:按 `roundWindow` 命中、从 ≥3 个候选里导演加权抽 `fill` 个、记 `filledSlots` 防重填(4.7.4) |
+| `systems/desk.ts` | 工作台的 ViewModel 聚合(纯读):把 projects / cases / advisor / 毕业进度组装成五个页签,并把所有原始数值**降级成档位**。`quality` / `alliance` / `favor` 的数字不许穿过这一层(规则 36)。「这些年」页签**直接复用 `systems/review.ts`**,不另写一套聚合 |
 
 这些都是纯函数,输入 `(state, pack, rng)`,输出对 state 的修改。与 `scheduler.ts` 同层。
 
@@ -348,6 +362,9 @@ interface Project {
   rejections: number;
   preregistered: boolean;
   startedYear: number;
+  // ↓ 工作台(M4.6)新增:玩家在审稿站选的目标档位。
+  //   undefined = 还没选,引擎按 quality 自动兜底(bot 与旧存档走这一条)。
+  submitTier?: PaperTier;
 }
 
 type PaperTier = 'q1' | 'q2' | 'q3' | 'cssci' | 'chinese_core' | 'conference' | 'preprint';
@@ -398,14 +415,21 @@ interface AdvisorDef {                 // content 层
 interface AdvisorState { id: string; favor: number; stage: string; }
 
 // ── 年度投入项 ─────────────────────────────────────────────
+// 落地时字段名与本表有出入(maxPicks → maxSlots、effectsPerSlot → perSlot,
+// 另加了 category),以 types/content.ts 为准。下面两条是工作台(M4.6)新增的。
 interface AllocationItem {
   id: string;
   label: string;
-  text: string;                        // 一句话说明这一年具体在干什么
+  text: string;                        // 一句话说明这一年具体在干什么(氛围)
+  payoff: string;                      // ← 新:这一格换来什么(代价与回报,明码标价)
   availableWhen: Condition;
   maxPicks?: number;                   // 默认 slots,设 1 则不可重复投入
   effectsPerSlot: Effect[];            // 每投一格结算一次
   targets?: 'project' | 'case';        // 需要玩家再选一个具体对象
+  target?: {                           // ← 新:把这一项挂到工作台的哪张卡片上
+    kind: 'project' | 'case' | 'advisor';
+    id?: string;                       //   省略 = 挂在该类目的面板上(如导师面板)
+  };
 }
 
 // ── 量表 ──────────────────────────────────────────────────
@@ -439,15 +463,26 @@ interface Institution {
       | 'r1' | 'slac' | 'europe' | 'hk_sg';
   domains: string[];                 // 真实方向标签,用于与玩家 domain 匹配
   impression: string;                // 清单上展示的公开印象(不含个人评价)
-  // 以下全部是「游戏化近似」,不是真实招聘信息 —— UI 必须声明
+  // 以下全部是「游戏化近似」,不是真实招聘信息 —— UI 必须声明。
+  // M3.5 补丁把它拆成招生侧/聘用侧两组:读硕的人不该在清单上看到预聘条款,
+  // 拆开之后这个错误在类型层面就写不出来(GRAD_APPLY 拿不到 employment)。
   gameified: {
-    tenureYears?: number;            // 首考年限
-    tenureBar?: string;              // 考核指标描述
-    startupFunds?: [number, number]; // 启动经费区间(量级,非精确)
-    teachingLoad?: string;           // '2-2' | '3-3' | '年均 200 课时'
-    tenured?: boolean;               // 是否直接给编制/长聘
-    housing?: string;
-    admissionQuota?: string;         // 招生指标
+    admission?: {                    // 招生侧:GRAD_APPLY 读这一组
+      quota?: string;                // 招生指标的描述
+      duration?: string;             // 学制/培养年限
+      funding?: string;              // 资助方式
+      // ↓ 工作台(M4.6)新增。毕业硬指标,展示文案 + 结构化版本必须一致(规则 34)
+      graduationBar?: string;        // '博士毕业要求 2 篇 SCI,其中 1 篇二区以上'
+      graduationReq?: { papers: number; topTier?: number; topTierLabel?: string };
+    };
+    employment?: {                   // 聘用侧:只出现在求职季的 JOB_MARKET
+      tenureYears?: number;          // 首考年限
+      tenureBar?: string;            // 考核指标描述
+      startupFunds?: [number, number]; // 启动经费区间(量级,非精确)
+      teachingLoad?: string;         // '2-2' | '3-3' | '年均 200 课时'
+      tenured?: boolean;             // 是否直接给编制/长聘
+      housing?: string;
+    };
   };
 }
 
@@ -581,7 +616,7 @@ interface Rumor { defId: string; year: number; }   // 玩家已听到的
 
 **`accurate` 字段绝不能进 ViewModel。** 这是 13.3 全部设计的支点——玩家看到的永远只是"某人说了一句话 + 一句让人不安的括注",可靠度只能自己推断。`validate` 检查 `ViewModel` 构造路径上没有任何地方透出 `accurate`(见 7.1 规则 19)。
 
-**打听不是一个 screen,是一个 action。** `ASK_AROUND` 挂在 `ADVISOR_DRAW` / `GRAD_APPLY` / `JOB_MARKET` / `ALLOCATION` 这几个已有的屏上,按 `topic` 过滤出可打听项。这样零新屏。
+**打听不是一个 screen,是一个 action。** `ASK_AROUND` 挂在 `ADVISOR_DRAW` / `GRAD_APPLY` / `JOB_MARKET` / `DESK` 这几个已有的屏上,按 `topic` 过滤出可打听项。这样零新屏。
 
 ### 4.7.5 课程系统(本科四年,GAME_DESIGN 8.2)
 
@@ -681,7 +716,7 @@ export const phases: PhaseConfig[] = [
     steps: ['BACKGROUND_DRAW', 'SETUP', 'EXAM', 'APPLICATION', 'NPC_SELECTION'] },
 
   { kind: 'rounds', id: 'undergrad',   date: { year: 2014, month: 9 },
-    rounds: 4, eventSlots: 3, allocationSlots: 3, roundOpeners: ['ALLOCATION'],
+    rounds: 4, eventSlots: 3, allocationSlots: 3, roundOpeners: ['DESK'],
     pools: ['undergrad', 'course', 'npc', 'era', 'random'], briefs: [/* 4 */] },
     // ADVISOR_DRAW 由大三的 mandatory 事件触发进入实验室时才发生,不占 roundOpeners
 
@@ -730,17 +765,30 @@ React 18 + Vite + TypeScript + Zustand(仅 UI 壳,真状态在 `GameState`),`scr
 | 屏 | 要点 |
 |---|---|
 | `ADVISOR_DRAW` | 只展示公开信息(主页、论文数、师兄师姐一句话),**不展示真实原型**。真实体验在后续两三年里逐步揭示 |
-| `ALLOCATION` | 三格精力的拖放/点选;每项显示上一年投入的结果摘要;可点进 `PROJECT_BOARD` 看课题详情再回来 |
-| `PROJECT_BOARD` | 每个课题一行:标题、领域、阶段进度条、已投入年数、作者位次。这一屏应该看起来像实验室白板 |
+| `DESK`(工作台) | **本作的主界面**,五个页签:桌面 / 课题 / 个案 / 导师 / 这些年(GAME_DESIGN 四节)。要点见下 |
 | `INVENTORY` | 一次一题,照 `EXAM` 的游标;结果页给得分 + 分界解释 + 偏差文案 + 免责提示 |
 | `GRAD_APPLY` | 院校清单卡片流:真实校名 + 建制 + 实验室 + 方向 + 虚构导师印象 + 游戏化条款。多选投递、显示"有点冒险 / 稳"的模糊提示而非精确概率。**顶部常驻游戏化声明** |
 | `JOB_MARKET` | 七步流程,每步一屏。"投递策略"复用 `GRAD_APPLY` 的卡片流并加国内/海外分组切换;**"谈条件"那一屏做成真的合同条款排版**(等宽字体、条目编号、区间数字);"两体问题"那一屏只有文字和四五个选项,不要任何数值提示 |
 | `TENURE_REVIEW` | 清单式结算(见 GAME_DESIGN 十节),逐行渐显,最后给结果 |
 | `SETTLEMENT`(改造) | **年度回顾页**:课题 / 论文 / 个案 / 收支 / 状态与耗竭 / 竞争者进度,清单式排版,只陈述不评价。这是全作出现次数最多的一屏(约 18 次),值得单独打磨排版 |
 
-**打听按钮的呈现**:挂在 `ADVISOR_DRAW`/`GRAD_APPLY`/`JOB_MARKET`/`ALLOCATION` 上的一个次要入口。打听结果用**引文 + 灰色括注**两行排版——正文是那个人的原话,括注是那句让人不安的补充。**括注永远不评价可靠性**,只给一个事实(她哪年毕业的、他没说什么)。
+**`DESK` 的五个页签**(GAME_DESIGN 4.1–4.3、七节):
+
+| 页签 | 排版要点 |
+|---|---|
+| 桌面 | 顶部一行毕业/考核进度(清单式,**不算总分**)· 格数计量条 · 每个对象一行摘要 + 挂在上面的 [投 N 格] 按钮 · "休息"是一等公民,不塞在末尾 |
+| 课题 | 一卡一课题,看起来像实验室白板。**六站走到哪是事实,质量只给档位**("还有硬伤 / 看得过去 / 结实")· 到审稿站时出现选刊(四档模糊提示,与 `GRAD_APPLY` 同一口径) |
+| 个案 | 一卡一个案。**联盟只给走向**("在变好 / 在变僵"),数值不进 ViewModel——这条在 `view.ts` 里已经写死过一次,工作台不许绕过 |
+| 导师 | 公开印象(那句抽卡时的话,永远留着)· 关系四档 · 可及性三档(**映射必须多对一**,见规则 35)· 他上次说的那句话 · 两到三个动作 |
+| 这些年 | `yearlySnapshots` 的流水,可以往回翻。纯读,零机制 |
+
+**每个动作按钮下面都要有一行明码标价**(`AllocationItem.payoff`):花几格、换来什么、风险在哪。氛围文案留在上面一行。**不写清楚不是含蓄,是让玩家瞎猜**(GAME_DESIGN 4.6)。
+
+**打听按钮的呈现**:挂在 `ADVISOR_DRAW`/`GRAD_APPLY`/`JOB_MARKET`/`DESK` 上的一个次要入口。打听结果用**引文 + 灰色括注**两行排版——正文是那个人的原话,括注是那句让人不安的补充。**括注永远不评价可靠性**,只给一个事实(她哪年毕业的、他没说什么)。
 
 `StatsBar` 常驻展示:年份 · 阶段 · 五维 · 已选特质 · 导师(抽卡后)· 课题数/论文数/个案数的小徽章。
+
+> **`SETTLEMENT` 与 `DESK` 的分工**:结算屏是那一年结束时的一次正式回顾(一次性、有仪式感),工作台的「这些年」是它的存档(随时可翻)。两者读同一份 `yearlySnapshots`,不要各写一套聚合。
 
 ---
 
@@ -812,6 +860,16 @@ React 18 + Vite + TypeScript + Zustand(仅 UI 壳,真状态在 `GameState`),`scr
 31. **门槛时间不对称必须成立**:实验室投入项的 `availableWhen` 必须在大二开放,咨询中心必须在大三,且各自要求对应的 `masteryFlag` 或修课记录。这条把 8.3 的核心设计固定下来,防止后续调参时被无意抹平。
 32. **本科危机事件唯一性**:标记 `once: true` 且不得有 `variantGroup`,不得进任何随机池或功能位候选(GAME_DESIGN 8.9)。它是全局唯一一次。
 
+工作台规则(GAME_DESIGN 四节、七节):
+
+33. **每个 `AllocationItem` 必须有非空 `payoff`**。这一格花什么、换什么、风险在哪,必须写出来(4.6 借来的那一条)。落地时是一次性的内容补齐,项数不多。
+34. **毕业指标的两种写法必须一致**:`graduationBar` 与 `graduationReq` 要么都有要么都无;`graduationReq.papers` / `topTier` 的数字必须在 `graduationBar` 文案里出现。**两份数据说两件事,是这一行最容易写出来又最难发现的错。**
+35. **原型的两条防泄漏检查**(GAME_DESIGN 七节。配套沿用已有的"`archetype` 不进 ViewModel"单测——**三条缺一不可:一条防直接泄漏,两条防间接指认**):
+    - **可及性档位的映射必须多对一**:三档里每一档至少落 2 个原型。否则玩家看一眼面板就知道抽到了谁。
+    - **每个原型的「寻求指导」结果 ≥2 种,且至少一种与另一个原型的某种结果同属一类**(用 `outcomeTag` 标类)。一次问出结论,换导师窗口那个张力就没了——这一格是渐进揭示通道,不是揭示按钮。
+36. **工作台不得泄漏精确数值**:`DESK` 的 ViewModel 序列化后不得含 `quality` / `alliance` / `favor` 的原始数字。照 M3.5 那条"不含 `"chance": 0.x`"的单测写法,静态检查 `systems/desk.ts` 的出参。
+37. **`DESK_ACTION` 不许花精力格**:每个 `actionId` 都要有处理分支,且其 effects 不得包含 `grantSlots` 或写 `allocation.picks`。**花格数的一律走 `ALLOCATE`**(4.4 那张分工表的机械保障)。
+
 
 ### 7.2 `pnpm simulate -n 10000 --check` 新增门禁
 
@@ -845,6 +903,18 @@ React 18 + Vite + TypeScript + Zustand(仅 UI 壳,真状态在 `GameState`),`scr
 | **听到假消息后做错决定** | 15%–35% 的对局至少一次 | 13.3 的乐趣来源。为 0 说明假消息写得太容易识破 |
 | 黑天鹅命中 | 每局 1–2 次,>2 次的对局 ≤5% | 14.4 第 1 条 |
 | Drama 事件覆盖 | 每局平均 ≥3 个,且学术/临床各 ≥1 | 高强度内容不能只有少数对局能看到 |
+
+工作台门禁(M4.6):
+
+| 门禁 | 阈值 | 理由 |
+|---|---|---|
+| 「寻求指导」使用率 | 有导师的对局中 ≥60% 至少用过一次 | 三格经济里 1 格很贵。**这条守的是定价**——没人用说明标价错了,不是玩家不感兴趣 |
+| 六原型的指导结果 | 每种命中 ≥1% | 那张分流表是六原型第一次被玩家主动感知到,有一格走不到就是白写 |
+| 局终师生关系档位 | 最高档 ≤50% | 关系不是可以刷满的资源条。全员"亲近"= 这个面板退化成一条进度条 |
+| 选刊各档使用率 | 每档 ≥10% | 有一档没人选说明档位设计或提示文案有问题 |
+| 降档改投发生率 | 15%–40% | 太低 = 这个决策不存在;太高 = "一路降到能中为止"的刷法生效了 |
+| 毕业指标达成率的院校分层差 | A+ 校 vs 双非 ≥15 个百分点 | 否则毕业要求只是一行装饰文案,那 27 所院校的差异仍然只活在录取那一屏 |
+| 论文产出分布(选刊落地后) | 重跑一遍 7.2 里的"平均论文数"与"课题做废率" | **选刊把档位从引擎判定改成玩家判定,必然动到产出分布。** M3.3 的教训:改这类东西要配完整标定,不能只看门禁绿不绿 |
 
 新增 bot 策略:`method`(方法优先)/ `clinical`(临床优先)/ `capital`(履历优先)/ `balanced`/ `rest`(经常休息)。**`rest` bot 必须能走完全程且拿到一个体面结局**——这是"休息是真实有效选项"的验收方式。
 
@@ -906,7 +976,9 @@ vitest 单测,重点覆盖:课题阶段机的推进/回退/放弃、个案联盟
 | 加一个个案 | `caseTemplates` 加一条 + 其阶段事件 | 内容 |
 | 加一条职业路径 | 新 `rounds` 阶段(标 `isFinal`)+ 事件池 + `incomes.ts` 收入规则 + 结局 + `CROSSROAD` 加一个 `jumpToPhase` 选项 | 内容 |
 | 改培养年限 | 改对应阶段的 `rounds` + 补 `briefs` | 内容 |
-| 加一个投入项 | `allocationItems` 加一条 `AllocationItem` | 内容 |
+| 加一个投入项 | `allocationItems` 加一条 `AllocationItem`,**必须写 `payoff`**(规则 33);要挂到某张卡片上就写 `target` | 内容 |
+| 给工作台加一个动作 | 先问**这一格花不花精力**:花 → `allocationItems` 加一条(走 `ALLOCATE`);不花 → 加一个 `DESK_ACTION` 的 actionId + 处理分支(当场结算) | 内容(+引擎小) |
+| 给某所院校配毕业要求 | `Institution.gameified.admission` 补 `graduationBar` + `graduationReq`,**两者数字必须一致**(规则 34) | 内容 |
 | 加一份量表 | `inventories/` 加一条 + 触发它的 mandatory 事件 | 内容 |
 | 加一个累积量 | 直接用 `addFlag` + `flagNum`,**不要**加 state 字段 | 内容 |
 | 加一条情报 | `rumors/` 加 `RumorDef`(原话 + 括注 + `accurate`),注意守住该 topic 的真伪配比 40%–70% | 内容 |
@@ -929,7 +1001,7 @@ vitest 单测,重点覆盖:课题阶段机的推进/回退/放弃、个案联盟
 
 ## 九、实施里程碑
 
-> **进度**:M0 / M1 / M2 / M2.5 / M3 已完成。逐轮的做了什么、抓到了什么 bug、接手要注意什么,
+> **进度**:M0 / M1 / M2 / M2.5 / M3(含 M3.1–M3.3 实机修复)/ M3.5 / M3.6 / M4 已完成。逐轮的做了什么、抓到了什么 bug、接手要注意什么,
 > 见 [AGENT_HANDOFF.md](./AGENT_HANDOFF.md);引擎相对前作的每一处改动见 [packages/core/FORK.md](./packages/core/FORK.md)。
 
 | 里程碑 | 内容 | 验收标准 |
@@ -945,6 +1017,7 @@ vitest 单测,重点覆盖:课题阶段机的推进/回退/放弃、个案联盟
 | **M4 临床线(一级)** | `ClinicalCase` + 个案/督导/个人体验/伦理/危机事件 + 危机内容规范与 validate 规则 + 真实量表与伦理守则引用 | 临床路径可完整通关;个案脱落率进入门禁区间 |
 | **M5 求职季与学术终局(高光)** | 博后 + `JOB_MARKET` 七步 + **国内/海外双市场** + 市场松紧 + 推荐信分量 + offer 谈判 + 两体问题五归宿 + 预聘期 + `TENURE_REVIEW` + 学术线 9 结局 | 长聘通过率 30%–50%;"全无 offer" 20%–40%;国内/海外 offer 各 ≥15%;两体五归宿各 ≥5% |
 | **M6 二级线(粗做)** | 医院 15 + 学校 8 + 大厂 8 + 体制与离开 8 事件 + 各自收入规则与 2–3 结局。**不做跨年管线** | 六条路径可达率均 ≥3%;离开学术的结局里至少 3 个是好结局 |
+| **M4.6 工作台(DESK)** | `ALLOCATION` + `PROJECT_BOARD` 合并成五页签工作台 · 投入项挂到对象卡片上(`target` + `payoff`)· **导师面板 + 两到三个主动动作(六原型分流)** · 毕业进度行(`graduationBar`)· 选刊与降档改投 · 「这些年」流水 · `systems/desk.ts` | validate 规则 33–37 全绿(配反例);寻求指导使用率 ≥60%;六原型结果各 ≥1%;局终关系最高档 ≤50%;选刊各档 ≥10%;**`DESK` ViewModel 不含任何原始数值**(单测);论文产出分布重新标定 |
 | **M4.5 社会层(v1 必做)** | `RivalState` + `systems/rival.ts` + 五个交汇点 · `Favor` + 贬值与净欠额惩罚 · `RumorDef` + `ASK_AROUND` action · **`SETTLEMENT` 改造成年度回顾页** · 换导师窗口与成本曲线 | validate 规则 16–22 全绿;玩家胜出率 35%–65%;打听使用率 ≥60%;假消息误导率 15%–35% |
 | **M7 元玩法与隐线** | 量表自评 4 份 + 诚信线 audit 事件链 + `origin` 隐线回响 + 结局三份清单(论文/学生/来访者)+ **drama 与黑天鹅内容** | 量表偏差文案命中;撤稿结局率 ≤3%;论文清单非空率 ≥95%;每局 drama ≥3 个、黑天鹅 1–2 次 |
 | **M7.5 跨局差异** | 叙事功能位(3 倍超配)+ 20 个时代节点全部转变体池 + 构筑维度专属事件配额 + 管线文案参数化 + `repetition` 换主指标 | validate 规则 23–27 全绿;渲染三元组重现率 ≤15%;**相同 vs 不同配置重合率差 ≥20pp**;单局覆盖率 20%–30% |
@@ -953,6 +1026,10 @@ vitest 单测,重点覆盖:课题阶段机的推进/回退/放弃、个案联盟
 > **M7.5 不是"最后再优化重玩性"**。它列在 M8 之前,但它的两条纪律必须**从 M2 就开始遵守**:①管线阶段文案一律参数化(引用课题名/年数/导师/竞争者);②每个 mandatory 时代节点从写第一版起就是变体池。事后补参数化和事后拆变体池的成本,是当初就那么写的三到五倍——前作在第 41 至 49 轮补了九轮变体池,就是这笔学费。
 
 > **M3.5 和 M3.6 是本轮新增的两个里程碑**,把"真实院校/文献"从文案素材提升为独立的数据层和独立的机制层。它们排在临床线之前,因为求职季(M5)和课题管线(M3)都依赖 `Institution` 表和 `Foundation` 表——先建数据层,后面两个一级线才能同时受益。
+
+> **M4.6 的编号在 M4.5 后面,但建议先做 M4.6。** 工作台是壳,社会层是往壳里填的东西:竞争者进度和人情账要显示在工作台的桌面页签上、年度回顾页的存档就是「这些年」这个页签、打听入口也挂在这一屏。反过来做的话,`SETTLEMENT` 和分配屏都要被改造两遍。**编号只是标签,顺序按依赖走。**
+>
+> 这条同样适用于 M5:求职季会新增 `JOB_MARKET` 七步流程,工作台先把"卡片流 + 明码标价 + 模糊档位"这套排版语言定下来,那七步就是照着抄。
 
 ---
 

@@ -179,18 +179,32 @@ export function graduationProgress(state: GameState, pack: ContentPack): DeskVie
   const topCount = papers.filter(p => meetsTopTier(p.tier, req.topTierLabel)).length;
   const missingTotal = Math.max(0, req.papers - papers.length);
   const missingTop = Math.max(0, (req.topTier ?? 0) - topCount);
-  const gaps: string[] = [];
-  if (missingTop > 0) gaps.push(`${missingTop} 篇${req.topTierLabel ?? ''}`);
-  // 总篇数的缺口扣掉高档缺口:还差 1 篇二区 + 总共还差 2 篇 = "1 篇二区、1 篇"
-  const restGap = Math.max(0, missingTotal - missingTop);
-  if (restGap > 0) gaps.push(`${restGap} 篇`);
-  const met = missingTotal === 0 && missingTop === 0;
+  // 还要发几篇 = 总篇数缺口和高档缺口里更大的那个。
+  // (三篇里要有一篇二区、而你手上三篇都是中文核心时,总篇数不缺,但你还得再发一篇。)
+  const stillNeed = Math.max(missingTotal, missingTop);
+  const met = stillNeed === 0;
+
+  /**
+   * **这一句和毕业要求那一句用同一套语法。**
+   *
+   * 第一版把缺口拆成一个顿号清单("还差 1 篇二区、1 篇"),而那个孤零零的"1 篇"
+   * 读起来像被截断了——玩家的原话是"是不是漏写了"。
+   * 真实的说法就是"还差 2 篇,其中 1 篇二区":总数一个,附加条件一个,和
+   * `graduationBar` 完全对仗。**清单式呈现不等于把一句话拆成两段。**
+   */
+  const remaining = met
+    ? null
+    : missingTop > 0 && stillNeed > missingTop
+      ? `还差 ${stillNeed} 篇,其中 ${missingTop} 篇${req.topTierLabel ?? ''}`
+      : missingTop > 0
+        ? `还差 ${missingTop} 篇${req.topTierLabel ?? ''}`
+        : `还差 ${stillNeed} 篇`;
 
   return {
     institution: inst.name,
     bar: admission.graduationBar,
     have,
-    remaining: met ? null : `还差 ${gaps.join('、')}`,
+    remaining,
     met,
   };
 }

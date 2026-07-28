@@ -3162,6 +3162,34 @@ describe('M4.6 工作台', () => {
     expect(view.graduation?.remaining).toContain('二区');
   });
 
+  it('还差什么用一句话说完,不拆成顿号清单', () => {
+    const pack = deskPack();
+    // 这一条的门槛按三篇来测(截图里那句坏文案就是三篇要求下出来的)
+    const req = pack.institutions![0]!.gameified.admission!;
+    req.graduationBar = '毕业要求 3 篇论文,其中 1 篇二区以上';
+    req.graduationReq = { papers: 3, topTier: 1, topTierLabel: '二区' };
+    const { engine, state } = deskState(pack);
+    const paper = (tier: string, id: string) => ({
+      id, title: id, tier, authorship: 'first', year: 2014, domain: 'cognition', integrityRisk: 0,
+    }) as NonNullable<typeof state.papers>[number];
+
+    const remainingWith = (tiers: string[]): string | null | undefined => {
+      state.papers = tiers.map((tier, i) => paper(tier, `p${i}`));
+      const view = engine.view(state);
+      if (view.kind !== 'DESK') throw new Error('expected DESK');
+      return view.graduation?.remaining;
+    };
+
+    // 一篇 CSSCI:总共还差 2 篇,其中 1 篇得是二区。
+    // **不是"还差 1 篇二区、1 篇"**——那个孤零零的"1 篇"读起来像被截断了。
+    expect(remainingWith(['cssci'])).toBe('还差 2 篇,其中 1 篇二区');
+    // 只差高档那一篇的时候不再报总数
+    expect(remainingWith(['q2', 'cssci'])).toBe('还差 1 篇');
+    expect(remainingWith(['cssci', 'cssci', 'cssci'])).toBe('还差 1 篇二区');
+    // 够了就不说话
+    expect(remainingWith(['q2', 'cssci', 'cssci'])).toBeNull();
+  });
+
   it('选刊当场生效,而且不离开工作台;降档只能往下走一格', () => {
     const pack = deskPack();
     const { engine, state } = deskState(pack);

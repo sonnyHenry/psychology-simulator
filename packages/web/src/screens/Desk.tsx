@@ -22,22 +22,25 @@ type DeskItem = DeskView['items'][number];
  */
 
 /**
- * **导师面板并在桌面页签里,不单开一页。**
+ * **页签分成两类,而且不并排。**
  *
- * 理由是格数条:导师那两个动作花的是顶上同一条精力条,而"寻求指导"要不要投,
- * 判断依据恰恰是桌面上别的项占了几格。分成两页等于让玩家为了花同一批格子来回切页签。
+ * 前四个是"能投精力的地方":桌面、课题、个案、导师——它们花的是顶上**同一批格子**,
+ * 换页签不换预算。所以格数条常驻在页签之上,而不是每页各有一条。
  *
- * 课题和个案留在自己的页签上,因为它们是**一卡一个对象**、数量会长——
- * 导师永远只有一个人。
+ * 「这些年」不属于这一类:它是只读的存档,一格精力都不花。把它和前四个排在一起,
+ * 等于告诉玩家"这也是一个可以投入的地方"——**页签栏的排布本身就是一句话**,
+ * 说错了比不说更贵。所以它靠右单放,中间一道分隔。
  */
-const TABS = [
+const ALLOC_TABS = [
   { id: 'desk', label: '桌面' },
   { id: 'projects', label: '课题' },
   { id: 'cases', label: '个案' },
-  { id: 'years', label: '这些年' },
+  { id: 'advisor', label: '导师' },
 ] as const;
 
-type TabId = (typeof TABS)[number]['id'];
+const ARCHIVE_TAB = { id: 'years', label: '这些年' } as const;
+
+type TabId = (typeof ALLOC_TABS)[number]['id'] | typeof ARCHIVE_TAB.id;
 
 const CATEGORY_LABELS: Record<string, string> = {
   course: '重点课程',
@@ -135,10 +138,12 @@ export function DeskScreen(props: { view: DeskView; act: (action: PlayerAction) 
         ))}
         <span className="slot-count">{remaining > 0 ? `还剩 ${remaining} 格` : '分配完了'}</span>
       </div>
+      {/* 这句话页签栏自己说不出来:四个页签各有各的内容,但预算只有一份 */}
+      <p className="slot-hint">左边四页都能投精力,用的是同一批格子;「这些年」只是存档。</p>
 
       {/* 切页签是纯 UI 状态,不进 dispatch */}
       <div className="desk-tabs">
-        {TABS.map(t => (
+        {ALLOC_TABS.map(t => (
           <button
             key={t.id}
             className={`desk-tab ${tab === t.id ? 'desk-tab-on' : ''}`}
@@ -153,17 +158,16 @@ export function DeskScreen(props: { view: DeskView; act: (action: PlayerAction) 
             )}
           </button>
         ))}
+        {/* 只读的存档,不花精力——所以它靠右单放,不跟上面四个并排 */}
+        <button
+          className={`desk-tab desk-tab-archive ${tab === ARCHIVE_TAB.id ? 'desk-tab-on' : ''}`}
+          onClick={() => setTab(ARCHIVE_TAB.id)}
+        >
+          {ARCHIVE_TAB.label}
+        </button>
       </div>
 
-      {tab === 'desk' && (
-        <DeskTab
-          view={view}
-          items={deskItems}
-          advisorItems={itemsFor('advisor')}
-          countOf={countOf}
-          slotControls={slotControls}
-        />
-      )}
+      {tab === 'desk' && <DeskTab view={view} items={deskItems} countOf={countOf} slotControls={slotControls} />}
 
       {tab === 'projects' && (
         <div className="desk-pane">
@@ -313,6 +317,41 @@ export function DeskScreen(props: { view: DeskView; act: (action: PlayerAction) 
         </div>
       )}
 
+      {tab === 'advisor' && (
+        <div className="desk-pane">
+          {!view.advisor && <p className="desk-empty">你还没有进组。</p>}
+          {view.advisor && (
+            <>
+              <div className="obj-card">
+                <div className="obj-card-head">
+                  <span className="obj-card-title">{view.advisor.name}</span>
+                </div>
+                {/* 抽卡那天你读到的那句话,永远留在这儿。几年之后再读它会有别的味道 */}
+                <div className="advisor-impression">
+                  <RichText text={view.advisor.publicImpression} />
+                </div>
+                <div className="obj-card-facts">
+                  <span className="fact">
+                    {view.advisor.relationLabel}
+                    <span className="fact-sub">师生关系</span>
+                  </span>
+                  <span className="fact">
+                    {view.advisor.availabilityLabel}
+                    <span className="fact-sub">他有多少时间给你</span>
+                  </span>
+                </div>
+                {view.advisor.lastLine && (
+                  <div className="advisor-line">他上次说:{view.advisor.lastLine}</div>
+                )}
+              </div>
+              {itemsFor('advisor').map(item => (
+                <ItemRow key={item.id} item={item} count={countOf(item.id)} controls={slotControls(item)} />
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
       {tab === 'years' && (
         <div className="desk-pane">
           {view.years.length === 0 && <p className="desk-empty">还没有过完一年。</p>}
@@ -351,11 +390,10 @@ export function DeskScreen(props: { view: DeskView; act: (action: PlayerAction) 
 function DeskTab(props: {
   view: DeskView;
   items: DeskItem[];
-  advisorItems: DeskItem[];
   countOf: (id: string) => number;
   slotControls: (item: DeskItem) => JSX.Element;
 }) {
-  const { view, items, advisorItems, countOf, slotControls } = props;
+  const { view, items, countOf, slotControls } = props;
   const grouped = useMemo(() => {
     const byCategory = new Map<string, DeskItem[]>();
     for (const item of items) {
@@ -388,42 +426,6 @@ function DeskTab(props: {
                 {kase.trend === 'warm' ? '在变好' : kase.trend === 'strained' ? '有点僵' : '看不出来'}
               </span>
             </div>
-          ))}
-        </div>
-      )}
-      {/* 导师面板。**和别的投入项花的是同一条格数条**,所以它就在这一页上 */}
-      {view.advisor && (
-        <div className="alloc-group">
-          <div className="alloc-group-label">导师</div>
-          <div className="obj-card">
-            <div className="obj-card-head">
-              <span className="obj-card-title">{view.advisor.name}</span>
-            </div>
-            {/* 抽卡那天你读到的那句话,永远留在这儿。几年之后再读它会有别的味道 */}
-            <div className="advisor-impression">
-              <RichText text={view.advisor.publicImpression} />
-            </div>
-            <div className="obj-card-facts">
-              <span className="fact">
-                {view.advisor.relationLabel}
-                <span className="fact-sub">师生关系</span>
-              </span>
-              <span className="fact">
-                {view.advisor.availabilityLabel}
-                <span className="fact-sub">他有多少时间给你</span>
-              </span>
-            </div>
-            {view.advisor.lastLine && (
-              <div className="advisor-line">他上次说:{view.advisor.lastLine}</div>
-            )}
-          </div>
-          {advisorItems.map(item => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              count={countOf(item.id)}
-              controls={slotControls(item)}
-            />
           ))}
         </div>
       )}

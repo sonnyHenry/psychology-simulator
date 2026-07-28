@@ -407,11 +407,23 @@ body {
   color: var(--up);
 }
 
+/* 精力条下面那句话:页签栏自己说不出"预算是共享的" */
+.slot-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/*
+ * 页签栏分两组:**能投精力的四个在左,只读的存档靠右单放。**
+ * 排布本身就是一句话——把「这些年」和前四个并排,等于说"这也是个能投入的地方"。
+ */
 .desk-tabs {
   display: flex;
+  align-items: stretch;
   gap: 2px;
   border-bottom: 1px solid var(--line);
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .desk-tab {
@@ -425,6 +437,14 @@ body {
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+}
+
+.desk-tab-archive {
+  flex: 0 0 auto;
+  margin-left: 10px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+  font-size: 13px;
 }
 
 .desk-tab-on {

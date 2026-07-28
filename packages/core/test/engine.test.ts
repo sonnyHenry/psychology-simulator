@@ -28,6 +28,11 @@ import {
   openNewCasesForYear,
   MIN_DROPOUT_CHANCE,
   ALLOC_CASEWORK_ID,
+  ALLOC_ADVISOR_CONSULT_ID,
+  ADVISOR_CONSULT_FLAG,
+  acceptanceChanceFor,
+  targetTierOf,
+  rollAdvisorConsult,
   ALLOC_SUPERVISION_ID,
   MIN_SETBACK_CHANCE,
   MAX_REJECTIONS,
@@ -1527,14 +1532,14 @@ describe('M1 延毕(extendPhase)与精力格(grantSlots)', () => {
 // M2:投入分配与课程系统
 // ============================================================================
 
-/** 一个带 ALLOCATION 开场屏 + 课程的最小内容包 */
+/** 一个带 DESK 开场屏 + 课程的最小内容包 */
 function coursePack(): ContentPack {
   const pack = miniPack();
   const life = pack.timeline[1];
   if (life?.kind !== 'rounds') throw new Error('fixture changed');
   life.rounds = 2;
   life.briefs = ['大一', '大二'];
-  life.roundOpeners = ['ALLOCATION'];
+  life.roundOpeners = ['DESK'];
   life.allocationSlots = 4;
   life.courseYearFrom = 1;
   pack.courses = [
@@ -1579,6 +1584,7 @@ function coursePack(): ContentPack {
       id: 'alloc_crs_stats',
       label: '啃心理统计学',
       text: '张厚粲。',
+      payoff: '1 格 = 方法 +1,学通的把握大很多',
       category: 'course',
       courseId: 'crs_stats',
       maxSlots: 2,
@@ -1588,6 +1594,7 @@ function coursePack(): ContentPack {
       id: 'alloc_lab',
       label: '进实验室搬砖',
       text: '大二就能进。',
+      payoff: '1 格 = 方法 +3,实验室年数 +1',
       category: 'lab',
       // 门槛开放时间不对称:实验室 2014(第一年)就开,咨询中心要 2015
       availableWhen: { year: { from: 2014 } },
@@ -1600,16 +1607,17 @@ function coursePack(): ContentPack {
       id: 'alloc_counseling',
       label: '咨询中心值班',
       text: '大三才开门。',
+      payoff: '1 格 = 临床 +4',
       category: 'counseling',
       availableWhen: { year: { from: 2015 } },
       perSlot: [{ stats: { clinical: 4 } }],
     },
-    { id: 'alloc_rest', label: '休息', text: '什么都不干。', category: 'rest', maxSlots: 4, perSlot: [{ stats: { state: 5 } }] },
+    { id: 'alloc_rest', label: '休息', text: '什么都不干。', payoff: '1 格 = 状态 +5', category: 'rest', maxSlots: 4, perSlot: [{ stats: { state: 5 } }] },
   ];
   return pack;
 }
 
-/** 走到第一个 ALLOCATION 屏 */
+/** 走到第一个 DESK 屏 */
 function reachAllocation(pack: ContentPack, seed: number) {
   const engine = createEngine(pack);
   let state = engine.start(seed);
@@ -1624,12 +1632,12 @@ function reachAllocation(pack: ContentPack, seed: number) {
 }
 
 describe('M2 年度投入分配', () => {
-  it('每回合开场先进 ALLOCATION,分配完才进 BRIEF', () => {
+  it('每回合开场先进 DESK,分配完才进 BRIEF', () => {
     const pack = coursePack();
     const { engine, state } = reachAllocation(pack, 51);
     const view = engine.view(state);
-    expect(view.kind).toBe('ALLOCATION');
-    if (view.kind !== 'ALLOCATION') return;
+    expect(view.kind).toBe('DESK');
+    if (view.kind !== 'DESK') return;
     expect(view.slots).toBe(4);
     expect(view.retakeSlots).toBe(0);
     // 课程项带上教材名,分配屏直接显示"张厚粲《现代心理与教育统计学》"
@@ -1682,7 +1690,7 @@ describe('M2 年度投入分配', () => {
     const pack = coursePack();
     const { engine, state } = reachAllocation(pack, 54);
     const first = engine.view(state);
-    if (first.kind !== 'ALLOCATION') throw new Error('expected ALLOCATION');
+    if (first.kind !== 'DESK') throw new Error('expected DESK');
     const firstYearIds = first.items.map(i => i.id);
     // 第一年:实验室开着,咨询中心没开
     expect(firstYearIds).toContain('alloc_lab');
@@ -1694,7 +1702,7 @@ describe('M2 年度投入分配', () => {
       picks: ['alloc_rest', 'alloc_rest', 'alloc_rest', 'alloc_rest'],
     });
     let guard = 0;
-    while (guard++ < 50 && engine.view(s).kind !== 'ALLOCATION') {
+    while (guard++ < 50 && engine.view(s).kind !== 'DESK') {
       const v = engine.view(s);
       if (v.kind === 'ENDING') throw new Error('ended too early');
       s = engine.dispatch(
@@ -1707,7 +1715,7 @@ describe('M2 年度投入分配', () => {
       );
     }
     const second = engine.view(s);
-    if (second.kind !== 'ALLOCATION') throw new Error('expected second ALLOCATION');
+    if (second.kind !== 'DESK') throw new Error('expected second DESK');
     expect(second.items.map(i => i.id)).toContain('alloc_counseling');
   });
 
@@ -2148,11 +2156,11 @@ describe('M3 阶段推进的掷骰', () => {
       ...pack,
       advisors: [
         {
-          id: 'adv_ok', archetype: 'x', name: 'A', publicImpression: '',
+          id: 'adv_ok', archetype: 'x', availability: 'rare', name: 'A', publicImpression: '',
           initialStage: 's', initialFavor: 50, stages: { s: {} },
         },
         {
-          id: 'adv_bad', archetype: 'y', name: 'B', publicImpression: '',
+          id: 'adv_bad', archetype: 'y', availability: 'rare', name: 'B', publicImpression: '',
           projectModifiers: { collect: 0.6 },
           initialStage: 's', initialFavor: 50, stages: { s: {} },
         },
@@ -2272,9 +2280,9 @@ describe('M3 导师', () => {
     if (flow.kind !== 'flow') throw new Error('fixture changed');
     flow.steps.push('ADVISOR_DRAW');
     pack.advisors = [
-      { id: 'a1', archetype: 'star', name: '甲老师', publicImpression: '主页上三十篇一区。', initialStage: 'joined', initialFavor: 30, stages: { joined: {} } },
-      { id: 'a2', archetype: 'warm', name: '乙老师', publicImpression: '师兄师姐都夸。', initialStage: 'joined', initialFavor: 65, stages: { joined: {} } },
-      { id: 'a3', archetype: 'boundary', name: '丙老师', publicImpression: '横向做得很大。', initialStage: 'joined', initialFavor: 40, stages: { joined: {} } },
+      { id: 'a1', archetype: 'star', availability: 'rare', name: '甲老师', publicImpression: '主页上三十篇一区。', initialStage: 'joined', initialFavor: 30, stages: { joined: {} } },
+      { id: 'a2', archetype: 'warm', availability: 'rare', name: '乙老师', publicImpression: '师兄师姐都夸。', initialStage: 'joined', initialFavor: 65, stages: { joined: {} } },
+      { id: 'a3', archetype: 'boundary', availability: 'rare', name: '丙老师', publicImpression: '横向做得很大。', initialStage: 'joined', initialFavor: 40, stages: { joined: {} } },
     ];
     return pack;
   }
@@ -2714,9 +2722,12 @@ describe('M3.6 地基塌方', () => {
     function boardHint(skeptic: boolean): string | undefined {
       const state = projectOn(pack, 'fnd_falls', 2021);
       if (skeptic) state.flags.trait_skeptic = true;
-      state.screen = 'PROJECT_BOARD';
+      // 工作台读阶段名(顶上那一行),所以要落在一个真的 rounds 阶段上
+      state.phaseIndex = 1;
+      state.screen = 'DESK';
+      state.allocation = { slots: 1, picks: [] };
       const view = engine.view(state);
-      if (view.kind !== 'PROJECT_BOARD') throw new Error('expected PROJECT_BOARD');
+      if (view.kind !== 'DESK') throw new Error('expected DESK');
       return view.projects[0]?.foundationHint;
     }
     expect(boardHint(true)).toBe('原始研究只有 20 个人。');
@@ -3007,5 +3018,238 @@ describe('M4 个案状态机', () => {
     state.phaseIndex = 1;
     const picked = pickRoundEvents(state, pack, new Rng(5), phase);
     expect(picked.some(id => id.startsWith('ev_case_w'))).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// M4.6 工作台(DESK)
+// ─────────────────────────────────────────────────────────────
+
+describe('M4.6 工作台', () => {
+  /** 一个手上有课题、有个案、有导师、挂着毕业指标的工作台状态 */
+  function deskPack(): ContentPack {
+    const pack = coursePack();
+    pack.projectTemplates = [
+      {
+        id: 'tpl_real',
+        titles: ['情绪调节的年龄差异'],
+        domain: 'cognition',
+        stageSequence: ['ideation', 'collect', 'review'],
+      },
+    ];
+    pack.advisors = [
+      {
+        id: 'a1',
+        archetype: 'star',
+        availability: 'rare',
+        name: '甲老师',
+        publicImpression: '主页上三十篇一区。',
+        consultResponses: [
+          { id: 'star_unavailable', outcomeTag: 'unavailable', eventId: 'ev_x' },
+          { id: 'star_resource', outcomeTag: 'resource', eventId: 'ev_y' },
+        ],
+        initialStage: 'joined',
+        initialFavor: 90,
+        stages: { joined: {} },
+      },
+    ];
+    pack.institutions = [
+      {
+        id: 'inst_x',
+        name: '某大学',
+        unit: '心理学院',
+        region: 'cn',
+        city: '某市',
+        tier: 'a_plus',
+        domains: ['domain_cognition'],
+        impression: '一所学校。',
+        gameified: {
+          admission: {
+            graduationBar: '毕业要求 2 篇论文,其中 1 篇二区以上',
+            graduationReq: { papers: 2, topTier: 1, topTierLabel: '二区' },
+          },
+        },
+        admits: ['phd'],
+      },
+    ];
+    return pack;
+  }
+
+  function deskState(pack: ContentPack) {
+    const engine = createEngine(pack);
+    const state = engine.start(77);
+    state.phaseIndex = 1;
+    state.screen = 'DESK';
+    state.allocation = { slots: 3, picks: [] };
+    state.admissions = { phd: 'inst_x' };
+    state.advisor = { id: 'a1', favor: 90, stage: 'joined', lastLine: '"你自己看着办。"' };
+    state.projects = [
+      {
+        id: 'proj_1',
+        templateId: 'tpl_real',
+        title: '情绪调节的年龄差异',
+        domain: 'cognition',
+        stage: 'review',
+        quality: 73,
+        yearsSpent: 2,
+        authorship: 'first',
+        integrityRisk: 0,
+        rejections: 0,
+        preregistered: false,
+        startedYear: 2014,
+      },
+    ];
+    state.cases = [
+      {
+        id: 'case_1',
+        templateId: 'tpl_low',
+        presentingIssue: '睡不着',
+        label: '一个来访者',
+        status: 'working',
+        alliance: 71,
+        sessions: 12,
+        riskLevel: 'low',
+        orientationMatch: 64,
+        startedYear: 2014,
+        supervised: true,
+        lastTrend: 'warm',
+      },
+    ];
+    return { engine, state };
+  }
+
+  it('原始数值不许穿过工作台:序列化后找不到 quality / alliance / favor 的数字', () => {
+    const pack = deskPack();
+    const { engine, state } = deskState(pack);
+    const view = engine.view(state);
+    if (view.kind !== 'DESK') throw new Error('expected DESK');
+    const serialized = JSON.stringify(view);
+    // **这三个数字一个都不能出现。** 给了数字,一屏选择就从一次判断变成一道最优化题,
+    // 而那道题的答案通常很无聊(GAME_DESIGN 4.6 第二条"不借")。
+    expect(serialized).not.toContain('73'); // quality
+    expect(serialized).not.toContain('71'); // alliance
+    expect(serialized).not.toContain('90'); // favor
+    // 取而代之的是档位
+    expect(view.projects[0]?.qualityLabel).toBe('结实');
+    expect(view.cases[0]?.trend).toBe('warm');
+    expect(view.advisor?.relationLabel).toBe('亲近');
+  });
+
+  it('导师面板给档位,不给真实原型', () => {
+    const pack = deskPack();
+    const { engine, state } = deskState(pack);
+    const view = engine.view(state);
+    if (view.kind !== 'DESK') throw new Error('expected DESK');
+    // 可及性三档说的是"他忙不忙",不是"他是谁"——这条映射多对一由 validate 规则 35 守着
+    expect(view.advisor?.availabilityLabel).toBe('几乎见不到');
+    expect(JSON.stringify(view)).not.toContain('star');
+    expect(view.advisor?.lastLine).toBe('"你自己看着办。"');
+  });
+
+  it('毕业进度只列清单、不算总分,而且会告诉你还差什么', () => {
+    const pack = deskPack();
+    const { engine, state } = deskState(pack);
+    state.papers = [
+      { id: 'p1', title: 'x', tier: 'chinese_core', authorship: 'first', year: 2014, domain: 'cognition', integrityRisk: 0 },
+    ];
+    const view = engine.view(state);
+    if (view.kind !== 'DESK') throw new Error('expected DESK');
+    expect(view.graduation?.bar).toBe('毕业要求 2 篇论文,其中 1 篇二区以上');
+    expect(view.graduation?.have).toContain('中文核心 1');
+    // 手上那个课题正卡在审稿:这一行是事实,不是评价
+    expect(view.graduation?.have).toContain('在审 1');
+    expect(view.graduation?.met).toBe(false);
+    expect(view.graduation?.remaining).toContain('二区');
+  });
+
+  it('选刊当场生效,而且不离开工作台;降档只能往下走一格', () => {
+    const pack = deskPack();
+    const { engine, state } = deskState(pack);
+    const view = engine.view(state);
+    if (view.kind !== 'DESK') throw new Error('expected DESK');
+    expect(view.projects[0]?.atSubmitStage).toBe(true);
+    const pick = view.actions.find(a => a.id === 'desk_choose_tier' && a.value === 'q1');
+    expect(pick).toBeDefined();
+    const after = engine.dispatch(state, {
+      type: 'DESK_ACTION',
+      actionId: 'desk_choose_tier',
+      targetId: 'proj_1',
+      value: 'q1',
+    });
+    // **不花精力格的动作当场生效,而且留在这一屏**——玩家选完刊要能接着分配格子
+    expect(after.screen).toBe('DESK');
+    expect(after.projects?.[0]?.submitTier).toBe('q1');
+    const view2 = engine.view(after);
+    if (view2.kind !== 'DESK') throw new Error('expected DESK');
+    // 选过之后只剩"降一档改投",而且不能原地换一家同档的(那等于免费重投)
+    expect(view2.actions.some(a => a.id === 'desk_choose_tier')).toBe(false);
+    const lower = view2.actions.filter(a => a.id === 'desk_resubmit_lower').map(a => a.value);
+    expect(lower).toContain('q2');
+    expect(lower).not.toContain('q1');
+  });
+
+  it('冲高降低接收率,稳一稳提高它', () => {
+    const pack = deskPack();
+    const { state } = deskState(pack);
+    const project = state.projects![0]!;
+    // 挑一个基准不顶到上限的课题:顶到上限的时候"稳一稳"是加不上去的(见下一条)
+    state.stats.method = 50;
+    project.quality = 60;
+    const base = acceptanceChance(state, pack, project);
+    expect(tierForQuality(project.quality)).toBe('q3');
+    project.submitTier = 'q1';
+    expect(acceptanceChanceFor(state, pack, project)).toBeLessThan(base);
+    project.submitTier = 'chinese_core';
+    expect(acceptanceChanceFor(state, pack, project)).toBeGreaterThan(base);
+    // 没选过 = 引擎按 quality 兜底,和 M4.6 之前完全一致
+    delete project.submitTier;
+    expect(acceptanceChanceFor(state, pack, project)).toBe(base);
+    expect(targetTierOf(project)).toBe('q3');
+  });
+
+  it('失败率下限吃掉"稳一稳"的加成:再稳也不保证中', () => {
+    const pack = deskPack();
+    const { state } = deskState(pack);
+    const project = state.projects![0]!;
+    // 好稿子 + 高方法,基准已经顶在 1 − MIN_SETBACK_CHANCE 上
+    state.stats.method = 95;
+    project.quality = 95;
+    const base = acceptanceChance(state, pack, project);
+    expect(base).toBeCloseTo(1 - MIN_SETBACK_CHANCE, 6);
+    project.submitTier = 'chinese_core';
+    // **投得再稳也压不掉那 22%。** 这不是选刊机制的漏洞,是五节那条硬约束
+    // ("不存在稳定刷论文的最优解")在这里照常生效——选刊不该是它的后门。
+    expect(acceptanceChanceFor(state, pack, project)).toBeCloseTo(base, 6);
+  });
+
+  it('「寻求指导」投了才掷,没投就把上一年的结果清掉', () => {
+    const pack = deskPack();
+    const { state } = deskState(pack);
+    state.allocation = { slots: 3, picks: [ALLOC_ADVISOR_CONSULT_ID, 'alloc_rest', 'alloc_rest'] };
+    rollAdvisorConsult(state, pack, new Rng(3));
+    const hit = state.flags[ADVISOR_CONSULT_FLAG];
+    expect(['star_unavailable', 'star_resource']).toContain(hit);
+    // 今年没问 = 那一幕不该重播。**不清掉的话它会年年出现**,而玩家一格都没花
+    state.allocation = { slots: 3, picks: ['alloc_rest', 'alloc_rest', 'alloc_rest'] };
+    rollAdvisorConsult(state, pack, new Rng(3));
+    expect(state.flags[ADVISOR_CONSULT_FLAG]).toBeUndefined();
+  });
+
+  it('「这些年」读的是结算写下的快照,不另写一套聚合', () => {
+    const pack = deskPack();
+    const { engine, state } = deskState(pack);
+    state.yearlySnapshots = [
+      { year: 2014, money: 1000, phaseLabel: '本科', state: 60, papers: [], notes: ['「情绪调节的年龄差异」审稿,第 2 年'] },
+    ];
+    const view = engine.view(state);
+    if (view.kind !== 'DESK') throw new Error('expected DESK');
+    expect(view.years).toHaveLength(1);
+    expect(view.years[0]?.notes[0]).toContain('审稿');
+    // 旧存档只有 {year, money},少显示几行,但不能崩
+    state.yearlySnapshots = [{ year: 2013, money: 500 }];
+    const view2 = engine.view(state);
+    if (view2.kind !== 'DESK') throw new Error('expected DESK');
+    expect(view2.years[0]?.notes).toEqual([]);
+    expect(view2.years[0]?.phaseLabel).toBeNull();
   });
 });

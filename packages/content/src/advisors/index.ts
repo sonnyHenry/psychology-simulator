@@ -39,6 +39,13 @@ export const advisors: AdvisorDef[] = [
     poolBias: { method: 1.3, social: 1.2, counseling: 0.7 },
     // 资源顶级:数据、被试、平台都不缺。但没人管你,想法和分析全靠自己。
     projectModifiers: { collect: 1.35, submit: 1.25, review: 1.2, ideation: 0.85, analyze: 0.85 },
+    // 大牛和放养型同为"几乎见不到"——**多对一是这一档的全部要点**(规则 35):
+    // 你能看见他忙不忙,看不见他会不会抢你一作。
+    availability: 'rare',
+    consultResponses: [
+      { id: 'star_unavailable', outcomeTag: 'unavailable', eventId: 'ev_consult_star_unavailable', weight: 3 },
+      { id: 'star_resource', outcomeTag: 'resource', eventId: 'ev_consult_star_resource', weight: 2 },
+    ],
     initialStage: 'joined',
     initialFavor: 30,
     stages: {
@@ -56,6 +63,11 @@ export const advisors: AdvisorDef[] = [
     poolBias: { method: 1.35, era: 1.1, social: 0.9 },
     // 自己在非升即走,把你当同事用。成长最快,压力最大。
     projectModifiers: { ideation: 1.3, analyze: 1.25, write: 1.3, submit: 1.2, collect: 0.9 },
+    availability: 'weekly',
+    consultResponses: [
+      { id: 'young_pi_guidance', outcomeTag: 'guidance', eventId: 'ev_consult_young_pi_guidance', weight: 3 },
+      { id: 'young_pi_chore', outcomeTag: 'chore', eventId: 'ev_consult_young_pi_chore', weight: 2 },
+    ],
     initialStage: 'joined',
     initialFavor: 55,
     stages: {
@@ -82,6 +94,13 @@ export const advisors: AdvisorDef[] = [
       submit: 0.8,
       review: 0.8,
     },
+    availability: 'rare',
+    consultResponses: [
+      { id: 'hands_off_unavailable', outcomeTag: 'unavailable', eventId: 'ev_consult_hands_off_unavailable', weight: 3 },
+      // "你自己看着办"有时候是对的。这一支和温暖型的某一支同属 `insight`——
+      // **一次问不出结论**,那正是这一格的设计意图。
+      { id: 'hands_off_insight', outcomeTag: 'insight', eventId: 'ev_consult_hands_off_insight', weight: 2 },
+    ],
     initialStage: 'joined',
     initialFavor: 45,
     stages: {
@@ -99,6 +118,11 @@ export const advisors: AdvisorDef[] = [
     poolBias: { counseling: 1.5, crisis: 1.2, method: 0.75 },
     // 临床成长极快,不重视发文。你会在毕业要求前一年才发现文章不够。
     projectModifiers: { collect: 1.2, ideation: 0.85, analyze: 0.8, write: 0.8, submit: 0.75 },
+    availability: 'monthly',
+    consultResponses: [
+      { id: 'clinical_case', outcomeTag: 'clinical_guidance', eventId: 'ev_consult_clinical_case', weight: 3 },
+      { id: 'clinical_guidance', outcomeTag: 'guidance', eventId: 'ev_consult_clinical_guidance', weight: 2 },
+    ],
     initialStage: 'joined',
     initialFavor: 50,
     stages: {
@@ -116,6 +140,11 @@ export const advisors: AdvisorDef[] = [
     poolBias: { social: 1.4, method: 1.1, identity: 1.1 },
     // 产出不低,但你的一作会变二作。数值上他不差——**这正是这条线难处理的地方**。
     projectModifiers: { collect: 1.2, submit: 1.15, review: 1.1, analyze: 0.9 },
+    availability: 'monthly',
+    consultResponses: [
+      { id: 'boundary_chore', outcomeTag: 'chore', eventId: 'ev_consult_boundary_chore', weight: 3 },
+      { id: 'boundary_resource', outcomeTag: 'resource', eventId: 'ev_consult_boundary_resource', weight: 2 },
+    ],
     initialStage: 'joined',
     initialFavor: 40,
     stages: {
@@ -133,6 +162,11 @@ export const advisors: AdvisorDef[] = [
     poolBias: { identity: 1.2, counseling: 1.15, social: 0.9 },
     // 人真的好,平台弱资源少。**你的天花板是她的天花板。**
     projectModifiers: { ideation: 1.15, write: 1.15, analyze: 1.1, collect: 0.85, submit: 0.75, review: 0.8 },
+    availability: 'weekly',
+    consultResponses: [
+      { id: 'warm_warmth', outcomeTag: 'warmth', eventId: 'ev_consult_warm_warmth', weight: 3 },
+      { id: 'warm_insight', outcomeTag: 'insight', eventId: 'ev_consult_warm_insight', weight: 2 },
+    ],
     initialStage: 'joined',
     initialFavor: 65,
     stages: {

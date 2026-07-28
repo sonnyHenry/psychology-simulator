@@ -95,9 +95,15 @@ export type StepScreen =
   | 'NPC_SELECTION'
   | 'LIFE_GOAL'
   | 'CROSSROAD'
-  | 'ALLOCATION'
+  /**
+   * 工作台(M4.6)。**它吃掉了原来的 `ALLOCATION` 和 `PROJECT_BOARD` 两个屏。**
+   *
+   * 合并的理由在 GAME_DESIGN 4.1:一块要专门点进去看的白板,和一块你每年必然要坐在
+   * 前面的桌子,是两种东西。分配屏原本是一张**脱离上下文的表**——手上那两个课题、
+   * 三个来访者、那个导师,在做决定的那一屏上全都看不见。
+   */
+  | 'DESK'
   | 'ADVISOR_DRAW'
-  | 'PROJECT_BOARD'
   // 读研/读博/博后的真实院校清单选择。**一屏三用**,靠阶段声明的 kind 区分
   | 'GRAD_APPLY';
 
@@ -292,8 +298,17 @@ export interface Course {
 export interface AllocationItem {
   id: string;
   label: string;
-  /** 一行说明,分配屏直接展示 */
+  /** 一行说明(**氛围**),工作台直接展示 */
   text: string;
+  /**
+   * **这一格换来什么**(GAME_DESIGN 4.6 借来的那一条)。花几格、拿到什么、风险在哪。
+   *
+   * 氛围文案(`text`)留在上面一行,代价写在这一行。**不写清楚不是含蓄,是让玩家瞎猜**——
+   * 这是那款同题材模拟器唯一值得整条搬过来的东西。validate 规则 33 强制非空。
+   *
+   * 仍然**不给精确百分比**(4.6 的第二条"不借"):写"多掷两次骰"而不是"+16%"。
+   */
+  payoff: string;
   /**
    * 可投入门控。**门槛开放时间的不对称就靠这里实现**(GAME_DESIGN 8.3②):
    * 实验室大二开门、咨询中心大三开门,所以实验室先开门整整一年。
@@ -307,6 +322,16 @@ export interface AllocationItem {
   category: 'course' | 'lab' | 'counseling' | 'work' | 'exam_prep' | 'money' | 'rest';
   /** category === 'course' 时指向的课程 id */
   courseId?: string;
+  /**
+   * 把这一项挂到工作台的哪张卡片上(GAME_DESIGN 4.2)。
+   *
+   * 省略 `id` = 挂在该类目的**面板**上(导师面板的"寻求指导"、个案页签的"接个案")。
+   * 写了 `id` = 挂在某个具体对象的卡片上(课题投入项由引擎动态合成时写)。
+   *
+   * 信息量没变,变的是**因果的可见性**:你是在对着一个具体的东西下命令,
+   * 而不是在一张表上勾类目。
+   */
+  target?: { kind: 'project' | 'case' | 'advisor'; id?: string };
 }
 
 /**

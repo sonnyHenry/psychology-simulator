@@ -99,6 +99,16 @@ export interface Project {
   foundationId?: string;
   /** 地基已经塌过一次。一个课题只塌一次,否则同一幕会每年重放 */
   foundationShaken?: boolean;
+  /**
+   * 玩家在审稿站选的**目标档位**(M4.6 的选刊,GAME_DESIGN 五节)。
+   *
+   * `undefined` = 还没选,引擎按 `quality` 自动兜底(`tierForQuality`)——
+   * bot、旧存档、以及玩家干脆不管这个课题时都走这一条。
+   *
+   * **这是投稿阶段唯一由玩家直接决定的事。** 冲一冲的代价是被拒之后再等一年,
+   * 而博士只有三到五年;降档改投必须吃掉这一年,否则"从一区一路降到能中为止"就成立了。
+   */
+  submitTier?: PaperTier;
 }
 
 export type PaperTier = 'q1' | 'q2' | 'q3' | 'cssci' | 'chinese_core' | 'conference' | 'preprint';

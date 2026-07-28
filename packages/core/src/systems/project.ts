@@ -45,6 +45,54 @@ export function tierForQuality(quality: number): PaperTier {
   return 'chinese_core';
 }
 
+/**
+ * 期刊档位的高低阶梯(M4.6 的选刊)。降档改投沿着它往下走一格。
+ *
+ * 只列玩家能主动投的四档:会议和预印本不是"投稿"的目标,CSSCI 与三区在这条链上
+ * 是同一格(玩家真正在权衡的是"稳 / 较稳 / 冒险 / 悬"这四种心态,不是刊物分类学)。
+ */
+const TIER_LADDER: PaperTier[] = ['chinese_core', 'q3', 'q2', 'q1'];
+
+export function tierRank(tier: PaperTier): number {
+  const index = TIER_LADDER.indexOf(tier);
+  return index < 0 ? 0 : index;
+}
+
+/** 比当前档位低一档。已经在最低档则返回 undefined(没得降了) */
+export function lowerTier(tier: PaperTier): PaperTier | undefined {
+  return TIER_LADDER[tierRank(tier) - 1];
+}
+
+/**
+ * **冲一档的代价。** 目标档位每高出 `quality` 应得的档位一级,接收率减这么多。
+ *
+ * 这个数字是这条机制的全部:太小,"一律投一区、被拒就降"是无脑最优解;
+ * 太大,冲高变成纯自杀,四档里有两档没人会选(门禁"选刊各档 ≥10%" 盯的就是这件事)。
+ * 反过来投得比应得的低会加回同样的量——**稳一稳是真的稳**,不是一句安慰。
+ */
+const PER_TIER_AMBITION = 0.11;
+
+/**
+ * 玩家选了目标档位之后的接收率。没选(bot / 旧存档 / 干脆不管这个课题)就退回
+ * `acceptanceChance`——引擎按 `quality` 自动兜底,行为与 M4.6 之前完全一致。
+ */
+export function acceptanceChanceFor(
+  state: GameState,
+  pack: ContentPack,
+  project: Project,
+): number {
+  const base = acceptanceChance(state, pack, project);
+  if (!project.submitTier) return base;
+  const deserved = tierForQuality(project.quality);
+  const gap = tierRank(project.submitTier) - tierRank(deserved);
+  return Math.max(0.03, Math.min(1 - MIN_SETBACK_CHANCE, base - gap * PER_TIER_AMBITION));
+}
+
+/** 这个课题最终会发在哪一档:玩家选过就按玩家的,没选按质量兜底 */
+export function targetTierOf(project: Project): PaperTier {
+  return project.submitTier ?? tierForQuality(project.quality);
+}
+
 /** 把一个课题变成一份论文。`integrityRisk` 结转过去 */
 function publishProject(state: GameState, project: Project, tier: PaperTier): void {
   state.papers = state.papers ?? [];

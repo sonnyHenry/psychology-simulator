@@ -121,9 +121,11 @@ function defaultAction(
     }
     case 'ADVISOR_DRAW':
       return { type: 'JOIN_ADVISOR', advisorId: view.candidates[0]!.id };
-    case 'ALLOCATION': {
+    case 'DESK': {
       // 按偏好轮转填格:每轮每个 token 至多加一格。轮转而不是贪满,
       // 是为了同时攒几条线的门槛(实验室年数 + 课程 + 备考),而不是把格子全砸在第一项上。
+      // **选刊不在这里做。** 跳转是路过,默认策略不替测试者做那次判断——
+      // 不选就退回引擎按 quality 兜底的老路(`targetTierOf`),跳出来的档永远是"应得的那一档"。
       const used = new Map<string, number>();
       const picks: string[] = [];
       const capacity = (item: (typeof view.items)[number]): number =>

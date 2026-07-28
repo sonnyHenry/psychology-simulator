@@ -341,48 +341,6 @@ export function AdvisorDrawScreen(props: { view: Of<'ADVISOR_DRAW'>; act: Act })
   );
 }
 
-export function ProjectBoardScreen(props: { view: Of<'PROJECT_BOARD'>; act: Act }) {
-  const { view, act } = props;
-  return (
-    <Card className="board">
-      <div className="screen-head">
-        <h2>{view.year} 年 · 手上有什么</h2>
-        {view.advisorName && <p className="screen-sub">导师:{view.advisorName}</p>}
-      </div>
-      {view.projects.length > 0 && (
-        <div className="review-block">
-          <div className="review-label">在做的课题</div>
-          {view.projects.map(project => (
-            <div key={project.id} className="review-row">
-              <span>
-                「{project.title}」{project.isThesis && <span className="thesis-tag">毕业论文</span>}
-              </span>
-              <span className="review-value">
-                {STAGE_LABEL[project.stage] ?? project.stage} · 第 {project.yearsSpent + 1} 年
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      {view.papers.length > 0 && (
-        <div className="review-block">
-          <div className="review-label">已发表</div>
-          {view.papers.map((paper, i) => (
-            <div key={i} className="review-row">
-              <span>「{paper.title}」</span>
-              <span className="review-value">
-                {paper.year} · {TIER_NAME[paper.tier] ?? paper.tier} ·{' '}
-                {AUTHORSHIP_NAME[paper.authorship] ?? paper.authorship}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-      <ContinueButton onClick={() => act({ type: 'CONTINUE' })} label="开始安排这一年" />
-    </Card>
-  );
-}
-
 export function BriefScreen(props: { view: Of<'BRIEF'>; act: Act }) {
   return (
     <Card className="brief">

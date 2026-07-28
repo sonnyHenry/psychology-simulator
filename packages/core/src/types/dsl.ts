@@ -105,6 +105,11 @@ export type Effect =
   | { case: CaseOp }
   | { advisorFavor: number }
   | { advisorStage: string }
+  /**
+   * 记下**导师上次说的那句话**,常驻在工作台的导师面板上(M4.6)。
+   * 一行文本,把一个幕后乘数变回一个人——由内容自己决定哪句话值得留着。
+   */
+  | { advisorLine: string }
   /** 抽导师:亮出 `count` 张候选,进 ADVISOR_DRAW 屏 */
   | { drawAdvisor: { count: number } }
   /**

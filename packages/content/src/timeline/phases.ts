@@ -66,9 +66,10 @@ function gradPhase(
     eventSlots: 2,
     pools: ['grad'],
     briefs,
-    // 先看白板(手上有什么),再决定今年干什么。这个顺序本身就是一句话:
-    // **你的精力要分给已经在手上的东西,而不是分给一个抽象的"做科研"。**
-    roundOpeners: ['PROJECT_BOARD', 'ALLOCATION'],
+    // 工作台(M4.6)。它**吃掉了原来的 `PROJECT_BOARD` + `ALLOCATION` 两屏**:
+    // 一块要专门点进去看的白板,和一块你每年必然要坐在前面的桌子,是两种东西。
+    // 手上有什么、今年干什么,现在是同一屏的两个页签。
+    roundOpeners: ['DESK'],
     allocationSlots: 3,
     ...tail,
   };
@@ -118,8 +119,8 @@ export const timeline: PhaseConfig[] = [
       '大三。实验室和咨询中心的门都开了,但你只有一个周五下午。',
       '大四。有人在准备考研,有人在投简历,有人还没想清楚自己要什么。',
     ],
-    // 每年开场先分配四格精力。递减到硕博 3 / 博后 3 / 预聘期 2——递减本身就是一句评论。
-    roundOpeners: ['ALLOCATION'],
+    // 每年开场先坐到工作台前分配四格精力。递减到硕博 3 / 博后 3 / 预聘期 2——递减本身就是一句评论。
+    roundOpeners: ['DESK'],
     allocationSlots: 4,
     courseYearFrom: 1,
     nextPhaseId: 'crossroad_2018',
@@ -193,7 +194,7 @@ export const timeline: PhaseConfig[] = [
       '研二。你开始在督导的注视下接实习个案。注册系统的表格上,小时数从个位数开始涨。',
       '研三。毕业论文、实习报告、以及一个问题:出去之后,案源从哪里来。',
     ],
-    roundOpeners: ['ALLOCATION'],
+    roundOpeners: ['DESK'],
     allocationSlots: 3,
     nextPhaseId: 'clinical_practice',
   },
@@ -216,7 +217,7 @@ export const timeline: PhaseConfig[] = [
       '你的名字开始被转介。这一行的口碑长得很慢,但它是真的在长。',
       '你在考虑要不要租一间自己的咨询室。押三付一,以及一张你自己选的沙发。',
     ],
-    roundOpeners: ['ALLOCATION'],
+    roundOpeners: ['DESK'],
     allocationSlots: 3,
     nextPhaseId: 'clinical_late',
   },
@@ -238,7 +239,7 @@ export const timeline: PhaseConfig[] = [
       '来访者的构成在变:更多青少年,更多"孩子不上学"的父母,更多深夜的危机电话。',
       '你数了一下,这些年坐在你对面的人,加起来比你的微信好友还多。',
     ],
-    roundOpeners: ['ALLOCATION'],
+    roundOpeners: ['DESK'],
     allocationSlots: 2,
     isFinal: true,
   },

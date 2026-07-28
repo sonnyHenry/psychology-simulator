@@ -38,7 +38,12 @@ const UNDERGRAD = { year: { from: 2015, to: 2018 } } as const;
 const YEAR_2 = { year: { from: 2016, to: 2018 } } as const;
 const YEAR_3 = { year: { from: 2017, to: 2018 } } as const;
 
-/** 课程投入项:id 由 `allocationIdForCourse` 生成,引擎和内容共用同一个函数,两边不会写错 */
+/**
+ * 课程投入项:id 由 `allocationIdForCourse` 生成,引擎和内容共用同一个函数,两边不会写错。
+ *
+ * `payoff` 三门课统一口径(GAME_DESIGN 4.6 的"明码标价"):写清楚这一格换什么、
+ * 不投会怎样,但**不给学通概率的数字**——那是 `masteryChance` 的事,写出来这一屏就变成算术题。
+ */
 function courseItem(
   courseId: string,
   label: string,
@@ -50,6 +55,7 @@ function courseItem(
     id: allocationIdForCourse(courseId),
     label,
     text,
+    payoff: `1 格 = ${statKey === 'method' ? '方法' : '临床'} + 1,并大幅提高学年末"学通"的把握。一格不投多半只能勉强过,挂了要占掉明年一格重修`,
     category: 'course',
     courseId,
     // 课只在开课那一年可投。投两格 = 这门课今年是你的主线
@@ -79,6 +85,7 @@ export const allocationItems: AllocationItem[] = [
     id: 'alloc_lab',
     label: '进实验室搬砖',
     text: '一周两个下午,贴电极帽、念指导语、导出数据。没有钱。**大二就能进。**',
+    payoff: '1 格 = 方法 +3、资本 +2、状态 −1,实验室年数 +1。**连着投才有回报**:投一年就撤,导师、人情、第一批数据一样都留不下',
     category: 'lab',
     availableWhen: YEAR_2,
     maxSlots: 2,
@@ -92,6 +99,7 @@ export const allocationItems: AllocationItem[] = [
     id: 'alloc_counseling',
     label: '咨询中心值班',
     text: '登记、倒水、告诉来访者往哪边走,后来能坐在旁边听。**大三才开门。**',
+    payoff: '1 格 = 临床 +4、状态 +1,咨询中心年数 +1。它比实验室晚开门整整一年,而这一年是补不回来的',
     category: 'counseling',
     // 大三开门 + 得先有点临床底子。比实验室晚整整一年——这一年就是那个不对称。
     availableWhen: { all: [YEAR_3, { stat: 'clinical', op: '>=', value: 18 }] },
@@ -108,6 +116,7 @@ export const allocationItems: AllocationItem[] = [
     id: 'alloc_student_work',
     label: '学生工作',
     text: '班委、学生会、心理健康协会。开会很多,但你认识了所有老师。',
+    payoff: '1 格 = 资本 +4、状态 −1。资本在保研、推荐信、找活干的时候兑现,平时看不出来',
     category: 'work',
     availableWhen: UNDERGRAD,
     maxSlots: 2,
@@ -120,6 +129,7 @@ export const allocationItems: AllocationItem[] = [
     id: 'alloc_exam_prep',
     label: '备考',
     text: '考研 312 还是 347,或者背托福。这件事从大三开始就没法再拖了。',
+    payoff: '1 格 = 方法 +2、状态 −2,备考量 +1。备考量直接决定读研那一屏你能报哪些学校',
     category: 'exam_prep',
     availableWhen: YEAR_3,
     maxSlots: 3,
@@ -132,6 +142,7 @@ export const allocationItems: AllocationItem[] = [
     id: 'alloc_part_time',
     label: '兼职挣钱',
     text: '家教、发单、做被试。一小时的钱和一小时的实验室时间,你只能选一个。',
+    payoff: '1 格 = ¥4,000、状态 −1。钱是这四年里唯一能立刻兑现的东西',
     category: 'money',
     availableWhen: UNDERGRAD,
     maxSlots: 2,
@@ -141,6 +152,7 @@ export const allocationItems: AllocationItem[] = [
     id: 'alloc_rest',
     label: '休息',
     text: '睡觉、打球、看剧、什么都不干。',
+    payoff: '1 格 = 状态 +5、耗竭 −6。**它不推进任何东西**——但耗竭高的人连自然恢复都没有',
     category: 'rest',
     availableWhen: UNDERGRAD,
     maxSlots: 4,

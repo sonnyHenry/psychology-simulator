@@ -32,6 +32,7 @@ import { crisisEvents } from './events/undergrad/crisis';
 import { masteryEvents } from './events/undergrad/mastery';
 import { thesisEvents } from './events/undergrad/thesis';
 import { gradEvents } from './events/grad';
+import { advisorConsultEvents } from './events/advisor/consult';
 import { projectStageEvents } from './events/project/stages';
 import { endings } from './endings';
 
@@ -72,6 +73,7 @@ export const contentPack: ContentPack = {
     ...masteryEvents,
     ...thesisEvents,
     ...gradEvents,
+    ...advisorConsultEvents,
     ...projectStageEvents,
     ...foundationEvents,
     ...clinicalEvents,

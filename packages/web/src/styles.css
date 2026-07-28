@@ -356,6 +356,297 @@ body {
   margin-top: 4px;
 }
 
+/* ── 工作台(M4.6)───────────────────────────────────────
+ *
+ * 这一屏是本作的主界面,排版语言在这里定下来,后面 JOB_MARKET 的七步照着抄:
+ * **卡片流 + 明码标价 + 模糊档位**。三条纪律:
+ * ① 事实(阶段、会谈次数、被拒次数)给数字;判断(成色、关系、走向)只给词。
+ * ② 每个动作下面一行 payoff,写清楚这一格换什么。
+ * ③ 页签是纯 UI 状态,切换不进 dispatch。
+ */
+
+.grad-bar {
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 12px;
+  background: var(--card);
+}
+
+.grad-bar-met {
+  border-left-color: var(--up);
+}
+
+.grad-bar-req {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.grad-bar-inst {
+  color: var(--muted);
+  font-weight: 400;
+  margin-right: 8px;
+}
+
+.grad-bar-have {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.grad-bar-gap {
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.grad-bar-met .grad-bar-gap {
+  color: var(--up);
+}
+
+.desk-tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+  margin-top: 14px;
+}
+
+.desk-tab {
+  flex: 1;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--muted);
+  padding: 8px 4px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+}
+
+.desk-tab-on {
+  color: var(--ink);
+  font-weight: 600;
+  border-bottom-color: var(--accent);
+}
+
+.desk-tab-badge {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 11px;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.desk-pane {
+  min-height: 120px;
+}
+
+.desk-empty {
+  color: var(--muted);
+  font-size: 14px;
+  padding: 24px 0;
+  text-align: center;
+}
+
+/* 桌面页签顶上的一行摘要:对象在别的页签里,但做决定时必须看得见 */
+.desk-summary {
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 14px;
+}
+
+.desk-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  padding: 2px 0;
+}
+
+.obj-card {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  margin-top: 12px;
+  background: var(--card);
+}
+
+.obj-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.obj-card-title {
+  font-weight: 600;
+}
+
+.obj-card-meta,
+.obj-card-issue {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.obj-card-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.fact {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  min-width: 84px;
+}
+
+.fact-warn {
+  border-color: var(--down);
+  color: var(--down);
+}
+
+.fact-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.skeptic-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+  padding-left: 8px;
+  border-left: 2px solid var(--accent-soft);
+}
+
+.submit-box {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.submit-label {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.submit-btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  padding: 6px 10px;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.submit-btn:hover {
+  border-color: var(--accent);
+}
+
+.submit-btn-label {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.submit-btn-hint {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.obj-card-danger {
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 6px 0 0;
+  text-decoration: underline;
+}
+
+.obj-card-danger:hover {
+  color: var(--down);
+}
+
+.advisor-impression {
+  font-size: 14px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+
+.advisor-line {
+  margin-top: 10px;
+  padding-left: 10px;
+  border-left: 2px solid var(--accent-soft);
+  font-size: 14px;
+}
+
+.hours-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.year-row {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 0;
+}
+
+.year-row-head {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  font-size: 14px;
+}
+
+.year-row-year {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.year-row-phase {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.year-row-money,
+.year-row-state {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.year-row-state {
+  margin-left: 0;
+}
+
+.year-row-note {
+  font-size: 13px;
+  color: var(--muted);
+  padding-left: 10px;
+}
+
 /* ── 年度投入分配 ───────────────────────────────────────── */
 
 .slot-meter {
@@ -437,6 +728,16 @@ body {
   font-size: 13px;
   color: var(--muted);
   margin-top: 2px;
+}
+
+/* **明码标价那一行**(GAME_DESIGN 4.6)。氛围在上面一行,代价在这一行 */
+.alloc-item-payoff {
+  font-size: 12px;
+  color: var(--ink);
+  opacity: 0.75;
+  margin-top: 4px;
+  padding-left: 8px;
+  border-left: 2px solid var(--accent-soft);
 }
 
 .alloc-textbook {

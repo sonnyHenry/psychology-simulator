@@ -22,7 +22,10 @@ const IN_CLINICAL: Condition = { flag: 'track_clinical' };
 export const clinicalAllocationItems: AllocationItem[] = [
   {
     id: 'alloc_casework',
+    // 挂在个案页签的面板上(没有 id = 挂在该类目的面板上,不是某一个来访者)
+    target: { kind: 'case' },
     label: '接个案',
+    payoff: '1 格 = 临床 +2、状态 −1,能同时撑起 2 个个案,会谈频率也上一档。**接得越多,注册小时数涨得越快,你被掏空得也越快**',
     text: '每周固定留给来访者的那些小时。接得越多,小时数涨得越快,你被掏空得也越快。',
     category: 'counseling',
     availableWhen: IN_CLINICAL,
@@ -34,7 +37,10 @@ export const clinicalAllocationItems: AllocationItem[] = [
   },
   {
     id: 'alloc_supervision',
+    // 挂在个案页签的面板上(没有 id = 挂在该类目的面板上,不是某一个来访者)
+    target: { kind: 'case' },
     label: '参加督导',
+    payoff: '1 格 = 临床 +2、状态 +1,督导小时 +20,自付督导费。它压低每个个案的脱落率,也是注册系统那条长路上绕不开的一格',
     text: '一小时几百块,讲你最没底的那个个案。**低督导比高个案量更危险**,这句话是真的。',
     category: 'counseling',
     availableWhen: IN_CLINICAL,
@@ -46,7 +52,10 @@ export const clinicalAllocationItems: AllocationItem[] = [
   },
   {
     id: 'alloc_personal_therapy',
+    // 挂在个案页签的面板上(没有 id = 挂在该类目的面板上,不是某一个来访者)
+    target: { kind: 'case' },
     label: '个人体验',
+    payoff: '1 格 = 状态 +6、耗竭 −6、自我觉察 +1,一年几千到三万。**这是这一行少数明确正向的长期投入**',
     text: '你自己坐到来访者的位置上。一周一次,一小时六百到一千二,做上几年。这是这一行少数明确正向的长期投入。',
     category: 'counseling',
     availableWhen: IN_CLINICAL,
@@ -61,6 +70,7 @@ export const clinicalAllocationItems: AllocationItem[] = [
   {
     id: 'alloc_clinical_training',
     label: '进修与工作坊',
+    payoff: '1 格 = 临床 +3,自付培训费。证书会攒一抽屉,派上用场的是其中那几个瞬间',
     text: 'CBT 连续培训、家庭治疗中级班、创伤主题工作坊。证书会攒一抽屉,有用的是那几个瞬间。',
     category: 'work',
     availableWhen: IN_CLINICAL,
@@ -74,6 +84,7 @@ export const clinicalAllocationItems: AllocationItem[] = [
   {
     id: 'alloc_clinical_gigs',
     label: '讲课、测评、EAP',
+    payoff: '1 格 = ¥16,000、状态 −1。比个案挣钱,也比个案浅——它不涨注册小时数',
     text: '给企业讲情绪管理,给学校做筛查,接 EAP 的转介单。比个案挣钱,也比个案浅。',
     category: 'money',
     availableWhen: IN_CLINICAL,
@@ -86,6 +97,7 @@ export const clinicalAllocationItems: AllocationItem[] = [
   {
     id: 'alloc_clinical_rest',
     label: '休息',
+    payoff: '1 格 = 状态 +7、耗竭 −9。不接新案的那一年,手上的个案也更容易停下来',
     text: '不加新个案,推掉两个讲座,去过一点自己的生活。你劝来访者做的那些事。',
     category: 'rest',
     availableWhen: IN_CLINICAL,

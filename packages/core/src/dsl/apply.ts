@@ -53,6 +53,10 @@ export function applyEffects(effects: Effect[], state: GameState, pack: ContentP
       changeAdvisorFavor(state, effect.advisorFavor);
     } else if ('advisorStage' in effect) {
       setAdvisorStage(state, effect.advisorStage);
+    } else if ('advisorLine' in effect) {
+      // 导师面板上的"他上次说的那句话"。没有导师时静默丢弃——
+      // 这行字是给面板看的,不是一个会被门控读到的状态。
+      if (state.advisor) state.advisor.lastLine = effect.advisorLine;
     } else if ('drawAdvisor' in effect) {
       // 只标记"该抽卡了",真正的抽样在引擎里做——它需要 RNG,而 applyEffects 没有。
       state.pendingAdvisorDraw = effect.drawAdvisor.count;

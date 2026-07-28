@@ -647,6 +647,72 @@ const CASES: Case[] = [
     },
     expect: '不在注册表内',
   },
+
+  // ── 工作台(M4.6,规则 33–37)──────────────────────────────
+  //
+  // 规则 36 在这里**没有反例**:它静态检查 `systems/desk.ts` 的源码,与内容包无关,
+  // 从夹具里破坏不了。查产出的那一半在 core 的单测里
+  //(「DESK 的 ViewModel 序列化后不含任何原始数值」)。
+  {
+    rule: '投入项没写 payoff(规则 33)',
+    break: pack => {
+      const item = (pack.allocationItems ?? [])[0];
+      if (!item) throw new Error('反例夹具需要更新:内容包里没有投入项');
+      item.payoff = '   ';
+    },
+    expect: '没写 payoff',
+  },
+  {
+    rule: '毕业指标只写了文案没写结构化版本(规则 34)',
+    break: pack => {
+      const inst = (pack.institutions ?? []).find(i => i.gameified.admission?.graduationReq);
+      if (!inst?.gameified.admission) throw new Error('反例夹具需要更新:没有院校配了毕业指标');
+      delete inst.gameified.admission.graduationReq;
+    },
+    expect: '要么都有要么都无',
+  },
+  {
+    rule: '毕业指标的文案和数字对不上(规则 34)',
+    break: pack => {
+      const inst = (pack.institutions ?? []).find(i => i.gameified.admission?.graduationReq);
+      const admission = inst?.gameified.admission;
+      if (!admission?.graduationReq) throw new Error('反例夹具需要更新:没有院校配了毕业指标');
+      // 文案说 3 篇,结构化说 7 篇。**两份数据说两件事,而且两边都不会崩。**
+      admission.graduationReq.papers = 7;
+    },
+    expect: '没有出现篇数',
+  },
+  {
+    rule: '可及性档位一对一,等于把原型印在面板上(规则 35)',
+    break: pack => {
+      const advisors = pack.advisors ?? [];
+      if (advisors.length < 2) throw new Error('反例夹具需要更新:导师不足两个');
+      // 只有它一个是 weekly:玩家看一眼面板就知道抽到了谁
+      for (const advisor of advisors) advisor.availability = 'rare';
+      advisors[0]!.availability = 'weekly';
+    },
+    expect: '只落了 1 个原型',
+  },
+  {
+    rule: '某个原型的指导结果全是独有类别,一问就露底(规则 35)',
+    break: pack => {
+      const advisor = (pack.advisors ?? []).find(a => (a.consultResponses ?? []).length >= 2);
+      if (!advisor) throw new Error('反例夹具需要更新:没有导师配了 ≥2 种指导结果');
+      for (const [index, response] of (advisor.consultResponses ?? []).entries()) {
+        response.outcomeTag = `only_${advisor.id}_${index}`;
+      }
+    },
+    expect: '没有一种与别的原型同属一类',
+  },
+  {
+    rule: '面板动作没挂 target,又变回一张表(规则 37)',
+    break: pack => {
+      const item = (pack.allocationItems ?? []).find(i => i.id === 'alloc_advisor_consult');
+      if (!item) throw new Error('反例夹具需要更新:找不到 alloc_advisor_consult');
+      delete item.target;
+    },
+    expect: '必须声明 target',
+  },
 ];
 
 let failures = 0;

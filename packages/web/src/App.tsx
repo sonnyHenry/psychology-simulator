@@ -1,6 +1,6 @@
 import { contentPack } from '@psy-sim/content';
 import { StatsBar } from './components/StatsBar';
-import { AllocationScreen } from './screens/Allocation';
+import { DeskScreen } from './screens/Desk';
 import { GradApplyScreen, GradResultScreen } from './screens/GradApply';
 import {
   AdvisorDrawScreen,
@@ -15,7 +15,6 @@ import {
   LifeGoalScreen,
   NpcSelectionScreen,
   OutcomeScreen,
-  ProjectBoardScreen,
   SettlementScreen,
   SetupScreen,
   TitleScreen,
@@ -71,17 +70,9 @@ export default function App() {
               return <GradResultScreen view={view} act={act} />;
             case 'ADVISOR_DRAW':
               return <AdvisorDrawScreen view={view} act={act} />;
-            case 'PROJECT_BOARD':
-              return <ProjectBoardScreen view={view} act={act} />;
-            case 'ALLOCATION':
-              // key 用年份:每年重新分配时清空上一年的本地勾选
-              return (
-                <AllocationScreen
-                  key={view.year}
-                  view={view}
-                  onSubmit={picks => act({ type: 'ALLOCATE', picks })}
-                />
-              );
+            case 'DESK':
+              // key 用年份:每年重新坐到桌前时清空上一年的本地勾选与页签
+              return <DeskScreen key={view.year} view={view} act={act} />;
             case 'BRIEF':
               return <BriefScreen view={view} act={act} />;
             case 'EVENT':

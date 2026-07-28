@@ -30,6 +30,10 @@ export {
   stageSuccessChance,
   tierForQuality,
   acceptanceChance,
+  acceptanceChanceFor,
+  targetTierOf,
+  tierRank,
+  lowerTier,
   isAtFinalStage,
   DEFAULT_STAGE_CHANCE,
   MIN_SETBACK_CHANCE,
@@ -71,6 +75,26 @@ export {
   slotsOnCourse,
   type CourseTier,
 } from './systems/course';
+export {
+  applyDeskAction,
+  availabilityLabel,
+  buildDeskView,
+  deskActions,
+  graduationProgress,
+  qualityLabel,
+  relationLabel,
+  stageText,
+  SUBMIT_TIERS,
+  TIER_TEXT,
+  type DeskActionDef,
+} from './systems/desk';
+export {
+  advisorDefOf,
+  pendingAdvisorEvent,
+  rollAdvisorConsult,
+  ADVISOR_CONSULT_FLAG,
+  ALLOC_ADVISOR_CONSULT_ID,
+} from './systems/advisor';
 export { findEnding } from './systems/ending';
 export { selectContextLine } from './systems/context-lines';
 export { createEngine, type Engine } from './engine/engine';

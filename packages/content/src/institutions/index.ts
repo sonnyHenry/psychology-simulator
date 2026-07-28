@@ -17,6 +17,16 @@ import type { Institution } from '@psy-sim/core';
  * 启动经费用区间,考核指标只写**描述**不写指标本身。
  * `GRAD_APPLY` 屏顶部有一条常驻声明(validate 规则 12 强制非空),这是第二道保险。
  *
+ * ## `graduationBar` 让"我当年去了哪"每年都在你眼前(M4.6)
+ *
+ * 此前这 27 所院校的差异**只在录取那一屏出现过一次**,之后就消失了。挂上毕业要求之后,
+ * 它每年常驻在工作台顶部:A+ 校要三篇其中一篇二区,双非要一篇中文核心——
+ * 后者可能三年就毕业,前者第六年还在改稿。
+ *
+ * **只列清单,不算总分**(GAME_DESIGN 4.3),而且 `graduationBar` 的数字必须和
+ * `graduationReq` 完全一致(validate 规则 34)——两份数据说两件事,是这一行
+ * 最容易写出来又最难发现的错。
+ *
  * ## `admits` 决定它出现在哪次选择的清单里
  *
  * 一屏三用靠的就是这个字段:同一张表按 `kind` 过滤出三份不同的清单。
@@ -40,7 +50,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro', 'domain_development', 'domain_psychometrics'],
     impression: '国内心理学的两个头部之一。学部建制、国家重点实验室,发展、心理测量与统计、认知神经都齐。',
     gameified: {
-      admission: { quota: '推免占多数,统考名额每年个位数' },
+      admission: {
+        quota: '推免占多数,统考名额每年个位数',
+        graduationBar: '毕业要求 3 篇论文,其中 1 篇二区以上',
+        graduationReq: { papers: 3, topTier: 1, topTierLabel: '二区' },
+      },
       employment: { tenureYears: 6, tenureBar: '预聘期内要有代表作与主持项目' },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -55,7 +69,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro', 'domain_cognition', 'domain_social'],
     impression: '理科传统最重的一家。视觉与注意、认知神经、行为遗传、社会认知。这里的人默认你会写代码。',
     gameified: {
-      admission: { quota: '推免为主,统考极少' },
+      admission: {
+        quota: '推免为主,统考极少',
+        graduationBar: '毕业要求 3 篇论文,其中 1 篇二区以上',
+        graduationReq: { papers: 3, topTier: 1, topTierLabel: '二区' },
+      },
       employment: { tenureYears: 6, tenureBar: '预聘-长聘,首考看独立性' },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -70,7 +88,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro', 'domain_health', 'domain_social'],
     impression: '科研院所不是学校:没有本科生,组会就是全部生活。脑与认知、健康心理、心理援助。',
     gameified: {
-      admission: { quota: '按导师招生,名额跟着项目走' },
+      admission: {
+        quota: '按导师招生,名额跟着项目走',
+        graduationBar: '毕业要求 3 篇论文,其中 1 篇二区以上',
+        graduationReq: { papers: 3, topTier: 1, topTierLabel: '二区' },
+      },
       employment: { tenureYears: 5, tenureBar: '所里按项目与产出考核' },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -85,7 +107,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro', 'domain_education', 'domain_cognition'],
     impression: '学科评估长期在最前列。教育心理与认知神经两条线都厚,南方的心理学重镇。',
     gameified: {
-      admission: { quota: '统考名额相对多' },
+      admission: {
+        quota: '统考名额相对多',
+        graduationBar: '毕业要求 3 篇论文,其中 1 篇二区以上',
+        graduationReq: { papers: 3, topTier: 1, topTierLabel: '二区' },
+      },
       employment: { tenureYears: 5 },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -100,7 +126,11 @@ export const institutions: Institution[] = [
     domains: ['domain_education', 'domain_cogneuro', 'domain_clinical'],
     impression: '教育心理、认知神经、临床与咨询三条线都在。上海,离行业和医院都近。',
     gameified: {
-      admission: { quota: '推免与统考各半' },
+      admission: {
+        quota: '推免与统考各半',
+        graduationBar: '毕业要求 2 篇论文,其中 1 篇二区以上',
+        graduationReq: { papers: 2, topTier: 1, topTierLabel: '二区' },
+      },
       employment: { tenureYears: 5 },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -116,7 +146,11 @@ export const institutions: Institution[] = [
     domains: ['domain_social', 'domain_cognition', 'domain_health'],
     impression: '学部建制,人格与情绪方向的传统很深。样本好收,这件事在做问卷研究的人眼里是硬指标。',
     gameified: {
-      admission: { quota: '招生规模较大' },
+      admission: {
+        quota: '招生规模较大',
+        graduationBar: '毕业要求 2 篇论文,其中 1 篇二区以上',
+        graduationReq: { papers: 2, topTier: 1, topTierLabel: '二区' },
+      },
       employment: { tenureYears: 5 },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -131,7 +165,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro', 'domain_cognition'],
     impression: '系在综合性大学里,交叉学科的机会多,和计算机、医学的合作是常态。',
     gameified: {
-      admission: { quota: '推免为主' },
+      admission: {
+        quota: '推免为主',
+        graduationBar: '毕业要求 2 篇论文,其中 1 篇二区以上',
+        graduationReq: { papers: 2, topTier: 1, topTierLabel: '二区' },
+      },
       employment: { tenureYears: 6, tenureBar: '预聘制,考核偏重代表作' },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -146,7 +184,11 @@ export const institutions: Institution[] = [
     domains: ['domain_social', 'domain_health'],
     impression: '2008 年复系,是这张名单上最年轻的一个系。积极心理学与社会心理,平台新、人少。',
     gameified: {
-      admission: { quota: '规模小,名额很少' },
+      admission: {
+        quota: '规模小,名额很少',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
       employment: { tenureYears: 6 },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -161,7 +203,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cognition', 'domain_education'],
     impression: '心理学传统强校。预聘压力相对小,编制相对实——这两件事在 2014 年还没人跟你讲它们有多重要。',
     gameified: {
-      admission: { quota: '统考名额较多' },
+      admission: {
+        quota: '统考名额较多',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
       employment: { tenured: true, teachingLoad: '年均课时偏多' },
     },
     admits: ['master', 'phd'],
@@ -176,7 +222,11 @@ export const institutions: Institution[] = [
     domains: ['domain_education', 'domain_development'],
     impression: '师范系统里的老牌。教育心理与发展方向稳,毕业去中小学和高校的都多。',
     gameified: {
-      admission: { quota: '统考名额较多' },
+      admission: {
+        quota: '统考名额较多',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
       employment: { tenured: true },
     },
     admits: ['master', 'phd'],
@@ -191,7 +241,11 @@ export const institutions: Institution[] = [
     domains: ['domain_development', 'domain_education'],
     impression: '发展心理的传统很久。学校不大,但这个学科在校内位置不低。',
     gameified: {
-      admission: { quota: '统考为主' },
+      admission: {
+        quota: '统考为主',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
       employment: { tenured: true },
     },
     admits: ['master', 'phd'],
@@ -206,7 +260,11 @@ export const institutions: Institution[] = [
     domains: ['domain_education', 'domain_cognition'],
     impression: '在北京,而且是师范。这两点合起来意味着实习和兼职的机会比排名更重要。',
     gameified: {
-      admission: { quota: '统考为主' },
+      admission: {
+        quota: '统考为主',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
       employment: { tenured: true },
     },
     admits: ['master', 'phd'],
@@ -221,7 +279,11 @@ export const institutions: Institution[] = [
     domains: ['domain_education', 'domain_clinical'],
     impression: '师范传统强校,咨询与临床方向的课程体系相对完整。',
     gameified: {
-      admission: { quota: '统考名额较多' },
+      admission: {
+        quota: '统考名额较多',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
       employment: { tenured: true },
     },
     admits: ['master', 'phd'],
@@ -236,7 +298,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro', 'domain_social'],
     impression: '近年扩张最快的一批之一。平台年轻、待遇好,代价是一切都还在长,包括规矩。',
     gameified: {
-      admission: { quota: '这几年招得多,名额相对宽' },
+      admission: {
+        quota: '这几年招得多,名额相对宽',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
       employment: { startupFunds: [300000, 1500000], tenureYears: 6, tenureBar: '预聘期考核明确且不低', housing: '有安家补贴' },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -251,7 +317,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cognition', 'domain_education'],
     impression: '这几年投入大、招人多。长三角,离上海一小时。',
     gameified: {
-      admission: { quota: '招生规模在扩' },
+      admission: {
+        quota: '招生规模在扩',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
       employment: { startupFunds: [200000, 800000], tenureYears: 5, housing: '有安家补贴' },
     },
     admits: ['master', 'phd', 'postdoc'],
@@ -268,7 +338,11 @@ export const institutions: Institution[] = [
     domains: ['domain_clinical', 'domain_health'],
     impression: '国内精神科的重镇。在这里心理学是医学的一部分,这句话的分量要待过才知道。',
     gameified: {
-      admission: { quota: '名额少,竞争跨专业' },
+      admission: {
+        quota: '名额少,竞争跨专业',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
     },
     admits: ['master', 'phd', 'postdoc'],
   },
@@ -282,7 +356,11 @@ export const institutions: Institution[] = [
     domains: ['domain_clinical', 'domain_health'],
     impression: '临床与研究并重。门诊量大,这意味着案例多,也意味着时间少。',
     gameified: {
-      admission: { quota: '按导师招生' },
+      admission: {
+        quota: '按导师招生',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
     },
     admits: ['master', 'phd', 'postdoc'],
   },
@@ -296,7 +374,11 @@ export const institutions: Institution[] = [
     domains: ['domain_clinical'],
     impression: '精神医学的老牌重镇,临床训练扎实。',
     gameified: {
-      admission: { quota: '按导师招生' },
+      admission: {
+        quota: '按导师招生',
+        graduationBar: '毕业要求 1 篇中文核心以上',
+        graduationReq: { papers: 1, topTierLabel: '中文核心' },
+      },
     },
     admits: ['master', 'phd'],
   },
@@ -312,7 +394,11 @@ export const institutions: Institution[] = [
     domains: ['domain_psychometrics', 'domain_cognition'],
     impression: '心理学方法学与贝叶斯统计的中心之一。荷兰的 PhD 是**雇员合同**,有工资、交社保、有工会。',
     gameified: {
-      admission: { quota: '按项目招聘,像找工作而不是像考试' },
+      admission: {
+        quota: '按项目招聘,像找工作而不是像考试',
+        graduationBar: '毕业以学位论文为准,通常需要 3 篇成文',
+        graduationReq: { papers: 3 },
+      },
       employment: { startupFunds: [0, 0], housing: '住房紧张是公开问题' },
     },
     admits: ['phd_abroad', 'postdoc'],
@@ -327,7 +413,11 @@ export const institutions: Institution[] = [
     domains: ['domain_psychometrics'],
     impression: '元研究(meta-research)最集中的地方之一。研究"心理学这门学科本身出了什么问题"。',
     gameified: {
-      admission: { quota: '按项目招聘' },
+      admission: {
+        quota: '按项目招聘',
+        graduationBar: '毕业以学位论文为准,通常需要 3 篇成文',
+        graduationReq: { papers: 3 },
+      },
     },
     admits: ['phd_abroad', 'postdoc'],
   },
@@ -341,7 +431,11 @@ export const institutions: Institution[] = [
     domains: ['domain_psychometrics', 'domain_clinical'],
     impression: '欧洲最老的大学之一。定量心理学与临床两条线都强。',
     gameified: {
-      admission: { quota: '按项目招聘' },
+      admission: {
+        quota: '按项目招聘',
+        graduationBar: '毕业以学位论文为准,通常需要 3 篇成文',
+        graduationReq: { papers: 3 },
+      },
     },
     admits: ['phd_abroad', 'postdoc'],
   },
@@ -356,7 +450,11 @@ export const institutions: Institution[] = [
     domains: ['domain_psychometrics', 'domain_cognition'],
     impression: '心理测量学的祖庭之一。美国的 PhD 是五到六年,前两年还要上课。',
     gameified: {
-      admission: { quota: '每年每个方向招个位数' },
+      admission: {
+        quota: '每年每个方向招个位数',
+        graduationBar: '毕业以学位论文为准,通常需要 3 篇成文',
+        graduationReq: { papers: 3 },
+      },
       employment: { teachingLoad: '读博期间要带课' },
     },
     admits: ['phd_abroad', 'postdoc'],
@@ -371,7 +469,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro'],
     impression: '认知神经的顶级研究所。设备是这个星球上最好的一档,没有本科生。',
     gameified: {
-      admission: { quota: '按课题组招聘' },
+      admission: {
+        quota: '按课题组招聘',
+        graduationBar: '毕业以学位论文为准,通常需要 3 篇成文',
+        graduationReq: { papers: 3 },
+      },
     },
     admits: ['phd_abroad', 'postdoc'],
   },
@@ -385,7 +487,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro', 'domain_cognition'],
     impression: '认知神经科学的欧洲中心之一。伦敦,生活成本是另一个课题。',
     gameified: {
-      admission: { quota: '按项目招聘,自费生也收' },
+      admission: {
+        quota: '按项目招聘,自费生也收',
+        graduationBar: '毕业以学位论文为准,通常需要 3 篇成文',
+        graduationReq: { papers: 3 },
+      },
     },
     admits: ['phd_abroad', 'postdoc'],
   },
@@ -399,7 +505,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro', 'domain_cognition'],
     impression: '英国医学研究理事会的单位,规模小、密度高。',
     gameified: {
-      admission: { quota: '名额极少' },
+      admission: {
+        quota: '名额极少',
+        graduationBar: '毕业以学位论文为准,通常需要 3 篇成文',
+        graduationReq: { papers: 3 },
+      },
     },
     admits: ['phd_abroad', 'postdoc'],
   },
@@ -413,7 +523,11 @@ export const institutions: Institution[] = [
     domains: ['domain_cogneuro'],
     impression: '脑成像方法学的重镇,预处理管线的很多标准出自这里。',
     gameified: {
-      admission: { quota: '按项目招聘' },
+      admission: {
+        quota: '按项目招聘',
+        graduationBar: '毕业以学位论文为准,通常需要 3 篇成文',
+        graduationReq: { papers: 3 },
+      },
     },
     admits: ['phd_abroad', 'postdoc'],
   },
@@ -427,7 +541,11 @@ export const institutions: Institution[] = [
     domains: ['domain_social', 'domain_clinical', 'domain_cognition'],
     impression: '离家近、英文授课、体系是英美那一套。很多人把它当作出去和留下之间的中间选项。',
     gameified: {
-      admission: { quota: '博士名额与奖学金绑定' },
+      admission: {
+        quota: '博士名额与奖学金绑定',
+        graduationBar: '毕业要求 2 篇论文,其中 1 篇二区以上',
+        graduationReq: { papers: 2, topTier: 1, topTierLabel: '二区' },
+      },
       employment: { tenureYears: 6 },
     },
     admits: ['phd_abroad', 'postdoc'],

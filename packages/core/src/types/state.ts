@@ -14,11 +14,11 @@ export type ScreenId =
   | 'NPC_SELECTION'
   | 'LIFE_GOAL'
   | 'CROSSROAD'
-  | 'ALLOCATION'
+  /** 工作台。M4.6 起吃掉了 `ALLOCATION` 与 `PROJECT_BOARD` 两个屏 */
+  | 'DESK'
   | 'ADVISOR_DRAW'
   | 'GRAD_APPLY'
   | 'GRAD_RESULT'
-  | 'PROJECT_BOARD'
   | 'BRIEF'
   | 'EVENT'
   | 'OUTCOME'
@@ -181,6 +181,26 @@ export interface GameState {
   endingId: string | null;
   /** 可选:旧快照存档没有这两个字段,读取处需给默认值 */
   lastSettlement?: SettlementReport | null;
-  /** 每次年度结算后的金钱快照,用于结算/结局页的趋势展示 */
-  yearlySnapshots?: { year: number; money: number }[];
+  /**
+   * 每次年度结算后的快照。金钱趋势图读前两个字段;**工作台的「这些年」页签读整条**。
+   *
+   * 结算屏是那一年结束时的一次正式回顾(一次性、有仪式感),「这些年」是它的**存档**
+   * (随时可翻)。两者读同一份数据,不各写一套聚合——这也是 M4.5 的 `systems/review.ts`
+   * 将来要接管的地方(TECH 六节)。
+   *
+   * 后四个字段是 M4.6 新增的,**全部可选**:旧存档只有 `{year, money}`,
+   * 「这些年」对它们只会少显示几行,不会崩。
+   */
+  yearlySnapshots?: {
+    year: number;
+    money: number;
+    /** 那一年的阶段名(「读博」「独立执业」) */
+    phaseLabel?: string;
+    /** 那一年年末的五维快照,用来在流水里看状态曲线 */
+    state?: number;
+    /** 那一年发表的论文(标题 + 档位),按年归档 */
+    papers?: { title: string; tier: string }[];
+    /** 那一年的一行事实清单("「情绪调节」还卡在收数据"「小张在第 6 次之后没有再来」) */
+    notes?: string[];
+  }[];
 }

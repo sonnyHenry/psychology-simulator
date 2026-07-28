@@ -1131,6 +1131,152 @@ for (const event of contentPack.events) {
   }
 }
 
+// ---------- 规则 33–37:工作台(GAME_DESIGN 四节、七节 / TECH 7.1) ----------
+//
+// 这五条守的是**工作台不把已经付过学费的规矩重新破掉**:明码标价、两份数据不许说两件事、
+// 原型不许被间接指认、精确数值不许穿过 ViewModel、两种动作不许混成一条通路。
+
+{
+  // 规则 33:每个投入项必须有非空 `payoff`。
+  // 借来的那一条(GAME_DESIGN 4.6):**不写清楚不是含蓄,是让玩家瞎猜。**
+  for (const item of contentPack.allocationItems ?? []) {
+    if (!item.payoff || item.payoff.trim().length === 0) {
+      error(`规则 33:投入项没写 payoff(这一格换来什么): ${item.id}`);
+    }
+  }
+
+  // 规则 34:毕业指标的两种写法必须一致。
+  // **两份数据说两件事,是这一行最容易写出来又最难发现的错**——文案说 2 篇、
+  // 结构化说 3 篇的话,玩家照着文案攒,系统按结构化判,而且两边都不会报错。
+  for (const inst of contentPack.institutions ?? []) {
+    const admission = inst.gameified.admission;
+    const bar = admission?.graduationBar;
+    const req = admission?.graduationReq;
+    if (Boolean(bar) !== Boolean(req)) {
+      error(`规则 34:${inst.id} 的 graduationBar 与 graduationReq 必须要么都有要么都无`);
+      continue;
+    }
+    if (!bar || !req) continue;
+    if (!bar.includes(String(req.papers))) {
+      error(`规则 34:${inst.id} 的 graduationBar 里没有出现篇数 ${req.papers}:「${bar}」`);
+    }
+    if (req.topTier !== undefined && !bar.includes(String(req.topTier))) {
+      error(`规则 34:${inst.id} 的 graduationBar 里没有出现高档篇数 ${req.topTier}:「${bar}」`);
+    }
+    if (req.topTierLabel !== undefined && !bar.includes(req.topTierLabel)) {
+      error(`规则 34:${inst.id} 的 graduationBar 里没有出现档位名「${req.topTierLabel}」:「${bar}」`);
+    }
+  }
+
+  // 规则 35:原型的两条防泄漏检查(GAME_DESIGN 七节)。
+  //
+  // 配套沿用已有的"`archetype` 不进 ViewModel"单测——**三条缺一不可:
+  // 一条防直接泄漏,两条防间接指认。** 导师面板是 M4.6 新开的泄漏面:
+  // 面板上那两行档位如果和原型一一对应,ViewModel 里不给 archetype 就白防了。
+  const advisors = contentPack.advisors ?? [];
+  if (advisors.length > 0) {
+    // ① 可及性档位的映射必须多对一:三档里每一档至少落 2 个原型
+    const byAvailability = new Map<string, string[]>();
+    for (const advisor of advisors) {
+      byAvailability.set(advisor.availability, [
+        ...(byAvailability.get(advisor.availability) ?? []),
+        advisor.archetype,
+      ]);
+    }
+    for (const [availability, archetypes] of byAvailability) {
+      if (archetypes.length < 2) {
+        error(
+          `规则 35:可及性档位「${availability}」只落了 ${archetypes.length} 个原型(${archetypes.join(', ')});一对一 = 玩家看一眼面板就知道抽到了谁`,
+        );
+      }
+    }
+    // ② 每个原型的「寻求指导」结果 ≥2 种,而且至少一种与另一个原型的某种结果同属一类
+    const tagOwners = new Map<string, Set<string>>();
+    for (const advisor of advisors) {
+      for (const response of advisor.consultResponses ?? []) {
+        tagOwners.set(
+          response.outcomeTag,
+          (tagOwners.get(response.outcomeTag) ?? new Set()).add(advisor.id),
+        );
+      }
+    }
+    const eventIds = new Set(contentPack.events.map(ev => ev.id));
+    for (const advisor of advisors) {
+      const responses = advisor.consultResponses ?? [];
+      if (responses.length < 2) {
+        error(
+          `规则 35:导师 ${advisor.id} 的「寻求指导」只有 ${responses.length} 种结果(要求 ≥2);一次问出结论,换导师窗口那个张力就没了`,
+        );
+      }
+      for (const response of responses) {
+        if (!eventIds.has(response.eventId)) {
+          error(`规则 35:导师 ${advisor.id} 的 consultResponse ${response.id} 指向不存在的事件 ${response.eventId}`);
+        }
+      }
+      const shared = responses.some(r => (tagOwners.get(r.outcomeTag)?.size ?? 0) >= 2);
+      if (responses.length > 0 && !shared) {
+        error(
+          `规则 35:导师 ${advisor.id} 的结果没有一种与别的原型同属一类(outcomeTag 全是独有的),等于一问就露底`,
+        );
+      }
+    }
+  }
+
+  // 规则 36:工作台不得泄漏精确数值。
+  //
+  // 照 M3.5 那条"不含 `"chance": 0.x`"的单测写法,**静态检查 `systems/desk.ts` 的源码**:
+  // 聚合层里不许出现读 `quality` / `alliance` / `favor` 原始值再往外塞的写法。
+  //
+  // **这条规则与内容包无关**,所以它在夹具模式下照常运行,也没有内容侧的反例
+  // (verify-validate 里对应一条说明)。查产出的那一半在 core 的单测里:
+  // 「DESK 的 ViewModel 序列化后不含任何原始数值」。**两头都要**——
+  // 静态检查抓"有人绕过了档位函数",单测抓"档位函数本身漏了一个字段"。
+  {
+    const deskSource = readFileSync(
+      new URL('../../core/src/systems/desk.ts', import.meta.url),
+      'utf-8',
+    );
+    // 允许的形态只有"喂给档位函数":qualityLabel(project.quality) / relationLabel(...favor)
+    const leaks = [
+      { field: 'quality', allowed: /qualityLabel\(\s*project\.quality\s*\)/ },
+      { field: 'alliance', allowed: /$^/ },
+      { field: 'favor', allowed: /relationLabel\(state\.advisor\.favor\)/ },
+    ];
+    for (const leak of leaks) {
+      const uses = deskSource.match(new RegExp(`\\.${leak.field}\\b`, 'g')) ?? [];
+      const allowedUses = deskSource.match(new RegExp(leak.allowed.source, 'g')) ?? [];
+      if (uses.length > allowedUses.length) {
+        error(
+          `规则 36:systems/desk.ts 里读了 ${uses.length} 处 .${leak.field},但只有 ${allowedUses.length} 处是喂给档位函数的——原始数值不许穿过这一层`,
+        );
+      }
+    }
+  }
+
+  // 规则 37:`DESK_ACTION` 不许花精力格。
+  //
+  // 花格数的一律走 `ALLOCATE`(4.4 那张分工表的机械保障)。这里查的是它的反面:
+  // 挂在工作台面板上的投入项**必须**声明 `target`,否则它会掉进"桌面"那一堆里,
+  // 而"投入挂在对象上"(4.2)那条设计就悄悄失效了——不报错,只是又变回一张表。
+  const PANEL_ITEM_IDS = new Set([
+    'alloc_advisor_consult',
+    'alloc_advisor_work',
+    'alloc_casework',
+    'alloc_supervision',
+    'alloc_personal_therapy',
+  ]);
+  for (const item of contentPack.allocationItems ?? []) {
+    if (PANEL_ITEM_IDS.has(item.id) && item.target === undefined) {
+      error(`规则 37:${item.id} 是面板动作,必须声明 target(挂到哪张卡片/哪个面板上)`);
+    }
+    if (item.target?.kind === 'project' && item.target.id === undefined) {
+      // 课题投入项由引擎按活跃课题动态合成并写上 id;内容里手写一条没有 id 的
+      // project target,意味着它会挂到"课题面板"上而那里没有这样的位置。
+      error(`规则 37:${item.id} 的 target.kind 是 project 但没有 id`);
+    }
+  }
+}
+
 // 规则 24:mandatory 时代节点必须是 ≥3 个成员的变体池,而且按**处境**区分而不是靠 chance。
 // 这条从写第一版起就要遵守——事后拆变体池的成本是当初就那么写的三到五倍(前作补了九轮)。
 const variantGroupMembers = new Map<string, string[]>();

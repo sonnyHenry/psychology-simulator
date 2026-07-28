@@ -51,10 +51,16 @@ export function availableItems(
     .filter(project => !project.isThesis)
     .map(project => ({
       id: allocationIdForProject(project.id),
-      label: `推进「${project.title}」`,
+      label: `投入「${project.title}」`,
       text: `第 ${project.yearsSpent + 1} 年 · 现在卡在${STAGE_TEXT[project.stage] ?? project.stage}`,
+      // **明码标价**(GAME_DESIGN 4.6):写"多掷两次骰",不写"+16%"。
+      // 代价写清楚,但仍然不给精确百分比——那会把一次判断变成一道最优化题。
+      payoff: '1 格 = 今年这个课题多掷两次推进骰。一格不投的课题一年基本爬不动一站,连着三年没人管就烂在手里了',
       category: 'course' as const,
       maxSlots: 2,
+      // 挂在这张课题卡片上。信息量没变,变的是**因果的可见性**:
+      // 你是在对着一个具体的东西下命令,而不是在一张表上勾类目。
+      target: { kind: 'project' as const, id: project.id },
       // 投入本身不给属性:它的回报是**推进概率**(见 stageSuccessChance),
       // 而那个回报是概率性的——这正是"课题不能被稳定通关"的手感来源。
       perSlot: [{ stats: { method: 1 } }],

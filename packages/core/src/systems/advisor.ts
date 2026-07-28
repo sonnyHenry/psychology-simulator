@@ -51,6 +51,40 @@ export function joinAdvisor(state: GameState, pack: ContentPack, advisorId: stri
   state.advisorOffer = [];
 }
 
+/**
+ * 分配项 id 约定:**寻求指导**。`systems/advisor.ts` 按 id 读它,内容侧必须用这个 id。
+ * (与个案那三个 id 同一条约定:改名等于把机制掐断,而且不报错。)
+ */
+export const ALLOC_ADVISOR_CONSULT_ID = 'alloc_advisor_consult';
+
+/**
+ * 「寻求指导」的结果 flag。引擎写,内容读——每个 `consultResponses` 条目对应一个事件,
+ * 事件的 trigger 就是 `{ flag: 'advisor_consult_result', equals: '<responseId>' }`。
+ */
+export const ADVISOR_CONSULT_FLAG = 'advisor_consult_result';
+
+/**
+ * 掷这一年「寻求指导」的结果(M4.6,GAME_DESIGN 七节)。
+ *
+ * **骰子由引擎掷,故事由内容讲**——和课题推进、个案走向同一条纪律。
+ * 在分配提交之后立刻掷,是因为工作台是回合开场屏:掷完写下的 flag 赶得上
+ * **当年**的事件抽取。(M2 那个 bug 的教训:投入写下的 flag 如果赶不上当年抽事件,
+ * 整个机制看起来就"没什么用",而且不报错。)
+ *
+ * 没投这一格、或者没有导师,就把上一年的结果清掉——否则那个事件会年年重播。
+ */
+export function rollAdvisorConsult(state: GameState, pack: ContentPack, rng: Rng): void {
+  const invested = (state.allocation?.picks ?? []).some(p => p === ALLOC_ADVISOR_CONSULT_ID);
+  const def = advisorDefOf(state, pack);
+  const responses = def?.consultResponses ?? [];
+  if (!invested || responses.length === 0) {
+    delete state.flags[ADVISOR_CONSULT_FLAG];
+    return;
+  }
+  const chosen = rng.weightedPick(responses, r => r.weight ?? 1);
+  state.flags[ADVISOR_CONSULT_FLAG] = chosen.id;
+}
+
 export function changeAdvisorFavor(state: GameState, delta: number): void {
   if (!state.advisor) return;
   state.advisor.favor = Math.max(0, Math.min(100, state.advisor.favor + delta));

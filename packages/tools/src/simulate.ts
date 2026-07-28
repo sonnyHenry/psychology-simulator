@@ -3,8 +3,12 @@ import {
   NEGLECT_YEARS_TO_ABANDON,
   createEngine,
   evalCondition,
+  lowerTier,
+  relationLabel,
   Rng,
   selectContextLine,
+  tierForQuality,
+  tierRank,
   type GameState,
   type PlayerAction,
   type StatKey,
@@ -122,9 +126,79 @@ function expectedStatDelta(
 // 高考答题正确率:0 = 纯瞎猜(历史默认档),1 = 全对。
 // 瞎猜 bot 的分数分布压在专科/二本(62%/30%),985/211/一本 只占 8.5%,
 // 于是这三档才开设的专业(心理学、金融学、计算机科学与技术)在门禁里长期缺样本。
+/** 院校名 → 档次。门禁"A+ 校 vs 双非的毕业达成率差 ≥15pp"要按档次分层 */
+const institutionTierByName = new Map(
+  (contentPack.institutions ?? []).map(inst => [inst.name, inst.tier as string]),
+);
+
 const examAnswers = new Map(
   [...contentPack.examBank, ...(contentPack.courseExamBank ?? [])].map(q => [q.id, q.answerIndex]),
 );
+
+/**
+ * 选刊的 bot 策略(M4.6)。返回 null = 这一屏没有要做的投稿决策。
+ *
+ * ## 为什么不直接"投应得的那一档"
+ *
+ * 那样门禁"选刊各档使用率 ≥10%"永远测不出东西:`quality` 的分布决定一切,
+ * 而玩家真正在做的判断是"我今年赌不赌得起"。所以 bot 按质量给四档**加权**,
+ * 每一档都有真实份额——统计出来的分布才是"这个决策空间长什么样",
+ * 而不是"tierForQuality 长什么样"。
+ *
+ * ## 降档只降到应得的那一档为止
+ *
+ * 这条同时是**终止性保证**(`DESK_ACTION` 不离开工作台屏,所以必须自己收敛),
+ * 也是一个说得通的策略:被拒之后退回到这篇东西本来配得上的位置。
+ * "一路降到能中为止"那种刷法在这里天然做不到——每次改投吃掉一年,而学制只有几年。
+ */
+function chooseSubmitTierAction(
+  view: Extract<ViewModel, { kind: 'DESK' }>,
+  state: GameState,
+  bot: Rng,
+): PlayerAction | null {
+  for (const project of view.projects) {
+    if (!project.atSubmitStage) continue;
+    const raw = (state.projects ?? []).find(p => p.id === project.id);
+    if (!raw) continue;
+    const deserved = tierForQuality(raw.quality);
+    if (!raw.submitTier) {
+      const candidates = view.actions.filter(
+        a => a.id === 'desk_choose_tier' && a.targetId === project.id,
+      );
+      if (candidates.length === 0) continue;
+      // 质量越高越敢冲,但每一档都留着真实份额(下限)。
+      //
+      // **下限不是凑数,它是这条门禁的定义域**:一个只按 `quality` 挑档的 bot
+      // 会把"选刊各档 ≥10%"变成"tierForQuality 的分布"——而那不是玩家在做的判断。
+      // 反过来,不随质量变化的权重会让一堆"还有硬伤"的稿子去投一区,
+      // 于是被拒死的课题变多、平均论文数掉下来(量过:1.57 → 1.33)。
+      const weightOf = (tier: string): number => {
+        const q = raw.quality;
+        if (tier === 'chinese_core') return 1 + Math.max(0, (55 - q) / 20);
+        if (tier === 'q3') return 1.1;
+        if (tier === 'q2') return Math.max(0.5, (q - 45) / 15);
+        return Math.max(0.5, (q - 58) / 14);
+      };
+      const chosen = bot.weightedPick(candidates, a => weightOf(a.value ?? ''));
+      return { type: 'DESK_ACTION', actionId: chosen.id, targetId: chosen.targetId, value: chosen.value };
+    }
+    // 被拒过、而且当初投得比应得的高 → 有一定概率退一档再投。
+    //
+    // **不是每次被拒都改投**:真实的人有相当一部分会原样再投一次、或者干脆放着。
+    // 一律改投的话降档率会跑到 70%,而那个数字反映的是 bot 的固执,不是这个决策的形状。
+    const RESUBMIT_RATE = 0.3;
+    if (raw.rejections > 0 && tierRank(raw.submitTier) > tierRank(deserved) && bot.chance(RESUBMIT_RATE)) {
+      const next = lowerTier(raw.submitTier);
+      const action = view.actions.find(
+        a => a.id === 'desk_resubmit_lower' && a.targetId === project.id && a.value === next,
+      );
+      if (action) {
+        return { type: 'DESK_ACTION', actionId: action.id, targetId: action.targetId, value: action.value };
+      }
+    }
+  }
+  return null;
+}
 
 function botAction(
   view: ViewModel,
@@ -190,13 +264,19 @@ function botAction(
       };
     case 'LIFE_GOAL':
       return { type: 'CHOOSE_LIFE_GOAL', goalId: bot.pick(view.goals).id };
-    case 'PROJECT_BOARD':
-      return { type: 'CONTINUE' };
     case 'ADVISOR_DRAW':
       // bot 只能看到公开印象——**跟玩家第一次抽卡时知道的一样多**,
       // 所以随机挑是对这个机制最诚实的模拟。
       return { type: 'JOIN_ADVISOR', advisorId: bot.pick(view.candidates).id };
-    case 'ALLOCATION': {
+    case 'DESK': {
+      // ── 先做不花格数的当场决策(选刊 / 降档改投),再分配格子 ──
+      //
+      // 两种动作走两条通路(TECH 4.4),bot 也照这个顺序:`DESK_ACTION` 不离开这一屏,
+      // 所以下一次循环还会回到 DESK,最后一定落到 `ALLOCATE` 上。
+      // **终止性靠"只往下降到应得的那一档为止"保证**,不靠计数器。
+      const tierAction = chooseSubmitTierAction(view, state, bot);
+      if (tierAction) return tierAction;
+
       // 逐格填,按权重抽。策略 bot 有偏好但不死板:偏好项满了就退回其他,
       // 这样"精力格"在门禁统计里既能反映策略差异,又不会把某些投入项彻底饿死。
       const preferred: Record<Strategy, string[]> = {
@@ -243,6 +323,10 @@ function botAction(
           // 同理,**接个案是咨询师的默认动作**:不接个案的年份,临床线什么都不发生
           // (开案容量 = 2 × 接个案格数,见 systems/case.ts)。
           if (item.id === 'alloc_casework') return 4;
+          // **「寻求指导」要被真的用起来。** 三格经济里一格很贵,均匀随机下它每年
+          // 只有十分之一的机会被选中,于是六原型分流表在门禁里长期缺样本——
+          // 而那张表恰恰是 M4.6 唯一的新内容。门禁"使用率 ≥60%"守的就是这个定价。
+          if (item.id === 'alloc_advisor_consult') return 2;
           if (preferred[strategy].includes(item.category)) return 3;
           return 1;
         });
@@ -309,6 +393,26 @@ export interface RunResult {
   sawCollapse: boolean;
   /** 塌方那一幕实际选了哪个(门禁:四个选项各 ≥8%) */
   collapseChoices: string[];
+  // ── M4.6 工作台门禁读的五笔账 ────────────────────────────
+  /**
+   * 「寻求指导」这一格**出现过**没有 / **用过**没有。
+   *
+   * 分母是"出现过"而不是"有导师":导师是大三进组就抽好的,而这一格只在
+   * 你还在读的时候才在。拿"有导师"当分母,门禁量的就变成"多少人走了学术/临床线",
+   * 跟这一格的定价没关系了。
+   */
+  consultOffered: boolean;
+  usedConsult: boolean;
+  /** 命中过的「寻求指导」结果 id(门禁:六原型每种 ≥1%) */
+  consultResults: string[];
+  /** 局终的师生关系档位(门禁:最高档 ≤50%) */
+  finalRelation: string | null;
+  /** 选过的目标档位(门禁:每档 ≥10%) */
+  submitTierPicks: string[];
+  /** 降档改投的次数(门禁:发生率 15%–40%) */
+  resubmitCount: number;
+  /** 局终有没有达到所在院校的毕业指标 + 那所院校的档次(门禁:A+ vs 双非 ≥15pp) */
+  graduation: { tier: string; met: boolean } | null;
 }
 
 function fmtDeltas(deltas: Record<string, number | undefined>): string {
@@ -331,6 +435,12 @@ export function runOne(
   const institutionsPicked = new Set<string>();
   let sawCollapse = false;
   const collapseChoices: string[] = [];
+  let consultOffered = false;
+  let usedConsult = false;
+  const consultResults: string[] = [];
+  const submitTierPicks: string[] = [];
+  let resubmitCount = 0;
+  let graduation: { tier: string; met: boolean } | null = null;
   const stateByYear: Array<[number, number]> = [];
   const presentationHits: string[] = [];
   const contextLineHits: string[] = [];
@@ -368,6 +478,13 @@ export function runOne(
         institutionsPicked: [...institutionsPicked],
         sawCollapse,
         collapseChoices: [...collapseChoices],
+        consultOffered,
+        usedConsult,
+        consultResults: [...consultResults],
+        finalRelation: state.advisor ? relationLabel(state.advisor.favor) : null,
+        submitTierPicks: [...submitTierPicks],
+        resubmitCount,
+        graduation,
       };
     }
     const action = botAction(view, bot, strategy, state, examSkill);
@@ -426,13 +543,25 @@ export function runOne(
           log(`\n🎓 进组:${view.candidates.find(c => c.id === action.advisorId)?.name}`);
         }
         break;
-      case 'PROJECT_BOARD':
-        if (view.projects.length > 0) {
-          log(`\n📋 白板: ${view.projects.map(p => `「${p.title}」${p.stage}(第 ${p.yearsSpent + 1} 年)`).join(' · ')}`);
+      case 'DESK':
+        // **选刊要记账**:门禁"各档 ≥10%""降档改投 15%–40%"读的就是这两笔
+        if (action.type === 'DESK_ACTION' && action.value) {
+          if (action.actionId === 'desk_choose_tier') submitTierPicks.push(action.value);
+          if (action.actionId === 'desk_resubmit_lower') resubmitCount += 1;
+          log(`\n📮 选刊: ${view.actions.find(a => a.id === action.actionId && a.value === action.value)?.label}`);
         }
-        break;
-      case 'ALLOCATION':
         if (action.type === 'ALLOCATE') {
+          if (view.projects.length > 0) {
+            log(`\n📋 白板: ${view.projects.map(p => `「${p.title}」${p.stage}(第 ${p.yearsSpent + 1} 年)`).join(' · ')}`);
+          }
+          if (view.graduation) {
+            log(`🎓 ${view.graduation.institution} ${view.graduation.bar} — ${view.graduation.have.join(' · ')}${view.graduation.remaining ? `,${view.graduation.remaining}` : ',已达标'}`);
+            // 每年覆盖一次:门禁看的是**离开这个阶段时**够没够,所以留最后一次
+            const tier = institutionTierByName.get(view.graduation.institution);
+            if (tier) graduation = { tier, met: view.graduation.met };
+          }
+          if (view.items.some(item => item.id === 'alloc_advisor_consult')) consultOffered = true;
+          if (action.picks.includes('alloc_advisor_consult')) usedConsult = true;
           const labels = new Map(view.items.map(item => [item.id, item.label]));
           const counted = new Map<string, number>();
           for (const id of action.picks) counted.set(id, (counted.get(id) ?? 0) + 1);
@@ -476,6 +605,11 @@ export function runOne(
       }
       case 'EVENT':
         eventsPerYear.set(state.date.year, (eventsPerYear.get(state.date.year) ?? 0) + 1);
+        // 「寻求指导」命中了哪一支。**门禁"六原型每种 ≥1%"读这一笔**——
+        // 那张分流表是六原型第一次被玩家主动感知到,有一格走不到就是白写。
+        if (view.eventId.startsWith('ev_consult_')) {
+          consultResults.push(view.eventId.slice('ev_consult_'.length));
+        }
         if (action.type === 'CHOOSE') {
           const event = eventsById.get(view.eventId);
           if (event) {
@@ -572,6 +706,26 @@ interface BatchStats {
   /** 节奏:每个自然年放了几幕事件 */
   eventsYearly: Map<number, number[]>;
   npcStats: Map<string, { active: number; completed: number; special: number; stages: Map<string, number> }>;
+  /** M4.6 工作台门禁的五组统计 */
+  desk: DeskStats;
+}
+
+/**
+ * 工作台门禁(TECH 7.2)。**每一条都在守一件已经付过学费的事:**
+ * 使用率守定价、六原型命中守"那张表没白写"、关系档位守"关系不是进度条"、
+ * 选刊分布守"四档不是摆设"、降档率守"一路降到能中为止"这条刷法没生效。
+ */
+interface DeskStats {
+  /** 分母:「寻求指导」这一格真的出现过的对局 */
+  withAdvisor: number;
+  consultRuns: number;
+  consultResults: Map<string, number>;
+  relationTiers: Map<string, number>;
+  submitTiers: Map<string, number>;
+  submitRuns: number;
+  resubmitRuns: number;
+  /** 按院校档次分层的毕业达成率 */
+  graduationByTier: Map<string, { runs: number; met: number }>;
 }
 
 const NPC_SPECIAL_FLAGS: Record<string, string[]> = {
@@ -607,6 +761,16 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
     collapseChoicePicks: new Map(),
     eventsYearly: new Map(),
     npcStats: new Map(),
+    desk: {
+      withAdvisor: 0,
+      consultRuns: 0,
+      consultResults: new Map(),
+      relationTiers: new Map(),
+      submitTiers: new Map(),
+      submitRuns: 0,
+      resubmitRuns: 0,
+      graduationByTier: new Map(),
+    },
   };
   const earlyEndingIds = new Set(
     contentPack.endings.filter(e => e.category === 'early').map(e => e.id),
@@ -666,6 +830,34 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
         else stats.clinical.activeAtEnd++;
       }
     }
+    // ── M4.6 工作台统计 ──
+    if (result.consultOffered) {
+      stats.desk.withAdvisor++;
+      if (result.usedConsult) stats.desk.consultRuns++;
+      if (result.finalRelation) {
+        stats.desk.relationTiers.set(
+          result.finalRelation,
+          (stats.desk.relationTiers.get(result.finalRelation) ?? 0) + 1,
+        );
+      }
+    }
+    for (const hit of result.consultResults) {
+      stats.desk.consultResults.set(hit, (stats.desk.consultResults.get(hit) ?? 0) + 1);
+    }
+    if (result.submitTierPicks.length > 0) {
+      stats.desk.submitRuns++;
+      if (result.resubmitCount > 0) stats.desk.resubmitRuns++;
+    }
+    for (const tier of result.submitTierPicks) {
+      stats.desk.submitTiers.set(tier, (stats.desk.submitTiers.get(tier) ?? 0) + 1);
+    }
+    if (result.graduation) {
+      const row = stats.desk.graduationByTier.get(result.graduation.tier) ?? { runs: 0, met: 0 };
+      row.runs++;
+      if (result.graduation.met) row.met++;
+      stats.desk.graduationByTier.set(result.graduation.tier, row);
+    }
+
     stats.scoreSum += result.endingScore;
     stats.moneySamples.push(fs.stats.money);
     stats.stateSamples.push(fs.stats.state);
@@ -779,6 +971,46 @@ function printBatch(s: BatchStats): void {
         `(结束 ${c.completed} · 脱落 ${c.dropped} · 转介 ${c.referred} · 局末仍在谈 ${c.activeAtEnd})` +
         ` · 注册小时数 p50=${percentile(hours, 50)} p90=${percentile(hours, 90)}`,
     );
+  }
+
+  // ── 工作台(M4.6)。**每一行都对着 TECH 7.2 的一条门禁** ──
+  {
+    const d = s.desk;
+    if (d.withAdvisor > 0) {
+      const rel = ['疏远', '一般', '熟络', '亲近']
+        .map(t => `${t} ${(((d.relationTiers.get(t) ?? 0) / d.withAdvisor) * 100).toFixed(1)}%`)
+        .join(' · ');
+      console.log(
+        `\n工作台 · 导师(可寻求指导的 ${d.withAdvisor} 局):` +
+          ` 寻求指导使用率 ${((d.consultRuns / d.withAdvisor) * 100).toFixed(1)}%` +
+          ` · 局终关系 ${rel}`,
+      );
+      const totalConsults = [...d.consultResults.values()].reduce((a, b) => a + b, 0);
+      if (totalConsults > 0) {
+        const rows = [...d.consultResults.entries()].sort((a, b) => b[1] - a[1]);
+        console.log(
+          `  六原型分流(共 ${totalConsults} 次): ` +
+            rows.map(([id, n]) => `${id} ${((n / totalConsults) * 100).toFixed(1)}%`).join(' · '),
+        );
+      }
+    }
+    const totalPicks = [...d.submitTiers.values()].reduce((a, b) => a + b, 0);
+    if (totalPicks > 0) {
+      const tiers = ['chinese_core', 'q3', 'q2', 'q1']
+        .map(t => `${t} ${(((d.submitTiers.get(t) ?? 0) / totalPicks) * 100).toFixed(1)}%`)
+        .join(' · ');
+      console.log(
+        `工作台 · 选刊(共 ${totalPicks} 次): ${tiers}` +
+          ` · 降档改投 ${d.submitRuns > 0 ? ((d.resubmitRuns / d.submitRuns) * 100).toFixed(1) : '—'}%`,
+      );
+    }
+    if (d.graduationByTier.size > 0) {
+      const rows = [...d.graduationByTier.entries()].sort((a, b) => b[1].runs - a[1].runs);
+      console.log(
+        '工作台 · 毕业指标达成率: ' +
+          rows.map(([tier, r]) => `${tier} ${((r.met / r.runs) * 100).toFixed(1)}%(${r.runs} 局)`).join(' · '),
+      );
+    }
   }
 
   console.log('\nNPC 关系完成率:');
@@ -1026,6 +1258,74 @@ function runCheck(s: BatchStats, extra?: BatchStats): void {
         failures.push(
           `个案脱落率超出 15%–40%: ${(dropoutRate * 100).toFixed(1)}%` +
             `(脱落 ${c.dropped} / 终结 ${terminal})`,
+        );
+      }
+    }
+  }
+
+  // ── 工作台门禁(M4.6,TECH 7.2)────────────────────────────
+  //
+  // 这五条各守一件事,而且**每一件都是"不报错、也不会被玩家立刻发现"的那种坏**:
+  // 一格没人用的动作、一张写了六格却只走得到两格的分流表、一条能刷满的关系条、
+  // 四档里三档没人选的选刊、以及"一路降到能中为止"那种把决策抹平的刷法。
+  {
+    const d = s.desk;
+    if (d.withAdvisor >= 50) {
+      const consultRate = d.consultRuns / d.withAdvisor;
+      // **这条守的是定价。** 三格经济里一格很贵,没人用说明标价错了,不是玩家不感兴趣。
+      if (consultRate < 0.6) {
+        failures.push(
+          `「寻求指导」使用率过低(<60%): ${(consultRate * 100).toFixed(1)}%(这一格出现过的 ${d.withAdvisor} 局)`,
+        );
+      }
+      // **关系不是可以刷满的资源条。** 全员"亲近" = 这个面板退化成一条进度条。
+      const topTier = d.relationTiers.get('亲近') ?? 0;
+      const topRate = topTier / d.withAdvisor;
+      if (topRate > 0.5) {
+        failures.push(`局终师生关系最高档占比过高(>50%): ${(topRate * 100).toFixed(1)}%`);
+      }
+    }
+    // 六原型的分流表:每一支都要走得到。**有一格走不到就是白写。**
+    const totalConsults = [...d.consultResults.values()].reduce((a, b) => a + b, 0);
+    if (totalConsults >= 200) {
+      for (const advisor of contentPack.advisors ?? []) {
+        for (const response of advisor.consultResponses ?? []) {
+          const rate = (d.consultResults.get(response.id) ?? 0) / totalConsults;
+          if (rate < 0.01) {
+            failures.push(
+              `「寻求指导」结果命中率过低(<1%): ${response.id} ${(rate * 100).toFixed(2)}%`,
+            );
+          }
+        }
+      }
+    }
+    // 选刊四档:有一档没人选,说明档位设计或提示文案有问题。
+    const totalPicks = [...d.submitTiers.values()].reduce((a, b) => a + b, 0);
+    if (totalPicks >= 200) {
+      for (const tier of ['chinese_core', 'q3', 'q2', 'q1']) {
+        const rate = (d.submitTiers.get(tier) ?? 0) / totalPicks;
+        if (rate < 0.1) {
+          failures.push(`选刊档位使用率过低(<10%): ${tier} ${(rate * 100).toFixed(1)}%`);
+        }
+      }
+    }
+    // 降档改投:太低 = 这个决策不存在;太高 = "一路降到能中为止"的刷法生效了。
+    if (d.submitRuns >= 50) {
+      const rate = d.resubmitRuns / d.submitRuns;
+      if (rate < 0.15 || rate > 0.4) {
+        failures.push(
+          `降档改投发生率超出 15%–40%: ${(rate * 100).toFixed(1)}%(选过刊的 ${d.submitRuns} 局)`,
+        );
+      }
+    }
+    // 毕业指标的院校分层差。**否则那 27 所院校的差异仍然只活在录取那一屏。**
+    const top = d.graduationByTier.get('a_plus');
+    const low = d.graduationByTier.get('b_plus');
+    if (top && low && top.runs >= 30 && low.runs >= 30) {
+      const gap = low.met / low.runs - top.met / top.runs;
+      if (gap < 0.15) {
+        failures.push(
+          `毕业达成率的院校分层差过小(<15pp): 双非 ${((low.met / low.runs) * 100).toFixed(1)}% vs A+ ${((top.met / top.runs) * 100).toFixed(1)}%`,
         );
       }
     }

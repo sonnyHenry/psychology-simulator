@@ -11,12 +11,12 @@ import { pickRoundEvents } from '../systems/scheduler';
 import { findEnding } from '../systems/ending';
 import { selectContextLine } from '../systems/context-lines';
 import {
-  availableItems,
   effectiveSlots,
   RETAKE_FLAG,
   settleAllocation,
   validateAllocation,
 } from '../systems/allocation';
+import { applyDeskAction, buildDeskView, stageText } from '../systems/desk';
 import { pendingCourseExams, resolveCourses } from '../systems/course';
 import {
   ageProjects,
@@ -25,7 +25,8 @@ import {
   applyProjectOp,
   findTemplate,
   isAtFinalStage,
-  tierForQuality,
+  acceptanceChanceFor,
+  targetTierOf,
   advanceAttempts,
   ATTEMPTS_PER_STARTUP_SLOT,
   investedSlotsOn,
@@ -35,7 +36,7 @@ import {
   MAX_STARTUP_ADVANCES,
 } from '../systems/project';
 import { activeCases, settleCaseYear } from '../systems/case';
-import { advisorDefOf, drawAdvisorOffer, joinAdvisor } from '../systems/advisor';
+import { advisorDefOf, drawAdvisorOffer, joinAdvisor, rollAdvisorConsult } from '../systems/advisor';
 import { admissionTierFor, institutionsFor, MAX_SHORTLIST, resolveAdmission } from '../systems/admission';
 import { collapseEventId, collapsingProjects, foundationOf, pickFoundation } from '../systems/foundation';
 import { readNumericFlag } from '../dsl/evaluate';
@@ -428,53 +429,16 @@ export function createEngine(pack: ContentPack): Engine {
           })),
         };
       }
-      case 'PROJECT_BOARD':
-        return {
-          kind: 'PROJECT_BOARD',
-          year: state.date.year,
-          projects: activeProjects(state).map(p => ({
-            id: p.id,
-            title: p.title,
-            stage: p.stage,
-            yearsSpent: p.yearsSpent,
-            authorship: p.authorship,
-            isThesis: Boolean(p.isThesis),
-            // **怀疑主义特质在这里第一次变现**(GAME_DESIGN 19.4)。
-            // 多给一行原始研究的样本量——那个当时就印在论文里、但没人在意的数字。
-            // **它不告诉你结论**,只是把数字放到你眼前;要不要往下想是你的事。
-            ...(state.flags.trait_skeptic
-              ? { foundationHint: foundationOf(pack, p)?.skepticHint }
-              : {}),
-          })),
-          papers: (state.papers ?? []).map(paper => ({
-            title: paper.title,
-            tier: paper.tier,
-            authorship: paper.authorship,
-            year: paper.year,
-          })),
-          advisorName: advisorDefOf(state, pack)?.name ?? null,
-        };
-      case 'ALLOCATION': {
+      case 'DESK': {
+        // 工作台的聚合全部在 `systems/desk.ts` 里,引擎只负责把渲染和课程教材注进去。
+        // 这样"原始数值不许穿过去"(规则 36)只需要在一个文件上做静态检查。
         const phase = phaseAt(state.phaseIndex);
         const rng = new Rng(state.rngState);
-        return {
-          kind: 'ALLOCATION',
-          year: state.date.year,
+        return buildDeskView(state, pack, rng, {
           phaseLabel: phase.label,
-          slots: state.allocation?.slots ?? 0,
-          retakeSlots: readNumericFlag(state.flags[RETAKE_FLAG]),
-          items: availableItems(state, pack, rng).map(item => {
-            const textbook = item.courseId ? coursesById.get(item.courseId)?.textbook : undefined;
-            return {
-              id: item.id,
-              label: item.label,
-              text: renderText(item.text, state),
-              category: item.category,
-              maxSlots: item.maxSlots ?? null,
-              ...(textbook === undefined ? {} : { textbook }),
-            };
-          }),
-        };
+          coursebookOf: courseId => coursesById.get(courseId)?.textbook,
+          render: text => renderText(text, state),
+        });
       }
       case 'BRIEF': {
         const phase = phaseAt(state.phaseIndex);
@@ -813,25 +777,16 @@ export function createEngine(pack: ContentPack): Engine {
         state.screen = 'ADVISOR_DRAW';
         break;
       }
-      case 'PROJECT_BOARD': {
-        // 手上什么都没有的时候不给玩家一块空白板
-        if (activeProjects(state).length === 0 && (state.papers ?? []).length === 0) {
-          nextStep(state, rng);
-          return;
-        }
-        state.screen = 'PROJECT_BOARD';
-        break;
-      }
-      case 'ALLOCATION': {
+      case 'DESK': {
         const slots = effectiveSlots(state, phase);
         state.allocation = { slots, picks: [] };
         if (slots <= 0) {
-          // 格子被重修或事件吃光了。不要给玩家一个没有东西可点的屏,直接跳过。
+          // 格子被重修或事件吃光了。不要给玩家一个不能提交的工作台,直接跳过。
           // 这一年你什么都推不动,这件事由年度回顾页交代。
           nextStep(state, rng);
           return;
         }
-        state.screen = 'ALLOCATION';
+        state.screen = 'DESK';
         break;
       }
     }
@@ -963,8 +918,10 @@ export function createEngine(pack: ContentPack): Engine {
       // 投出去之后你能做的事很少,接不接收由文章本身的质量和运气决定。
       // 沿用推进那套骰子的话,"多投两格"就能把审稿刷过去,`MAX_REJECTIONS` 形同虚设。
       if (template && isAtFinalStage(template, project)) {
-        if (rng.chance(acceptanceChance(state, pack, project))) {
-          applyProjectOp(state, pack, { op: 'publish', target: project.id, tier: tierForQuality(project.quality) });
+        // **玩家选过刊就按玩家选的档位判**(M4.6):冲高降低接收率、稳一稳提高它。
+        // 没选就退回按 `quality` 兜底,行为与选刊落地之前完全一致。
+        if (rng.chance(acceptanceChanceFor(state, pack, project))) {
+          applyProjectOp(state, pack, { op: 'publish', target: project.id, tier: targetTierOf(project) });
         } else {
           project.rejections += 1;
         }
@@ -1045,8 +1002,46 @@ export function createEngine(pack: ContentPack): Engine {
       moneyDelta: state.stats.money - moneyBefore,
       milestone,
     };
-    state.yearlySnapshots = [...snapshots, { year: state.date.year, money: state.stats.money }];
+    // **快照就是「这些年」那一页的存档。** 结算屏是那一年结束时的一次正式回顾
+    // (一次性、有仪式感),工作台的「这些年」是它的存档(随时可翻)——
+    // 两者读同一份数据,不各写一套聚合(TECH 六节)。
+    state.yearlySnapshots = [
+      ...snapshots,
+      {
+        year: state.date.year,
+        money: state.stats.money,
+        phaseLabel: phaseAt(state.phaseIndex).label,
+        state: state.stats.state,
+        papers: (state.papers ?? [])
+          .filter(paper => paper.year === state.date.year)
+          .map(paper => ({ title: paper.title, tier: paper.tier })),
+        notes: yearNotes(state),
+      },
+    ];
     state.screen = 'SETTLEMENT';
+  }
+
+  /**
+   * 这一年的一行事实清单,存进快照供「这些年」往回翻。
+   *
+   * **只陈述,不评价**(GAME_DESIGN 4.5 的第一条规矩)。写的是"还卡在收数据"
+   * 而不是"进展缓慢";写的是"他在第 6 次之后没有再来"而不是"你失去了一个来访者"。
+   */
+  function yearNotes(state: GameState): string[] {
+    const notes: string[] = [];
+    for (const project of activeProjects(state)) {
+      if (project.isThesis) continue;
+      notes.push(`「${project.title}」${stageText(project.stage)},第 ${project.yearsSpent} 年`);
+    }
+    for (const kase of state.cases ?? []) {
+      if (kase.status === 'dropped' && kase.droppedAtSession !== undefined) {
+        notes.push(`${kase.label}在第 ${kase.droppedAtSession} 次之后没有再来`);
+      }
+    }
+    for (const result of state.lastCourseResults ?? []) {
+      if (result.tier === 'failed') notes.push(`${result.label}挂了`);
+    }
+    return notes;
   }
 
   /**
@@ -1451,11 +1446,18 @@ export function createEngine(pack: ContentPack): Engine {
         nextStep(state, rng);
         return;
       }
-      case 'PROJECT_BOARD':
-        if (action.type !== 'CONTINUE') invalid(state, action);
-        nextStep(state, rng);
-        return;
-      case 'ALLOCATION': {
+      case 'DESK': {
+        // **不花精力格的动作当场生效,而且不离开这一屏。**
+        // 玩家选完刊要能接着分配格子——这正是把两种动作拆成两条通路的意义(TECH 4.4)。
+        if (action.type === 'DESK_ACTION') {
+          const ok = applyDeskAction(state, pack, action.actionId, action.targetId, action.value);
+          if (!ok) {
+            throw new Error(
+              `DESK_ACTION unavailable: ${action.actionId} target=${action.targetId ?? '-'} value=${action.value ?? '-'}`,
+            );
+          }
+          return;
+        }
         if (action.type !== 'ALLOCATE') invalid(state, action);
         const slots = state.allocation?.slots ?? 0;
         const failure = validateAllocation(state, pack, rng, action.picks, slots);
@@ -1464,6 +1466,8 @@ export function createEngine(pack: ContentPack): Engine {
         // 投入效果**当场生效**,这样本年度的事件可以读到它写下的 flag
         // (投了两年实验室的人,今年的实验室事件才该出现)
         settleAllocation(state, pack, rng, action.picks);
+        // 「寻求指导」这一格的结果也在这里掷:写下的 flag 要赶得上**当年**的事件抽取
+        rollAdvisorConsult(state, pack, rng);
         nextStep(state, rng);
         return;
       }

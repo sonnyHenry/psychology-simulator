@@ -978,7 +978,13 @@ export const projectStageEvents: GameEvent[] = [
     text: '你在等审稿意见的时候,刷到一篇刚上线的文章。\n\n同一个问题,同一个方向的结果,样本比你大。他们比你早三个月。\n\n通讯作者是你在会议上见过的一个人。',
     contextLines: [
       { text: '「{{project}}」你做了 {{years}} 年。' },
-      { condition: { flag: 'rival_appeared' }, text: '不是他。这次不是他。' },
+      // **代词要有先行词。** 原文写的是"不是他。这次不是他。"——那个"他"指的是
+      // 跟你同一天进实验室的那个人,但这一幕的正文里从没提过他,玩家接不上。
+      // 回响是一行独立的字,它不能指望正文替它交代人物。
+      {
+        condition: { flag: 'rival_appeared' },
+        text: '你先把作者名单从头看到尾:跟你同一天进实验室的那个人不在上面。这次不在。',
+      },
     ],
     choices: [
       {

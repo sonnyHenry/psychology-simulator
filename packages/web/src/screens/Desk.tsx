@@ -21,11 +21,19 @@ type DeskItem = DeskView['items'][number];
  *   产出的动作序列全会被淹没。
  */
 
+/**
+ * **导师面板并在桌面页签里,不单开一页。**
+ *
+ * 理由是格数条:导师那两个动作花的是顶上同一条精力条,而"寻求指导"要不要投,
+ * 判断依据恰恰是桌面上别的项占了几格。分成两页等于让玩家为了花同一批格子来回切页签。
+ *
+ * 课题和个案留在自己的页签上,因为它们是**一卡一个对象**、数量会长——
+ * 导师永远只有一个人。
+ */
 const TABS = [
   { id: 'desk', label: '桌面' },
   { id: 'projects', label: '课题' },
   { id: 'cases', label: '个案' },
-  { id: 'advisor', label: '导师' },
   { id: 'years', label: '这些年' },
 ] as const;
 
@@ -151,6 +159,7 @@ export function DeskScreen(props: { view: DeskView; act: (action: PlayerAction) 
         <DeskTab
           view={view}
           items={deskItems}
+          advisorItems={itemsFor('advisor')}
           countOf={countOf}
           slotControls={slotControls}
         />
@@ -304,41 +313,6 @@ export function DeskScreen(props: { view: DeskView; act: (action: PlayerAction) 
         </div>
       )}
 
-      {tab === 'advisor' && (
-        <div className="desk-pane">
-          {!view.advisor && <p className="desk-empty">你还没有进组。</p>}
-          {view.advisor && (
-            <>
-              <div className="obj-card">
-                <div className="obj-card-head">
-                  <span className="obj-card-title">{view.advisor.name}</span>
-                </div>
-                {/* 抽卡那天你读到的那句话,永远留在这儿。几年之后再读它会有别的味道 */}
-                <div className="advisor-impression">
-                  <RichText text={view.advisor.publicImpression} />
-                </div>
-                <div className="obj-card-facts">
-                  <span className="fact">
-                    {view.advisor.relationLabel}
-                    <span className="fact-sub">师生关系</span>
-                  </span>
-                  <span className="fact">
-                    {view.advisor.availabilityLabel}
-                    <span className="fact-sub">他有多少时间给你</span>
-                  </span>
-                </div>
-                {view.advisor.lastLine && (
-                  <div className="advisor-line">他上次说:{view.advisor.lastLine}</div>
-                )}
-              </div>
-              {itemsFor('advisor').map(item => (
-                <ItemRow key={item.id} item={item} count={countOf(item.id)} controls={slotControls(item)} />
-              ))}
-            </>
-          )}
-        </div>
-      )}
-
       {tab === 'years' && (
         <div className="desk-pane">
           {view.years.length === 0 && <p className="desk-empty">还没有过完一年。</p>}
@@ -377,10 +351,11 @@ export function DeskScreen(props: { view: DeskView; act: (action: PlayerAction) 
 function DeskTab(props: {
   view: DeskView;
   items: DeskItem[];
+  advisorItems: DeskItem[];
   countOf: (id: string) => number;
   slotControls: (item: DeskItem) => JSX.Element;
 }) {
-  const { view, items, countOf, slotControls } = props;
+  const { view, items, advisorItems, countOf, slotControls } = props;
   const grouped = useMemo(() => {
     const byCategory = new Map<string, DeskItem[]>();
     for (const item of items) {
@@ -413,6 +388,42 @@ function DeskTab(props: {
                 {kase.trend === 'warm' ? '在变好' : kase.trend === 'strained' ? '有点僵' : '看不出来'}
               </span>
             </div>
+          ))}
+        </div>
+      )}
+      {/* 导师面板。**和别的投入项花的是同一条格数条**,所以它就在这一页上 */}
+      {view.advisor && (
+        <div className="alloc-group">
+          <div className="alloc-group-label">导师</div>
+          <div className="obj-card">
+            <div className="obj-card-head">
+              <span className="obj-card-title">{view.advisor.name}</span>
+            </div>
+            {/* 抽卡那天你读到的那句话,永远留在这儿。几年之后再读它会有别的味道 */}
+            <div className="advisor-impression">
+              <RichText text={view.advisor.publicImpression} />
+            </div>
+            <div className="obj-card-facts">
+              <span className="fact">
+                {view.advisor.relationLabel}
+                <span className="fact-sub">师生关系</span>
+              </span>
+              <span className="fact">
+                {view.advisor.availabilityLabel}
+                <span className="fact-sub">他有多少时间给你</span>
+              </span>
+            </div>
+            {view.advisor.lastLine && (
+              <div className="advisor-line">他上次说:{view.advisor.lastLine}</div>
+            )}
+          </div>
+          {advisorItems.map(item => (
+            <ItemRow
+              key={item.id}
+              item={item}
+              count={countOf(item.id)}
+              controls={slotControls(item)}
+            />
           ))}
         </div>
       )}

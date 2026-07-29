@@ -159,6 +159,18 @@ function defaultAction(
       }
       return { type: 'ALLOCATE', picks };
     }
+    case 'JOB_MARKET': {
+      // 求职季的默认值:投满能投的,别的步取第一个选项。
+      // **跳转是路过**,不替测试者做那几次判断
+      if (view.step === 'targeting') {
+        return {
+          type: 'JOB_MARKET_STEP',
+          positionIds: view.positions.slice(0, view.maxPicks).map(p => p.id),
+        };
+      }
+      if (view.options.length === 0) return { type: 'JOB_MARKET_STEP' };
+      return { type: 'JOB_MARKET_STEP', optionId: view.options[0]!.id };
+    }
     case 'EVENT':
       // "默认值" = 第一个可见选项。跳转是路过,不是替测试者做戏剧选择
       return { type: 'CHOOSE', choiceId: view.choices[0]!.id };

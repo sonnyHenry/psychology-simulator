@@ -496,6 +496,34 @@ export const institutions: Institution[] = [
     admits: ['phd_abroad', 'postdoc'],
   },
   {
+    // **文理学院这一档此前整张表里一个都没有**,而九节点名它是"一条被中国学生
+    // 严重低估的好路"。少了它,`end_ac_slac` 那个结局永远到不了——
+    // 一个到不了的结局和没写是一回事。
+    id: 'inst_williams',
+    name: 'Williams College',
+    unit: 'Department of Psychology',
+    region: 'overseas',
+    city: 'Williamstown',
+    tier: 'slac',
+    domains: ['domain_cognition', 'domain_development', 'domain_social'],
+    impression:
+      '本科生文理学院,没有研究生院。一门课十几个人,教授的主要身份是老师。科研做得不少,但节奏和 R1 不是一回事。',
+    gameified: {
+      admission: {
+        quota: '不招研究生',
+        graduationBar: '毕业以学位论文为准,通常需要 3 篇成文',
+        graduationReq: { papers: 3 },
+      },
+      employment: {
+        tenureYears: 6,
+        tenureBar: '教学为主,科研看质量不看数量',
+        startupFunds: [200000, 500000],
+        teachingLoad: '3-2',
+      },
+    },
+    admits: ['postdoc'],
+  },
+  {
     id: 'inst_mrc_cbu',
     name: 'MRC Cognition and Brain Sciences Unit',
     unit: 'University of Cambridge',

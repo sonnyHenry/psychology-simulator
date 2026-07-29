@@ -18,8 +18,16 @@ import type { Position } from '@psy-sim/core';
  * 低于这个数,"投国内还是投海外"就不是一个选择了。
  */
 
-/** 学术岗的共同底线:得有博士学位这条线由阶段保证,这里只管产出 */
-const HAS_PAPERS = (n: number) => ({ flagNum: { key: 'paper_count', op: '>=' as const, value: n } });
+/**
+ * 学术岗的共同底线:得有博士学位这条线由阶段保证,这里只管产出。
+ *
+ * > **第一版写的是 `flagNum: 'paper_count'`,而那个 flag 从来没有人写过。**
+ * > 后果是 `requires` 恒为 false、清单永远是空的、求职季"一个都没有"率 94.7%——
+ * > 而在 M5 真的去跑它之前,validate 和所有门禁都是绿的(`positions.requires`
+ * > 当时根本没进 `allConditionSources`)。**这类"读一个不存在的 key"的错
+ * > 必须由规则拦住**,所以这一轮把 positions 加进了条件来源表。
+ */
+const HAS_PAPERS = (n: number) => ({ paperCount: { op: '>=' as const, value: n } });
 
 export const positions: Position[] = [
   // ══════════ 国内高校教职 ══════════
@@ -28,7 +36,7 @@ export const positions: Position[] = [
     institutionId: 'inst_bnu',
     kind: 'faculty_cn',
     domainFit: ['domain_cogneuro', 'domain_development', 'domain_psychometrics'],
-    requires: { all: [HAS_PAPERS(4), { stat: 'capital', op: '>=', value: 55 }] },
+    requires: { all: [HAS_PAPERS(3), { stat: 'capital', op: '>=', value: 44 }] },
     marketYearBias: { 2025: 0.9, 2026: 0.8, 2027: 0.75 },
   },
   {
@@ -36,7 +44,7 @@ export const positions: Position[] = [
     institutionId: 'inst_pku',
     kind: 'faculty_cn',
     domainFit: ['domain_cogneuro', 'domain_cognition'],
-    requires: { all: [HAS_PAPERS(5), { stat: 'capital', op: '>=', value: 60 }] },
+    requires: { all: [HAS_PAPERS(3), { stat: 'capital', op: '>=', value: 48 }] },
     marketYearBias: { 2026: 0.8, 2027: 0.75 },
   },
   {
@@ -44,28 +52,28 @@ export const positions: Position[] = [
     institutionId: 'inst_scnu',
     kind: 'faculty_cn',
     domainFit: ['domain_cogneuro', 'domain_education'],
-    requires: { all: [HAS_PAPERS(3), { stat: 'capital', op: '>=', value: 45 }] },
+    requires: { all: [HAS_PAPERS(2), { stat: 'capital', op: '>=', value: 36 }] },
   },
   {
     id: 'pos_ecnu_faculty',
     institutionId: 'inst_ecnu',
     kind: 'faculty_cn',
     domainFit: ['domain_education', 'domain_clinical'],
-    requires: { all: [HAS_PAPERS(3), { stat: 'capital', op: '>=', value: 45 }] },
+    requires: { all: [HAS_PAPERS(2), { stat: 'capital', op: '>=', value: 36 }] },
   },
   {
     id: 'pos_swu_faculty',
     institutionId: 'inst_swu',
     kind: 'faculty_cn',
     domainFit: ['domain_social', 'domain_health'],
-    requires: HAS_PAPERS(2),
+    requires: HAS_PAPERS(1),
   },
   {
     id: 'pos_szu_faculty',
     institutionId: 'inst_szu',
     kind: 'faculty_cn',
     domainFit: ['domain_cogneuro', 'domain_social'],
-    requires: { all: [HAS_PAPERS(3), { stat: 'method', op: '>=', value: 60 }] },
+    requires: { all: [HAS_PAPERS(2), { stat: 'method', op: '>=', value: 55 }] },
     twoBodyFriendly: true,
   },
   {
@@ -73,7 +81,7 @@ export const positions: Position[] = [
     institutionId: 'inst_suda',
     kind: 'faculty_cn',
     domainFit: ['domain_cognition', 'domain_education'],
-    requires: HAS_PAPERS(2),
+    requires: HAS_PAPERS(1),
     twoBodyFriendly: true,
   },
   {
@@ -109,14 +117,14 @@ export const positions: Position[] = [
     institutionId: 'inst_psych_cas',
     kind: 'institute_cn',
     domainFit: ['domain_cogneuro', 'domain_health'],
-    requires: { all: [HAS_PAPERS(4), { stat: 'method', op: '>=', value: 65 }] },
+    requires: { all: [HAS_PAPERS(3), { stat: 'method', op: '>=', value: 58 }] },
   },
   {
     id: 'pos_zju_faculty',
     institutionId: 'inst_zju',
     kind: 'faculty_cn',
     domainFit: ['domain_cogneuro', 'domain_cognition'],
-    requires: { all: [HAS_PAPERS(4), { stat: 'capital', op: '>=', value: 50 }] },
+    requires: { all: [HAS_PAPERS(3), { stat: 'capital', op: '>=', value: 40 }] },
   },
 
   // ══════════ 海外 ══════════
@@ -125,7 +133,7 @@ export const positions: Position[] = [
     institutionId: 'inst_unc',
     kind: 'tenure_track_r1',
     domainFit: ['domain_psychometrics', 'domain_cognition'],
-    requires: { all: [HAS_PAPERS(5), { stat: 'method', op: '>=', value: 70 }] },
+    requires: { all: [HAS_PAPERS(3), { stat: 'method', op: '>=', value: 62 }] },
     marketYearBias: { 2026: 0.7 },
   },
   {
@@ -133,49 +141,49 @@ export const positions: Position[] = [
     institutionId: 'inst_uva',
     kind: 'europe',
     domainFit: ['domain_psychometrics', 'domain_cognition'],
-    requires: HAS_PAPERS(2),
+    requires: HAS_PAPERS(1),
   },
   {
     id: 'pos_tilburg_postdoc',
     institutionId: 'inst_tilburg',
     kind: 'europe',
     domainFit: ['domain_psychometrics'],
-    requires: HAS_PAPERS(2),
+    requires: HAS_PAPERS(1),
   },
   {
     id: 'pos_kuleuven_postdoc',
     institutionId: 'inst_kuleuven',
     kind: 'europe',
     domainFit: ['domain_psychometrics', 'domain_clinical'],
-    requires: HAS_PAPERS(2),
+    requires: HAS_PAPERS(1),
   },
   {
     id: 'pos_mpi_postdoc',
     institutionId: 'inst_mpi_cbs',
     kind: 'europe',
     domainFit: ['domain_cogneuro'],
-    requires: { all: [HAS_PAPERS(3), { stat: 'method', op: '>=', value: 65 }] },
+    requires: { all: [HAS_PAPERS(2), { stat: 'method', op: '>=', value: 58 }] },
   },
   {
     id: 'pos_ucl_lecturer',
     institutionId: 'inst_ucl',
     kind: 'europe',
     domainFit: ['domain_cogneuro', 'domain_cognition'],
-    requires: { all: [HAS_PAPERS(5), { stat: 'capital', op: '>=', value: 55 }] },
+    requires: { all: [HAS_PAPERS(3), { stat: 'capital', op: '>=', value: 44 }] },
   },
   {
     id: 'pos_donders_postdoc',
     institutionId: 'inst_donders',
     kind: 'europe',
     domainFit: ['domain_cogneuro'],
-    requires: HAS_PAPERS(3),
+    requires: HAS_PAPERS(2),
   },
   {
     id: 'pos_hku_ap',
     institutionId: 'inst_hku',
     kind: 'hk_sg',
     domainFit: ['domain_social', 'domain_cognition', 'domain_clinical'],
-    requires: { all: [HAS_PAPERS(4), { stat: 'capital', op: '>=', value: 50 }] },
+    requires: { all: [HAS_PAPERS(3), { stat: 'capital', op: '>=', value: 40 }] },
     twoBodyFriendly: true,
   },
   {
@@ -183,7 +191,16 @@ export const positions: Position[] = [
     institutionId: 'inst_mrc_cbu',
     kind: 'europe',
     domainFit: ['domain_cogneuro', 'domain_cognition'],
-    requires: HAS_PAPERS(3),
+    requires: HAS_PAPERS(2),
+  },
+
+  {
+    // 文理学院。**门槛不看篇数看方法**——他们要的是一个能把课上好的人
+    id: 'pos_williams_slac',
+    institutionId: 'inst_williams',
+    kind: 'slac',
+    domainFit: ['domain_cognition', 'domain_development', 'domain_social'],
+    requires: { all: [HAS_PAPERS(1), { stat: 'method', op: '>=', value: 50 }] },
   },
 
   // ══════════ 退路(学术线之外的出口,M5/M6 消费)══════════
@@ -192,13 +209,25 @@ export const positions: Position[] = [
     institutionId: 'inst_pku6',
     kind: 'backup_hospital',
     domainFit: ['domain_clinical', 'domain_health'],
-    requires: { stat: 'clinical', op: '>=', value: 55 },
+    // **退路要真的走得通。** 第一版只认临床值,于是学术线的人一个备份岗都投不了——
+    // 而现实里博士去医院做研究岗是最常见的一条退路之一。
+    requires: {
+      any: [
+        { stat: 'clinical', op: '>=', value: 45 },
+        { all: [{ paperCount: { op: '>=', value: 2 } }, { stat: 'method', op: '>=', value: 55 }] },
+      ],
+    },
   },
   {
     id: 'pos_smhc_clinical',
     institutionId: 'inst_smhc',
     kind: 'backup_hospital',
     domainFit: ['domain_clinical'],
-    requires: { stat: 'clinical', op: '>=', value: 45 },
+    requires: {
+      any: [
+        { stat: 'clinical', op: '>=', value: 35 },
+        { paperCount: { op: '>=', value: 1 } },
+      ],
+    },
   },
 ];

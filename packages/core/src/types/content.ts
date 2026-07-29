@@ -122,7 +122,11 @@ export type StepScreen =
   | 'DESK'
   | 'ADVISOR_DRAW'
   // 读研/读博/博后的真实院校清单选择。**一屏三用**,靠阶段声明的 kind 区分
-  | 'GRAD_APPLY';
+  | 'GRAD_APPLY'
+  /** 教职求职季(M5)。七步内部流程,是唯一必须独立实现的屏 */
+  | 'JOB_MARKET'
+  /** 长聘首考(M5)。清单式结算 */
+  | 'TENURE_REVIEW';
 
 export type PhaseConfig =
   | {

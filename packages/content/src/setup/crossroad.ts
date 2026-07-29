@@ -290,3 +290,64 @@ export const masterCrossroadOptions: CrossroadOption[] = [
     ],
   },
 ];
+
+/**
+ * 博士毕业岔口(M5,GAME_DESIGN 九节的入口)。
+ *
+ * 三条路:**博后 → 求职季**(学术线的正路)、**直接投教职**(少数人,而且更难)、
+ * **离开**(这不是失败分支)。
+ *
+ * ## 为什么直接投教职的门槛更高
+ *
+ * 现实里博士毕业直接拿到教职的人是少数,而且几乎都是产出特别硬的那批。
+ * 门控写成"四篇以上或资本很高",不是为了惩罚,是因为**博后这一步在这一行里
+ * 事实上已经变成必经之路了**——而这件事本身就值得让玩家在这一屏上看见。
+ */
+export const phdCrossroadOptions: CrossroadOption[] = [
+  {
+    id: 'p_postdoc',
+    label: '做博后',
+    text: '两年,一份合同,一个新的城市。\n\n**这一步在二十年前是可选的,现在不是了。** 你会用这两年把简历上那几行补齐,然后去投教职。',
+    group: 'crossroad_phd',
+    hint: '学术线的正路,但它只是把那场考试推迟两年',
+    effects: [
+      { setFlag: 'path_postdoc' },
+      { setCareer: 'postdoc' },
+      { stats: { capital: 3, state: -2 } },
+      { jumpToPhase: 'apply_postdoc' },
+    ],
+  },
+  {
+    id: 'p_go_market',
+    label: '直接投教职',
+    text: '不做博后,今年就上市场。\n\n**能这么做的人不多**,而你觉得自己手上的东西够。',
+    group: 'crossroad_phd',
+    // 产出特别硬的那批才走得通。这不是惩罚,是这一行的现状
+    availableWhen: {
+      any: [
+        { paperCount: { op: '>=', value: 4 } },
+        { all: [{ paperCount: { op: '>=', value: 2 } }, { stat: 'capital', op: '>=', value: 65 }] },
+      ],
+    },
+    hint: '省下两年,代价是你少了两年攒东西的时间',
+    effects: [
+      { setFlag: 'path_direct_market' },
+      { setCareer: 'faculty_candidate' },
+      { stats: { capital: 2, state: -3 } },
+      { jumpToPhase: 'job_market' },
+    ],
+  },
+  {
+    id: 'p_leave',
+    label: '不留在这条路上了',
+    text: '你把答辩 PPT 存进一个文件夹,然后关掉了那个文件夹。\n\n**这不是放弃。** 你读完了,而读完之后要不要接着走是另一件事。',
+    group: 'crossroad_phd',
+    hint: '博士学位在别的地方也算数',
+    effects: [
+      { setFlag: 'path_left_after_phd' },
+      { setCareer: 'left' },
+      { stats: { money: 60000, state: 6 } },
+      { jumpToPhase: 'left_academia' },
+    ],
+  },
+];

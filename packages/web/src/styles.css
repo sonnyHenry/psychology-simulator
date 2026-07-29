@@ -1118,3 +1118,185 @@ body {
   font-size: 0.85rem;
   padding: 0.5rem 0.7rem;
 }
+
+/* ── 求职季与长聘首考(M5)────────────────────────────────── */
+
+.jm-body {
+  font-size: 15px;
+  line-height: 1.75;
+  margin-bottom: 14px;
+}
+
+.jm-picked {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.jm-position {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.jm-position-on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.jm-position-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.jm-position-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.jm-position-unit {
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.jm-chance {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.jm-position-meta,
+.jm-position-terms {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.jm-match {
+  color: var(--up);
+}
+
+/*
+ * **谈条件那一屏做成真的合同条款排版。** 等宽字体 + 条目编号 —— 同一所学校的
+ * 两个 offer 可以在启动经费和考核指标上差一倍,而这件事只有排成条款才看得出来。
+ */
+.jm-offer {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.jm-offer-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.jm-offer-name {
+  font-weight: 600;
+}
+
+.jm-offer-city {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.jm-negotiated {
+  margin-left: 6px;
+  color: var(--up);
+}
+
+.jm-terms {
+  margin: 0 0 8px 1.2em;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.9;
+}
+
+.jm-accept {
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  padding: 5px 14px;
+  cursor: pointer;
+}
+
+.jm-footnote {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 10px;
+}
+
+/* 长聘首考:**清单,不是分数** */
+.tenure-list {
+  border-top: 1px solid var(--line);
+  margin-bottom: 16px;
+}
+
+.tenure-row {
+  display: grid;
+  grid-template-columns: 3em 1fr auto;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  align-items: baseline;
+}
+
+.tenure-label {
+  color: var(--muted);
+}
+
+.tenure-req {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.tenure-ok,
+.tenure-no {
+  margin-left: 8px;
+}
+
+.tenure-ok {
+  color: var(--up);
+}
+
+.tenure-no {
+  color: var(--down);
+}
+
+.tenure-row-miss .tenure-actual {
+  color: var(--down);
+}
+
+.tenure-verdict {
+  font-size: 15px;
+  line-height: 1.75;
+  border-left: 3px solid var(--line);
+  padding-left: 12px;
+  margin-bottom: 16px;
+}
+
+.tenure-pass {
+  border-left-color: var(--up);
+}
+
+.tenure-fail {
+  border-left-color: var(--down);
+}

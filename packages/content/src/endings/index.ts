@@ -148,18 +148,109 @@ export const endings: EndingDef[] = [
   //
   // 五个结局按 priority 升序排,读的是完全不同的东西:论文数、做废、临床小时、
   // 教学工作量、副业收入。**它们不是同一件事的五个档次**,是五种不同的四到八年。
+
+  // ══════════ M5 学术终局:九个(GAME_DESIGN 九节、十节)══════════
+  //
+  // **优先级排在博士毕业那批之前**(10–18 < 20–29):走完了求职季和预聘期的人,
+  // 他的结局不该还停在"你毕业了"。
+  //
+  // 这九个里有四个是"没有留在这条路上"的,而**其中两个是好结局**——
+  // 9.3 第一条要的就是这个:失败是市场的属性,不是玩家的属性。
+  {
+    id: 'end_ac_tenured_top',
+    title: '你留下来了,在那个最难留下的地方',
+    text: '首考通过。\n\n没有仪式,没有掌声。人事处发了一份新合同,行政楼三层,签完字下楼的时候你在想中午吃什么。\n\n六年前搬进这间办公室的那天,箱子堆在门口,你连打印机的驱动都装不上。\n\n**你现在是这栋楼里那个会说"再想想"的人了。**\n\n你带出来的学生里有一个还在读博,有一个去了企业,还有一个偶尔半夜给你发消息问一个统计问题。\n\n那份论文清单在下面。它不长,但每一篇你都还记得是哪一年、卡在哪一站、谁帮过你。',
+    category: 'final',
+    priority: 10,
+    condition: { all: [{ flag: 'tenure_passed' }, { flag: 'offer_from_top_tier' }] },
+    shareCard: { tone: 'triumph', tagline: '你现在是那个会说"再想想"的人了。' },
+  },
+  {
+    id: 'end_ac_tenured',
+    title: '长聘',
+    text: '首考通过。\n\n这六年你没有做出什么惊人的东西。你上了很多课,带了几个学生,写了两次本子,发了几篇结实的文章。\n\n**你把一个位置坐成了自己的位置**,而这件事没有任何一个指标能衡量。\n\n有一年你差点走。那年年底你在办公室里坐到很晚,窗外的楼一层层暗下去。后来你没走,原因说不太清楚,大概是第二天有一节课。',
+    category: 'final',
+    priority: 14,
+    condition: { flag: 'tenure_passed' },
+    shareCard: { tone: 'warm', tagline: '你把一个位置坐成了自己的位置。' },
+  },
+  {
+    id: 'end_ac_overseas',
+    title: '在另一个国家的一栋楼里',
+    text: '你在离家一万公里的地方拿到了 tenure。\n\n开会用另一种语言,吵架也用另一种语言,但梦话还是中文。\n\n**你父母来过一次**,住了三周,走的时候你妈在机场说"这边挺好的"。那句话你后来想了很多年。\n\n每年有那么几天你会算一下:如果当年留在国内,现在会在哪一栋楼里。这个算法没有答案,而你也不是真的想要答案。',
+    category: 'final',
+    // **排在文理学院之后。** Williams 也是 overseas,所以这条更泛的先命中的话,
+    // end_ac_slac 永远到不了——而九节点名 SLAC 是一条被严重低估的好路
+    priority: 12,
+    condition: { all: [{ flag: 'tenure_passed' }, { flag: 'job_overseas' }] },
+    shareCard: { tone: 'warm', tagline: '开会用另一种语言,梦话还是中文。' },
+  },
+  {
+    id: 'end_ac_slac',
+    title: '一所很小的学院',
+    text: '你去了一所文理学院。一年三门课,班上十二个人,你叫得出每一个人的名字。\n\n**没有人问你今年发了几篇。**\n\n这条路当年在群里几乎没有人提,大家都在盯着 R1 的岗位。而你后来发现,你每周最期待的那两个小时是坐在小教室里的那两个小时。\n\n你手上那份论文清单不长,而且以后也不会很长。有一个学生因为你的课转了专业,这件事你记得比任何一篇文章都清楚。',
+    category: 'final',
+    priority: 11,
+    condition: { all: [{ flag: 'tenure_passed' }, { flag: 'job_slac' }] },
+    shareCard: { tone: 'warm', tagline: '你叫得出班上每一个人的名字。' },
+  },
+  {
+    id: 'end_ac_yielded',
+    title: '你去了 ta 的城市',
+    text: '你手上有一个更好的 offer,在另一个城市。你没有去。\n\n**这件事你从来没有跟 ta 说得很详细**,ta 大概知道,但你们都没有把它摊开讲。\n\n你现在这所学校的平台差一点,启动经费少一半,你的课题往前推得慢。\n\n每年总有那么一两次,你会在深夜里把那封拒信翻出来看一眼。\n\n然后你关掉电脑,回家。家里有人在等。',
+    category: 'final',
+    priority: 13,
+    condition: { flag: 'two_body_player_yields' },
+    shareCard: { tone: 'warm', tagline: '你关掉电脑,回家。家里有人在等。' },
+  },
+  {
+    id: 'end_ac_tenure_denied',
+    title: '未通过',
+    text: '院里的答复是一句很短的话。\n\n你有一年时间收尾。这一年你还要上课,还要带完手上那个学生,还要把实验室的仪器交回去。\n\n**最难的不是那个结果,是这一年里每天还要走进那栋楼。**\n\n后来你去了另一个地方,或者不在这一行了。这一段你很少跟人讲,讲的时候语气很平。\n\n有一件事你没跟人说过:那六年里你有过几个很好的想法,其中一个到现在还没有人做出来。',
+    category: 'final',
+    priority: 22,
+    condition: { flag: 'tenure_denied' },
+    shareCard: { tone: 'bitter', tagline: '有一个想法到现在还没有人做出来。' },
+  },
+  {
+    id: 'end_ac_backup',
+    title: '你去了另一种地方',
+    text: '你没有拿到教职,但你拿到了一份工作。\n\n医院的心理科、企业的用研部门、一家咨询机构——这些地方需要你会的那些东西,而且它们发工资比学校准时。\n\n**头两年你有点不适应**:没有人关心你在想什么问题,只关心你什么时候能出结论。\n\n第三年你带了一个刚毕业的年轻人。ta 问你"要不要读博",你想了很久,给了一个很长的回答。',
+    category: 'final',
+    priority: 15,
+    condition: { flag: 'took_backup_job' },
+    shareCard: { tone: 'warm', tagline: '这些地方需要你会的那些东西。' },
+  },
+  {
+    id: 'end_ac_shutout',
+    title: '那一年的市场',
+    text: '你投了十几份,一个 offer 都没有。\n\n**这不是一句关于你的判断。** 那一年招人的岗位比前一年少了三分之一,而这件事你事先看不出来,事后也没有人会替你解释。\n\n群里那几个月很安静。后来有人转行了,有人再战一年,有人去了博后的第二站。\n\n你现在做的事情跟当年想的不一样。但你还留着那个装满数据的硬盘,而且你知道里面每一个文件夹是什么。',
+    category: 'final',
+    priority: 23,
+    condition: { flag: 'job_market_shutout' },
+    shareCard: { tone: 'bitter', tagline: '那一年招人的岗位少了三分之一。' },
+  },
+  {
+    id: 'end_ac_left_after_phd',
+    title: '你读完了,然后走了',
+    text: '答辩通过那天你就知道自己不会接着走。\n\n**这不是放弃**——你读完了,而读完之后要不要接着走是另一件事,虽然很多人不这么看。\n\n你现在的工作跟心理学有点关系。你用得上统计,用得上实验设计,用得上那种"先问清楚这个问题是什么"的习惯。\n\n有人在饭桌上说"你博士白读了",你笑了笑没接话。\n\n那十年长在你身上了,而它长的地方不在简历上。',
+    category: 'final',
+    priority: 24,
+    condition: { flag: 'path_left_after_phd' },
+    shareCard: { tone: 'warm', tagline: '那十年长在你身上了。' },
+  },
   {
     id: 'end_phd_strong',
     title: '你毕业了,而且手里有东西',
     text: '答辩那天你讲了二十分钟。台下坐着 {{advisor}} 和另外四个老师。\n\n你的论文清单在下面。它比你研一那年敢想的长,也比你博二那年怕的短。\n\n**你现在知道一篇文章要花多少年了**,而这个知识是这几年里最值钱的一样东西——它让你以后再也不会说"这个我一年就能做完"。\n\n接下来是博后,或者不是。那是另一个故事。',
     category: 'final',
     priority: 20,
-    condition: {
+    condition: { all: [{ any: [{ flag: 'path_left_after_phd' }, { flag: 'tenure_denied' }] }, {
       all: [
         { any: [{ flag: 'path_phd_direct' }, { flag: 'path_phd_after_master' }] },
         { paperCount: { op: '>=', value: 3 } },
       ],
-    },
+    }] },
     shareCard: { tone: 'triumph', tagline: '你现在知道一篇文章要花多少年了。' },
   },
   {
@@ -167,13 +258,13 @@ export const endings: EndingDef[] = [
     title: '博士读完了,但你想做的是另一件事',
     text: '你的注册系统小时数比你的论文数长得多。\n\n这几年你一边做课题一边跟着出门诊,而后者才是你每周真正期待的那两个下午。\n\n答辩过了。**你拿到了一个学位,和一个跟这个学位不完全对应的方向。**\n\n没有人会说这是浪费。只有你自己偶尔会算一下,如果当初直接走临床,现在会在哪。',
     category: 'final',
-    priority: 21,
-    condition: {
+    priority: 16,
+    condition: { all: [{ any: [{ flag: 'job_market_shutout' }, { flag: 'path_left_after_phd' }, { flag: 'tenure_denied' }] }, {
       all: [
         { any: [{ flag: 'path_phd_direct' }, { flag: 'path_phd_after_master' }] },
         { flagNum: { key: 'clinical_hours', op: '>=', value: 60 } },
       ],
-    },
+    }] },
     shareCard: { tone: 'warm', tagline: '一个学位,和一个跟它不完全对应的方向。' },
   },
   {
@@ -181,13 +272,13 @@ export const endings: EndingDef[] = [
     title: '你成了一个很会讲课的博士',
     text: '这几年你带了很多次实验课,做过助教、代过课、给本科生开过讲座。\n\n学生评教年年很高。有一年有个大二的学生课后来找你,说她因为你那节课决定读心理学的研究生。\n\n你的论文不多。**在这个体系里,"很会讲课"这件事在简历上几乎写不出来**,而它是你这几年做过的最确定有价值的事。',
     category: 'final',
-    priority: 22,
-    condition: {
+    priority: 17,
+    condition: { all: [{ any: [{ flag: 'job_market_shutout' }, { flag: 'path_left_after_phd' }, { flag: 'tenure_denied' }] }, {
       all: [
         { any: [{ flag: 'path_phd_direct' }, { flag: 'path_phd_after_master' }] },
         { flagNum: { key: 'teaching_load', op: '>=', value: 3 } },
       ],
-    },
+    }] },
     shareCard: { tone: 'warm', tagline: '在这个体系里,"很会讲课"几乎写不出来。' },
   },
   {
@@ -195,13 +286,13 @@ export const endings: EndingDef[] = [
     title: '你博士期间挣的钱比补助多得多',
     text: '横向、培训、考研网课。这几年你把学术时间换成了现金,汇率还行。\n\n**你比同批任何人都不焦虑钱**,而你手上的文章也比他们少。\n\n答辩过了。你已经在想接下来是继续走这条路,还是把副业变成主业——而这个问题,你其实在第二年就开始想了。',
     category: 'final',
-    priority: 23,
-    condition: {
+    priority: 18,
+    condition: { all: [{ any: [{ flag: 'job_market_shutout' }, { flag: 'path_left_after_phd' }, { flag: 'tenure_denied' }] }, {
       all: [
         { any: [{ flag: 'path_phd_direct' }, { flag: 'path_phd_after_master' }] },
         { flagNum: { key: 'side_gigs', op: '>=', value: 3 } },
       ],
-    },
+    }] },
     shareCard: { tone: 'warm', tagline: '你比同批任何人都不焦虑钱。' },
   },
   {
@@ -209,13 +300,13 @@ export const endings: EndingDef[] = [
     title: '这一行你已经认识很多人了',
     text: '你这几年跑了很多会。海报站过、分会场讲过、也在茶歇的时候硬着头皮跟人搭过话。\n\n毕业的时候,你的通讯录里有三十几个同行,其中五六个是真的会回你邮件的人。\n\n**在这一行,"有人认识你"是一种真实的资产**,而它不出现在任何一份考核表上。\n\n你的文章数一般。但下一步要找人写推荐信、要找合作、要打听哪个组在招人的时候,你不是从零开始的。',
     category: 'final',
-    priority: 24,
-    condition: {
+    priority: 19,
+    condition: { all: [{ any: [{ flag: 'job_market_shutout' }, { flag: 'path_left_after_phd' }, { flag: 'tenure_denied' }] }, {
       all: [
         { any: [{ flag: 'path_phd_direct' }, { flag: 'path_phd_after_master' }] },
         { flagNum: { key: 'conferences', op: '>=', value: 3 } },
       ],
-    },
+    }] },
     shareCard: { tone: 'warm', tagline: '"有人认识你"是一种不出现在考核表上的资产。' },
   },
   {
@@ -223,8 +314,8 @@ export const endings: EndingDef[] = [
     title: '你毕业了',
     text: '答辩过了。你拿到了博士学位。\n\n你的论文清单很短。那几个做废的课题在下面——**它们花掉的年数比发出来的那些还多**,而这件事在任何一份简历上都不会出现。\n\n{{advisor}} 说了句"辛苦了"。\n\n这几年不是白过的,只是它的产出不长在能被数出来的地方:你现在能一眼看出一个设计有没有问题,能读懂任何一篇方法部分,知道一个数字要多久才能变成一句话。\n\n**接下来的事,得用别的东西去换了。**',
     category: 'final',
-    priority: 29,
-    condition: { any: [{ flag: 'path_phd_direct' }, { flag: 'path_phd_after_master' }] },
+    priority: 21,
+    condition: { all: [{ any: [{ flag: 'job_market_shutout' }, { flag: 'path_left_after_phd' }, { flag: 'tenure_denied' }] }, { not: { flag: 'job_market_shutout' } }, { paperCount: { op: '<=', value: 1 } }] },
     shareCard: { tone: 'bitter', tagline: '产出不长在能被数出来的地方。' },
   },
   {

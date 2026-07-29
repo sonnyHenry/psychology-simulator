@@ -120,6 +120,18 @@ function* allConditionSources(): Generator<{ owner: string; condition: Condition
   for (const income of contentPack.incomes) {
     yield { owner: `income ${income.id}`, condition: income.when };
   }
+  // **职位的硬门槛也是条件。** 漏了这一处的代价量过:`requires` 读了一个
+  // 从来没有人写过的 flag(`paper_count`),于是清单恒为空、求职季"一个都没有"
+  // 率 94.7%,而所有检查都是绿的——因为规则根本没看这里。
+  for (const position of contentPack.positions ?? []) {
+    yield { owner: `position ${position.id} requires`, condition: position.requires };
+  }
+  for (const rumor of contentPack.rumors ?? []) {
+    yield { owner: `rumor ${rumor.id}`, condition: rumor.availableWhen };
+  }
+  for (const option of contentPack.advisorSwitchOptions ?? []) {
+    yield { owner: `advisorSwitch ${option.id}`, condition: option.availableWhen };
+  }
   for (const npc of contentPack.npcs) {
     for (const [stageId, stage] of Object.entries(npc.stages)) {
       yield { owner: `npc ${npc.id}.${stageId}`, condition: stage.advanceWhen };
@@ -807,8 +819,17 @@ for (const background of contentPack.backgrounds) {
  * `effectiveSlots` 读取——读的那一端在引擎里,内容侧扫不到。
  * `clinical_hours` / `supervision_hours` 由 `systems/case.ts` 在年度结算里累积
  * (会谈数与督导格数),内容侧只读——写的那一端在引擎里。
+ * `students_graduated` / `service_load` / `teaching_load` 由内容写、由
+ * `systems/tenure.ts` 的首考清单读——**读的那一端在引擎里**,内容侧扫不到。
  */
-const ENGINE_HANDLED_NUMERIC_FLAGS = new Set(['retake_slots', 'clinical_hours', 'supervision_hours']);
+const ENGINE_HANDLED_NUMERIC_FLAGS = new Set([
+  'retake_slots',
+  'clinical_hours',
+  'supervision_hours',
+  'students_graduated',
+  'service_load',
+  'teaching_load',
+]);
 
 for (const [key, owners] of accumulatorWrites) {
   if (accumulatorReads.has(key) || ENGINE_HANDLED_NUMERIC_FLAGS.has(key)) continue;
@@ -1331,6 +1352,32 @@ for (const event of contentPack.events) {
     if (switchOptions.length > 0 && !switchOptions.some(option => option.costTier === 'late')) {
       error('规则 22:换导师没有 late 档的入口,"代价极高但始终可行"变成了"后期不可行"');
     }
+  }
+}
+
+// ---------- 规则 38:求职季(GAME_DESIGN 九节 / TECH 7.1) ----------
+{
+  // 规则 38:`marketTightness` 不得进 ViewModel。
+  //
+  // 这是 9.3 第一条("'一个都没有'必须是高概率的真实结果")的实现方式:
+  // 同样的资本值在紧年份和松年份结果不同,而玩家**只能事后从"今年大家都不好找"
+  // 里推断**。一旦摆到屏上,"要不要再等一年"就从一次赌博变成一道算术题。
+  //
+  // 与规则 19(`accurate`)、规则 36(`quality`/`alliance`/`favor`)同一族:
+  // **这个游戏里所有"玩家不该看见的数"都由一条静态检查守着。**
+  const viewSource = stripComments(
+    readFileSync(new URL('../../core/src/types/view.ts', import.meta.url), 'utf-8'),
+  );
+  if (/marketTightness/.test(viewSource)) {
+    error('规则 38:ViewModel 类型里出现了 marketTightness——市场松紧只能事后推断');
+  }
+  const jmSource = stripComments(
+    readFileSync(new URL('../../core/src/systems/jobmarket.ts', import.meta.url), 'utf-8'),
+  );
+  // 构造 ViewModel 的那个函数里不许读它(它只该被概率函数读)
+  const buildFn = jmSource.match(/export function buildJobMarketView[\s\S]*?\n\}/)?.[0] ?? '';
+  if (/marketTightness/.test(buildFn)) {
+    error('规则 38:buildJobMarketView 里读了 marketTightness');
   }
 }
 

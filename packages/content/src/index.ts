@@ -5,11 +5,12 @@ import { traits } from './setup/traits';
 import { applications } from './setup/applications';
 import { examBank } from './setup/exam';
 import { allocationItems } from './setup/allocation';
-import { crossroadOptions, lifeGoals, masterCrossroadOptions } from './setup/crossroad';
+import { crossroadOptions, lifeGoals, masterCrossroadOptions, phdCrossroadOptions } from './setup/crossroad';
 import { courses } from './courses';
 import { projectTemplates } from './projects';
 import { advisors } from './advisors';
 import { advisorSwitchEvents, advisorSwitchOptions } from './advisors/switch';
+import { tenureEvents } from './events/tenure';
 import { foundationEvents } from './events/foundation';
 import { GAMEIFIED_TERMS_NOTICE, institutions } from './institutions';
 import { positions } from './institutions/positions';
@@ -17,6 +18,7 @@ import { citations, foundations } from './citations';
 import { researcherNameBlocklist, textbookAuthorAllowlist } from './citations/namelist';
 import { gradAllocationItems } from './setup/grad-allocation';
 import { clinicalAllocationItems } from './setup/clinical-allocation';
+import { tenureAllocationItems } from './setup/tenure-allocation';
 import { caseTemplates } from './cases';
 import { caseStageEvents } from './events/clinical/cases';
 import { clinicalEvents } from './events/clinical';
@@ -82,6 +84,7 @@ export const contentPack: ContentPack = {
     ...rivalEncounterEvents,
     ...favorEvents,
     ...advisorSwitchEvents,
+    ...tenureEvents,
     ...projectStageEvents,
     ...foundationEvents,
     ...clinicalEvents,
@@ -94,8 +97,8 @@ export const contentPack: ContentPack = {
   courses,
   projectTemplates,
   caseTemplates,
-  allocationItems: [...allocationItems, ...gradAllocationItems, ...clinicalAllocationItems],
-  crossroadOptions: [...crossroadOptions, ...masterCrossroadOptions],
+  allocationItems: [...allocationItems, ...gradAllocationItems, ...clinicalAllocationItems, ...tenureAllocationItems],
+  crossroadOptions: [...crossroadOptions, ...masterCrossroadOptions, ...phdCrossroadOptions],
   advisors,
   advisorSwitchOptions,
   institutions,

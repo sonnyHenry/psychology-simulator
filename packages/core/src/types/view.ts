@@ -356,6 +356,64 @@ export type ViewModel =
       owingPressure: number;
     }
   | {
+      /**
+       * 教职求职季(GAME_DESIGN 九节)。**全游戏的高光**,七步一屏一步。
+       *
+       * **`marketTightness` 不在这里**(validate 规则 38)。它是 9.3 第一条
+       * ("一个都没有必须是高概率的真实结果")的实现方式:同样的资本值在紧年份
+       * 和松年份结果不同,而你只能事后从"今年大家都不好找"里推断。
+       * 一旦摆到屏上,"要不要再等一年"就从一次赌博变成一道算术题。
+       */
+      kind: 'JOB_MARKET';
+      step: string;
+      year: number;
+      /** 这一步的标题与正文。七步各不相同 */
+      title: string;
+      text: string;
+      /** 顶部常驻的游戏化条款声明(与 GRAD_APPLY 同一条) */
+      notice: string;
+      /** 选项式的步骤(时机、材料、talk、谈判、两体)用它 */
+      options: { id: string; label: string; text: string; hint?: string }[];
+      /** 投递清单(targeting 步)。**概率只给模糊档位** */
+      positions: {
+        id: string;
+        name: string;
+        unit: string;
+        city: string;
+        kindLabel: string;
+        region: string;
+        matchedDomains: string[];
+        terms: string[];
+        chanceLabel: string;
+      }[];
+      maxPicks: number;
+      /** 拿到的 offer(谈判/两体/结果步)。**做成真的合同条款排版** */
+      offers: {
+        positionId: string;
+        institutionName: string;
+        city: string;
+        region: string;
+        termLines: string[];
+        negotiated: boolean;
+        negotiationFailed: boolean;
+      }[];
+      /** 面试邀请数与投递数。这两个数字是事实,可以给 */
+      appliedCount: number;
+      invitedCount: number;
+    }
+  | {
+      /**
+       * 长聘首考(GAME_DESIGN 十节)。**它不是一个数值阈值,是一张清单。**
+       * 逐行渲染,最后给结果。
+       */
+      kind: 'TENURE_REVIEW';
+      year: number;
+      institution: string;
+      lines: { label: string; actual: string; required: string | null; met: boolean }[];
+      passed: boolean;
+      text: string;
+    }
+  | {
       kind: 'ENDING';
       endingId: string;
       title: string;
@@ -446,6 +504,11 @@ export type PlayerAction =
    * 它挂在抽卡屏 / 院校清单 / 工作台这几个已有的屏上,所以零新屏。
    */
   | { type: 'ASK_AROUND'; rumorId: string }
+  /**
+   * 求职季走一步(M5)。`optionId` 给选项式的步骤,`positionIds` 给投递那一步。
+   * 七步全部复用这一个 action——**七步是一个流程,不是七个屏的七种交互**。
+   */
+  | { type: 'JOB_MARKET_STEP'; optionId?: string; positionIds?: string[] }
   | { type: 'JOIN_ADVISOR'; advisorId: string }
   | { type: 'APPLY_GRAD'; institutionIds: string[] }
   | { type: 'CHOOSE'; choiceId: string };

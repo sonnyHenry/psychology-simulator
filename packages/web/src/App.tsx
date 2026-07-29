@@ -2,6 +2,7 @@ import { contentPack } from '@psy-sim/content';
 import { StatsBar } from './components/StatsBar';
 import { DeskScreen } from './screens/Desk';
 import { GradApplyScreen, GradResultScreen } from './screens/GradApply';
+import { JobMarketScreen, TenureReviewScreen } from './screens/JobMarket';
 import {
   AdvisorDrawScreen,
   ApplicationScreen,
@@ -79,6 +80,11 @@ export default function App() {
               return <EventScreen key={view.eventId} view={view} act={act} />;
             case 'OUTCOME':
               return <OutcomeScreen view={view} act={act} />;
+            case 'JOB_MARKET':
+              // key 用步骤:七步复用同一个组件,换步时要清掉上一步的勾选
+              return <JobMarketScreen key={view.step} view={view} act={act} />;
+            case 'TENURE_REVIEW':
+              return <TenureReviewScreen view={view} act={act} />;
             case 'SETTLEMENT':
               return <SettlementScreen view={view} act={act} />;
             case 'ENDING':

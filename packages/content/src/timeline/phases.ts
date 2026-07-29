@@ -163,14 +163,107 @@ export const timeline: PhaseConfig[] = [
     '博一。你已经知道课题会怎么烂掉了,这既是经验也是负担。',
     '博二。中期考核。你手上有几篇,以及几个说不清算不算活着的课题。',
     '博三。毕业要求、答辩、以及"接下来去哪"这个你回避了很久的问题。',
-  ], { isFinal: true }),
+  ], { nextPhaseId: 'crossroad_phd' }),
   gradPhase('phd_direct', '直博', 2019, 5, [
     '直博一年级。没有硕士学位这个安全垫,中间退出就是什么都没有。',
     '直博二年级。第一个课题开始显出它真正的难度。',
     '直博三年级。中期考核。同批考研进来的人还有两年,你还有两年半。',
     '直博四年级。该有的文章还没有该有的数量。',
     '直博五年级。毕业,或者延毕。这两个词你今年会听很多次。',
-  ], { isFinal: true }),
+  ], { nextPhaseId: 'crossroad_phd' }),
+
+  // ── M5:博士毕业岔口 → 博后 → 求职季 → 预聘期 → 长聘首考 ──────
+  //
+  // 时间结构:博士 2023/2024 毕业 → 博后 2025–2026 → 求职季 2027 →
+  // 预聘期 2028–2033(两年一回合 × 3)→ 首考 2034。
+  // **和别的路线一样收在 2034**,所以结局页上所有人是同一个观测点。
+  {
+    kind: 'flow',
+    id: 'crossroad_phd',
+    label: '博士毕业',
+    steps: ['CROSSROAD'],
+    // 兜底:三个选项都带 jumpToPhase,这条只在门控全灭时才用得上
+    nextPhaseId: 'left_academia',
+  },
+  applyPhase('apply_postdoc', '投博后', 'postdoc', 'postdoc'),
+  {
+    kind: 'rounds',
+    id: 'postdoc',
+    label: '博后',
+    date: { year: 2025, month: 9 },
+    rounds: 2,
+    eventSlots: 2,
+    pools: ['grad', 'postdoc'],
+    briefs: [
+      '博后第一年。你终于只需要做研究了,而这件事比你想的更难。',
+      '博后第二年。合同还剩一年,而求职季就在今年秋天。',
+    ],
+    roundOpeners: ['DESK'],
+    allocationSlots: 3,
+    nextPhaseId: 'job_market',
+  },
+  {
+    kind: 'flow',
+    id: 'job_market',
+    label: '求职季',
+    date: { year: 2027, month: 9 },
+    steps: ['JOB_MARKET'],
+    // 求职季自己会 jumpToPhase 到 left_academia(一个都没有);
+    // 拿到 offer 的走这条边进预聘期
+    nextPhaseId: 'tenure_track',
+  },
+  {
+    kind: 'rounds',
+    id: 'tenure_track',
+    label: '预聘期',
+    date: { year: 2028, month: 9 },
+    // 六年,两年一回合。
+    //
+    // **`allocationSlots` 是每回合的,不是每年的。** 设计写的是"预聘期每年两格",
+    // 而这个阶段一回合两年,所以这里要写 4。写 2 的后果量过:六年一共只有 6 格,
+    // 而首考清单有四条判定行——**六格根本同时买不起那么多行**,通过率 0%。
+    // (`yearsPerRound` 和 `allocationSlots` 是两个独立的量,写的时候要一起看。)
+    rounds: 3,
+    yearsPerRound: 2,
+    eventSlots: 3,
+    pools: ['tenure', 'grad'],
+    briefs: [
+      '预聘期第一、二年。搬进一间自己的办公室,然后发现要从招学生开始。',
+      '预聘期第三、四年。中期考核。你第一次知道"还差多少"是一个具体的数字。',
+      '预聘期第五、六年。材料要交了。这六年做过的每一件事都要写进那本册子里。',
+    ],
+    roundOpeners: ['DESK'],
+    allocationSlots: 4,
+    nextPhaseId: 'tenure_review',
+  },
+  {
+    kind: 'flow',
+    id: 'tenure_review',
+    label: '长聘首考',
+    date: { year: 2034, month: 6 },
+    steps: ['TENURE_REVIEW'],
+    nextPhaseId: 'after_tenure',
+  },
+  {
+    kind: 'rounds',
+    id: 'after_tenure',
+    label: '首考之后',
+    rounds: 1,
+    eventSlots: 1,
+    pools: ['tenure'],
+    briefs: ['结果出来了。接下来的事和这六年是两回事。'],
+    isFinal: true,
+  },
+  {
+    kind: 'rounds',
+    id: 'left_academia',
+    label: '离开学术界',
+    rounds: 1,
+    eventSlots: 1,
+    pools: ['left_academia'],
+    briefs: ['你没有留在这条路上。这不是一句关于你的判断——那一年的市场就是那样。'],
+    isFinal: true,
+  },
 
   // ── 临床线(M4):专硕 → 执业早期 → 执业后期 ────────────────
   //

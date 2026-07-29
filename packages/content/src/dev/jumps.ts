@@ -115,4 +115,34 @@ export const devJumpTargets: DevJumpTarget[] = [
     crossroadPrefs: { crossroad_2018: ['path_clinical'] },
     allocationPrefs: [...CLINICAL_PRACTICE, ...UNDERGRAD_CLINICAL],
   },
+  {
+    id: 'jump_job_market',
+    label: '求职季(2027)',
+    targetPhaseId: 'job_market',
+    collegePref: 'science',
+    lifeGoalId: 'goal_academic',
+    crossroadPrefs: {
+      crossroad_2018: ['path_master'],
+      crossroad_2021: ['m_continue_phd'],
+      crossroad_phd: ['p_postdoc'],
+    },
+    allocationPrefs: [...GRAD_ACADEMIC, ...UNDERGRAD_ACADEMIC],
+  },
+  {
+    id: 'jump_tenure_review',
+    label: '长聘首考(2034)',
+    targetPhaseId: 'tenure_review',
+    collegePref: 'science',
+    lifeGoalId: 'goal_academic',
+    crossroadPrefs: {
+      crossroad_2018: ['path_master'],
+      crossroad_2021: ['m_continue_phd'],
+      crossroad_phd: ['p_postdoc'],
+    },
+    // 预聘期那几项排在前面:首考清单上的每一行都要有人投,不然跳过去看到的是一张空表
+    allocationPrefs: [
+      'alloc_write_grant', 'alloc_teach', 'alloc_supervise_students',
+      ...GRAD_ACADEMIC, ...UNDERGRAD_ACADEMIC,
+    ],
+  },
 ];

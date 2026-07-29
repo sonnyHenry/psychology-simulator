@@ -123,6 +123,22 @@ export {
   MAX_ASKS_PER_ROUND,
   type AskableRumor,
 } from './systems/rumor';
+export * from './types/jobmarket';
+export {
+  advanceJobMarketStep,
+  buildJobMarketView,
+  eligiblePositions,
+  invitationChance,
+  letterWeightFor,
+  makeOffer,
+  marketTightnessFor,
+  materialQualityFor,
+  offerChance,
+  startJobMarket,
+  willBeAskedAboutReplication,
+  MAX_APPLICATIONS,
+} from './systems/jobmarket';
+export { buildTenureReview, tenurePassed } from './systems/tenure';
 export { findEnding } from './systems/ending';
 export { selectContextLine } from './systems/context-lines';
 export { createEngine, type Engine } from './engine/engine';

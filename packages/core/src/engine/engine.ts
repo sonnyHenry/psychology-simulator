@@ -36,6 +36,8 @@ import {
   MAX_STARTUP_ADVANCES,
 } from '../systems/project';
 import { activeCases, settleCaseYear } from '../systems/case';
+import { advanceJobMarketStep, buildJobMarketView, startJobMarket } from '../systems/jobmarket';
+import { buildTenureReview, tenurePassed } from '../systems/tenure';
 import { advisorDefOf, drawAdvisorOffer, joinAdvisor, rollAdvisorConsult } from '../systems/advisor';
 import { advanceRivalYear, meetRival, rivalStatusLine } from '../systems/rival';
 import { openFavors, settleOwingPressure } from '../systems/favor';
@@ -491,6 +493,23 @@ export function createEngine(pack: ContentPack): Engine {
           ask: askBlock(state, deskTopics(state)),
         });
       }
+      case 'JOB_MARKET':
+        return buildJobMarketView(state, pack, new Rng(state.rngState), pack.gameifiedTermsNotice ?? '');
+      case 'TENURE_REVIEW': {
+        const lines = buildTenureReview(state, pack);
+        const passed = tenurePassed(lines);
+        return {
+          kind: 'TENURE_REVIEW',
+          year: state.date.year,
+          institution: state.profile.university ?? '你所在的学院',
+          lines,
+          passed,
+          // **不通过不等于人生失败。** 这两段文案都不评价这个人
+          text: passed
+            ? '院里的答复是一句很短的话:通过。\n\n**没有仪式,也没有掌声。** 你回办公室的路上想起六年前搬进来那天,箱子还堆在门口。'
+            : '院里的答复是一句很短的话:未通过。\n\n**这不是一句关于你这个人的判断**,尽管它读起来很像。你有一年时间收尾,然后要离开这栋楼。',
+        };
+      }
       case 'BRIEF': {
         const phase = phaseAt(state.phaseIndex);
         return {
@@ -839,6 +858,14 @@ export function createEngine(pack: ContentPack): Engine {
         state.screen = 'ADVISOR_DRAW';
         break;
       }
+      case 'JOB_MARKET': {
+        startJobMarket(state, pack);
+        state.screen = 'JOB_MARKET';
+        break;
+      }
+      case 'TENURE_REVIEW':
+        state.screen = 'TENURE_REVIEW';
+        break;
       case 'DESK': {
         const slots = effectiveSlots(state, phase);
         state.allocation = { slots, picks: [] };
@@ -851,6 +878,39 @@ export function createEngine(pack: ContentPack): Engine {
         state.screen = 'DESK';
         break;
       }
+    }
+  }
+
+  /**
+   * 求职季走完之后落地:写 flag、改头衔、决定去哪。
+   *
+   * **"一个都没有"不是一个失败分支,是一条真实的路。** 它把玩家送到
+   * `left_academia`,而那条路上有几个是好结局(9.3 第一条)。
+   */
+  function settleJobMarketResult(state: GameState, accepted: string | null): void {
+    if (!accepted) {
+      state.flags.job_market_shutout = true;
+      state.pendingJumpPhaseId = 'left_academia';
+      return;
+    }
+    const offer = (state.jobMarket?.offers ?? []).find(o => o.positionId === accepted);
+    const position = (pack.positions ?? []).find(p => p.id === accepted);
+    const inst = (pack.institutions ?? []).find(i => i.id === position?.institutionId);
+    state.flags.took_faculty_job = true;
+    state.flags[`job_${position?.kind ?? 'unknown'}`] = true;
+    if (offer) {
+      state.flags[offer.region === 'overseas' ? 'job_overseas' : 'job_domestic'] = true;
+      // **头部院校的首考更狠。** 这条 flag 在六年后的 TENURE_REVIEW 里兑现
+      if (inst && (inst.tier === 'a_plus' || inst.tier === 'r1' || inst.tier === 'hk_sg')) {
+        state.flags.offer_from_top_tier = true;
+      }
+      state.profile.university = offer.institutionName;
+      state.profile.major = inst?.unit ?? state.profile.major;
+    }
+    // 备份市场不是教职:它通向另一组结局
+    if (position?.kind.startsWith('backup_')) {
+      state.flags.took_backup_job = true;
+      state.flags.took_faculty_job = false;
     }
   }
 
@@ -1569,6 +1629,25 @@ export function createEngine(pack: ContentPack): Engine {
         settleAllocation(state, pack, rng, action.picks);
         // 「寻求指导」这一格的结果也在这里掷:写下的 flag 要赶得上**当年**的事件抽取
         rollAdvisorConsult(state, pack, rng);
+        nextStep(state, rng);
+        return;
+      }
+      case 'JOB_MARKET': {
+        if (action.type !== 'JOB_MARKET_STEP') invalid(state, action);
+        const outcome = advanceJobMarketStep(state, pack, rng, {
+          ...(action.optionId === undefined ? {} : { optionId: action.optionId }),
+          ...(action.positionIds === undefined ? {} : { positionIds: action.positionIds }),
+        });
+        if (!outcome.done) return;
+        // 走完了。接了 offer 就进预聘期,一个都没有就走"离开学术界"那条路
+        settleJobMarketResult(state, outcome.accepted);
+        nextStep(state, rng);
+        return;
+      }
+      case 'TENURE_REVIEW': {
+        if (action.type !== 'CONTINUE') invalid(state, action);
+        const passed = tenurePassed(buildTenureReview(state, pack));
+        state.flags[passed ? 'tenure_passed' : 'tenure_denied'] = true;
         nextStep(state, rng);
         return;
       }

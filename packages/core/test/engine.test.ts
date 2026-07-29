@@ -39,6 +39,12 @@ import {
   asksLeft,
   hasHeard,
   MAX_ASKS_PER_ROUND,
+  marketTightnessFor,
+  letterWeightFor,
+  materialQualityFor,
+  startJobMarket,
+  buildTenureReview,
+  tenurePassed,
   ALLOC_ADVISOR_CONSULT_ID,
   ADVISOR_CONSULT_FLAG,
   acceptanceChanceFor,
@@ -3483,5 +3489,86 @@ describe('M4.5 社会层', () => {
       // 别的导师的话题不该出现在这一屏上
       expect(askableRumors(state, pack, new Rng(1), ['advisor:a1']).map(o => o.id)).not.toContain('rum_c');
     });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// M5 求职季与长聘首考
+// ─────────────────────────────────────────────────────────────
+
+describe('M5 求职季', () => {
+  it('市场松紧由种子和年份决定,同一局的同一年永远一样', () => {
+    const a = marketTightnessFor(12345, 2027);
+    const b = marketTightnessFor(12345, 2027);
+    expect(a).toBe(b);
+    // **等一年面对的是另一年的真实市场,不是重摇一次运气**
+    expect(marketTightnessFor(12345, 2028)).not.toBe(a);
+    // 别的种子是别的世界
+    expect(marketTightnessFor(999, 2027)).not.toBe(a);
+  });
+
+  it('市场松紧不进 ViewModel:它只能事后推断', () => {
+    const pack = miniPack();
+    const engine = createEngine(pack);
+    const state = engine.start(31);
+    state.phaseIndex = 1;
+    state.screen = 'JOB_MARKET';
+    startJobMarket(state, pack);
+    const view = engine.view(state);
+    if (view.kind !== 'JOB_MARKET') throw new Error('expected JOB_MARKET');
+    // 一旦摆到屏上,"要不要再等一年"就从一次赌博变成一道算术题
+    expect(JSON.stringify(view)).not.toContain('marketTightness');
+    expect(JSON.stringify(view)).not.toContain(String(state.jobMarket!.marketTightness));
+  });
+
+  it('推荐信的分量是关系的变现:同一个大牛,关系差的时候写不出重的信', () => {
+    const pack = miniPack();
+    pack.advisors = [
+      {
+        id: 'a_star', archetype: 'star', availability: 'rare', name: '沈某',
+        publicImpression: '很忙。', initialStage: 'joined', initialFavor: 30, stages: { joined: {} },
+      },
+    ];
+    const state = createEngine(pack).start(32);
+    state.advisor = { id: 'a_star', favor: 90, stage: 'joined' };
+    const close = letterWeightFor(state, pack);
+    state.advisor.favor = 10;
+    const distant = letterWeightFor(state, pack);
+    // **找了大牛但他四年没见过你,信会写得很空**
+    expect(close).toBeGreaterThan(distant * 1.4);
+  });
+
+  it('广投的代价是每一份都写得不够好', () => {
+    expect(materialQualityFor(3)).toBeGreaterThan(materialQualityFor(8));
+    // 但也有地板:投八份不等于八份都是废纸
+    expect(materialQualityFor(8)).toBeGreaterThan(0.4);
+  });
+
+  it('首考是一张清单,而基金那一行是硬指标', () => {
+    const pack = miniPack();
+    const state = createEngine(pack).start(33);
+    state.papers = Array.from({ length: 5 }, (_, i) => ({
+      id: `p${i}`, title: `t${i}`, tier: 'q1', authorship: 'first',
+      year: 2030, domain: 'cognition', integrityRisk: 0,
+    })) as NonNullable<typeof state.papers>;
+    state.flags.teaching_load = 12;
+    state.flags.students_graduated = 3;
+    // 论文、教学、学生全都超额,**但基金没中**
+    const denied = buildTenureReview(state, pack);
+    expect(tenurePassed(denied)).toBe(false);
+    state.flags.got_young_grant = true;
+    expect(tenurePassed(buildTenureReview(state, pack))).toBe(true);
+  });
+
+  it('人际那一行不参与判定:它是陈述,不是扣分项', () => {
+    const pack = miniPack();
+    const state = createEngine(pack).start(34);
+    state.flags.endured_advisor = true;
+    const lines = buildTenureReview(state, pack);
+    const relation = lines.find(line => line.label === '人际');
+    expect(relation).toBeDefined();
+    // 没有"要求"那一栏 = 不判定。**把它做成判定项就变成了"会来事的人过"**
+    expect(relation!.required).toBeNull();
+    expect(relation!.met).toBe(true);
   });
 });

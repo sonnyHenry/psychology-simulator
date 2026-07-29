@@ -3,6 +3,7 @@ import type { AdvisorState } from './advisor';
 import type { ClinicalCase } from './case';
 import type { Paper, Project } from './project';
 import type { Favor, RivalState, Rumor } from './social';
+import type { JobMarketState } from './jobmarket';
 import type { Flags, StatDeltas, Stats, Track } from './stats';
 
 export type ScreenId =
@@ -20,6 +21,10 @@ export type ScreenId =
   | 'ADVISOR_DRAW'
   | 'GRAD_APPLY'
   | 'GRAD_RESULT'
+  /** 教职求职季。**七步内部流程**,靠 `jobMarket.step` 走(M5) */
+  | 'JOB_MARKET'
+  /** 长聘首考的清单式结算屏(M5) */
+  | 'TENURE_REVIEW'
   | 'BRIEF'
   | 'EVENT'
   | 'OUTCOME'
@@ -165,6 +170,11 @@ export interface GameState {
   pendingRivalMeet?: boolean;
   /** 本次申请的状态。走完 GRAD_APPLY 后保留,内容侧用 `landed` 读去向 */
   gradApplication?: GradApplicationState | null;
+  /**
+   * 求职季(M5)。**全游戏的高光**,七步流程。
+   * `marketTightness` 在里面,而它**绝不进 ViewModel**(规则 38)。
+   */
+  jobMarket?: JobMarketState | null;
   /** 历次申请去向:`master` → 'inst_bnu'。结局页和后续门控读它 */
   admissions?: Partial<Record<GradApplyKind, string | null>>;
   /** 抽卡屏的候选导师 id,选完清空(照 traitOffer 的写法) */

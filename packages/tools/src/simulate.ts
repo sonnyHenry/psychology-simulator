@@ -375,6 +375,31 @@ function botAction(
       }
       return { type: 'CHOOSE', choiceId: bot.pick(best) };
     }
+    case 'JOB_MARKET': {
+      // 投递那一步是多选,别的步都是选项。**bot 求稳**:按模糊档位从稳到悬排,
+      // 投满上限——它读不懂条款,只能按清单顺序来,而这对"一个都没有"的
+      // 门禁恰恰是最诚实的模拟(玩家的判断力不该被算进市场松紧里)。
+      if (view.step === 'targeting') {
+        const order = ['稳', '较稳', '冲', '悬', '基本无望'];
+        // **学术岗排在退路前面。** 不这么排的话 bot 会把八个名额全填给"稳"的退路岗,
+        // 于是没有人再去投教职——那不是一个求职策略,那是一个排序 bug 的副作用。
+        const isBackup = (kind: string) => kind.includes('医院') || kind.includes('机构')
+          || kind.includes('企业') || kind.includes('中小学');
+        const sorted = [...view.positions].sort((a, b) => {
+          const backupDiff = Number(isBackup(a.kindLabel)) - Number(isBackup(b.kindLabel));
+          if (backupDiff !== 0) return backupDiff;
+          return order.indexOf(a.chanceLabel) - order.indexOf(b.chanceLabel);
+        });
+        return {
+          type: 'JOB_MARKET_STEP',
+          positionIds: sorted.slice(0, view.maxPicks).map(p => p.id),
+        };
+      }
+      if (view.options.length === 0) return { type: 'JOB_MARKET_STEP' };
+      return { type: 'JOB_MARKET_STEP', optionId: bot.pick(view.options).id };
+    }
+    case 'TENURE_REVIEW':
+      return { type: 'CONTINUE' };
     case 'ENDING':
       throw new Error('botAction called on ENDING view');
   }
@@ -437,6 +462,17 @@ export interface RunResult {
   misledByRumor: boolean | null;
   /** 局终玩家论文数 vs 竞争者(门禁:玩家胜出 35%–65%) */
   rivalCompare: { playerPapers: number; rivalPapers: number } | null;
+  // ── M5 求职季门禁读的四笔账 ────────────────────────────
+  /** 走到过求职季没有(分母) */
+  jobMarketReached: boolean;
+  /** 拿到几个 offer。**0 = "一个都没有",门禁 20%–40%** */
+  jobOffers: number;
+  /** 最后接了哪个 */
+  jobAccepted: string | null;
+  /** 长聘首考过没过。null = 没走到那一步(门禁 30%–50%) */
+  tenureJudged: boolean | null;
+  /** 两体问题的归宿(门禁:五种各 ≥5%) */
+  twoBody: string | null;
 }
 
 function fmtDeltas(deltas: Record<string, number | undefined>): string {
@@ -470,6 +506,10 @@ export function runOne(
   /** 听到过假消息的导师话题。JOIN_ADVISOR 时用它判"有没有被误导" */
   const heardFalseAbout = new Set<string>();
   let misledByRumor: boolean | null = null;
+  let jobMarketReached = false;
+  let jobOffers = 0;
+  let jobAccepted: string | null = null;
+  let tenureJudged: boolean | null = null;
   const stateByYear: Array<[number, number]> = [];
   const presentationHits: string[] = [];
   const contextLineHits: string[] = [];
@@ -517,6 +557,11 @@ export function runOne(
         askOffered,
         askUsed,
         misledByRumor,
+        jobMarketReached,
+        jobOffers,
+        jobAccepted,
+        tenureJudged,
+        twoBody: state.jobMarket?.twoBody ?? null,
         rivalCompare: state.rival
           ? { playerPapers: (state.papers ?? []).length, rivalPapers: state.rival.papers }
           : null,
@@ -617,6 +662,26 @@ export function runOne(
             .map(([id, n]) => `${labels.get(id) ?? id}${n > 1 ? `×${n}` : ''}`)
             .join(' · ');
           log(`\n🎯 ${view.year} 年投入(${view.slots} 格${view.retakeSlots > 0 ? `,重修占 ${view.retakeSlots} 格` : ''}): ${summary}`);
+        }
+        break;
+      case 'JOB_MARKET':
+        if (view.step === 'targeting' && action.type === 'JOB_MARKET_STEP') {
+          jobMarketReached = true;
+          log(`\n💼 ${view.year} 年求职季:投了 ${action.positionIds?.length ?? 0} 个`);
+        }
+        if (view.step === 'result') {
+          jobOffers = view.offers.length;
+          if (action.type === 'JOB_MARKET_STEP') {
+            jobAccepted = action.optionId && action.optionId !== 'leave_academia' ? action.optionId : null;
+          }
+          log(`  结果:${view.offers.length} 个 offer`);
+        }
+        break;
+      case 'TENURE_REVIEW':
+        tenureJudged = view.passed;
+        log(`\n🏛 长聘首考:${view.passed ? '通过' : '未通过'}`);
+        for (const line of view.lines) {
+          log(`  ${line.label}: ${line.actual}${line.required ? ` (要求:${line.required})` : ''}`);
         }
         break;
       case 'SETTLEMENT':
@@ -758,6 +823,24 @@ interface BatchStats {
   desk: DeskStats;
   /** M4.5 社会层门禁的三组统计 */
   social: SocialStats;
+  /** M5 求职季与长聘首考门禁 */
+  career: CareerStats;
+}
+
+/**
+ * 求职季与长聘首考(TECH 7.2 / M5)。
+ *
+ * **"一个都没有"和"首考没过"这两条都是双向门禁**:太低说明这一行被写得太顺,
+ * 太高说明玩家做什么都没用。它们量的是同一件事——这条路的真实难度。
+ */
+interface CareerStats {
+  marketRuns: number;
+  shutoutRuns: number;
+  domesticOffers: number;
+  overseasOffers: number;
+  tenureRuns: number;
+  tenurePassed: number;
+  twoBody: Map<string, number>;
 }
 
 /**
@@ -826,6 +909,15 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
     collapseChoicePicks: new Map(),
     eventsYearly: new Map(),
     npcStats: new Map(),
+    career: {
+      marketRuns: 0,
+      shutoutRuns: 0,
+      domesticOffers: 0,
+      overseasOffers: 0,
+      tenureRuns: 0,
+      tenurePassed: 0,
+      twoBody: new Map(),
+    },
     social: {
       askOfferedRuns: 0,
       askUsedRuns: 0,
@@ -905,6 +997,21 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
         else stats.clinical.activeAtEnd++;
       }
     }
+    // ── M5 求职季统计 ──
+    if (result.jobMarketReached) {
+      stats.career.marketRuns++;
+      if (result.jobOffers === 0) stats.career.shutoutRuns++;
+      if (fs.flags.job_overseas) stats.career.overseasOffers++;
+      if (fs.flags.job_domestic) stats.career.domesticOffers++;
+    }
+    if (result.tenureJudged !== null) {
+      stats.career.tenureRuns++;
+      if (result.tenureJudged) stats.career.tenurePassed++;
+    }
+    if (result.twoBody) {
+      stats.career.twoBody.set(result.twoBody, (stats.career.twoBody.get(result.twoBody) ?? 0) + 1);
+    }
+
     // ── M4.5 社会层统计 ──
     if (result.askOffered) {
       stats.social.askOfferedRuns++;
@@ -1068,6 +1175,33 @@ function printBatch(s: BatchStats): void {
         `(结束 ${c.completed} · 脱落 ${c.dropped} · 转介 ${c.referred} · 局末仍在谈 ${c.activeAtEnd})` +
         ` · 注册小时数 p50=${percentile(hours, 50)} p90=${percentile(hours, 90)}`,
     );
+  }
+
+  // ── 求职季与长聘(M5)──
+  {
+    const c = s.career;
+    if (c.marketRuns > 0) {
+      console.log(
+        `\n求职季(走到 ${c.marketRuns} 局):` +
+          ` 一个都没有 ${((c.shutoutRuns / c.marketRuns) * 100).toFixed(1)}%` +
+          ` · 国内 offer ${((c.domesticOffers / c.marketRuns) * 100).toFixed(1)}%` +
+          ` · 海外 offer ${((c.overseasOffers / c.marketRuns) * 100).toFixed(1)}%`,
+      );
+    }
+    if (c.tenureRuns > 0) {
+      console.log(
+        `长聘首考(走到 ${c.tenureRuns} 局): 通过率 ${((c.tenurePassed / c.tenureRuns) * 100).toFixed(1)}%`,
+      );
+    }
+    const twoBodyTotal = [...c.twoBody.values()].reduce((a, b) => a + b, 0);
+    if (twoBodyTotal > 0) {
+      console.log(
+        `两体问题(${twoBodyTotal} 局): ` +
+          [...c.twoBody.entries()]
+            .map(([k, v]) => `${k} ${((v / twoBodyTotal) * 100).toFixed(0)}%`)
+            .join(' · '),
+      );
+    }
   }
 
   // ── 社会层(M4.5)──
@@ -1377,6 +1511,45 @@ function runCheck(s: BatchStats, extra?: BatchStats): void {
           `个案脱落率超出 15%–40%: ${(dropoutRate * 100).toFixed(1)}%` +
             `(脱落 ${c.dropped} / 终结 ${terminal})`,
         );
+      }
+    }
+  }
+
+  // ── 求职季与长聘门禁(M5,TECH 7.2)────────────────────────
+  {
+    const c = s.career;
+    if (c.marketRuns >= 50) {
+      // **"一个都没有"必须是高概率的、有尊严的结果**(9.3 第一条)。
+      // 低于 20% 说明这一行被写得太顺;高于 40% 说明玩家做什么都没用。
+      const shutout = c.shutoutRuns / c.marketRuns;
+      if (shutout < 0.2 || shutout > 0.4) {
+        failures.push(
+          `求职季"一个都没有"超出 20%–40%: ${(shutout * 100).toFixed(1)}%(走到求职季的 ${c.marketRuns} 局)`,
+        );
+      }
+      // 国内/海外各 ≥15%:两个市场都要真的是选项,否则"双市场"只是一句话
+      const cn = c.domesticOffers / c.marketRuns;
+      const os = c.overseasOffers / c.marketRuns;
+      if (cn < 0.15) failures.push(`国内 offer 率过低(<15%): ${(cn * 100).toFixed(1)}%`);
+      if (os < 0.15) failures.push(`海外 offer 率过低(<15%): ${(os * 100).toFixed(1)}%`);
+    }
+    if (c.tenureRuns >= 50) {
+      // **通过率 30%–50%,因为这个数字应该是真实的**(十节)
+      const pass = c.tenurePassed / c.tenureRuns;
+      if (pass < 0.3 || pass > 0.5) {
+        failures.push(
+          `长聘首考通过率超出 30%–50%: ${(pass * 100).toFixed(1)}%(走到首考的 ${c.tenureRuns} 局)`,
+        );
+      }
+    }
+    // 两体五归宿各 ≥5%。**没有正确答案**,所以也不该有走不通的答案
+    const twoBodyTotal = [...c.twoBody.values()].reduce((a, b) => a + b, 0);
+    if (twoBodyTotal >= 50) {
+      for (const resolution of ['apart', 'partner_follows', 'player_yields', 'spouse_hire', 'breakup']) {
+        const rate = (c.twoBody.get(resolution) ?? 0) / twoBodyTotal;
+        if (rate < 0.05) {
+          failures.push(`两体问题归宿占比过低(<5%): ${resolution} ${(rate * 100).toFixed(1)}%`);
+        }
       }
     }
   }

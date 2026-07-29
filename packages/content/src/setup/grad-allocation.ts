@@ -20,7 +20,16 @@ import type { AllocationItem, Condition } from '@psy-sim/core';
  * "帮导师干活""开一个新课题"这些项在大四的分配屏上就冒出来。
  * `track_academic` 由大四三岔口的学术路径设置,时点正好。
  */
-const IN_GRAD_SCHOOL: Condition = { all: [{ advisor: {} }, { flag: 'track_academic' }] };
+const IN_GRAD_SCHOOL: Condition = {
+  all: [
+    { advisor: {} },
+    { flag: 'track_academic' },
+    // **拿到教职之后这些项要退场。** `advisor` 和 `track_academic` 一辈子都是真的,
+    // 所以不排掉的话,预聘期的工作台上会冒出"帮导师干活""教学助理"——
+    // 而你现在自己就是那个导师。(M3.1 那条"只写 from 会一路漏下去"的同型错。)
+    { not: { flag: 'took_faculty_job' } },
+  ],
+};
 
 /**
  * 「寻求指导」的门控:**有导师,而且你还在读**。

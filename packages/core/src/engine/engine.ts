@@ -45,6 +45,7 @@ import { askableRumors, askRumor, asksLeft } from '../systems/rumor';
 import { admissionTierFor, institutionsFor, MAX_SHORTLIST, resolveAdmission } from '../systems/admission';
 import { collapseEventId, collapsingProjects, foundationOf, pickFoundation } from '../systems/foundation';
 import { readNumericFlag } from '../dsl/evaluate';
+import { answerInventory, inventoryOf } from '../systems/inventory';
 
 export interface Engine {
   start(seed?: number): GameState;
@@ -319,6 +320,9 @@ export function createEngine(pack: ContentPack): Engine {
       endingId: null,
       lastSettlement: null,
       yearlySnapshots: [],
+      // 黑天鹅的 1/2 次配额只由种子决定，不消耗随机流，也不读任何角色属性。
+      blackSwanQuota: (actualSeed & 1) === 0 ? 1 : 2,
+      blackSwanCount: 0,
     };
   }
 
@@ -350,6 +354,33 @@ export function createEngine(pack: ContentPack): Engine {
           index: state.examCursor,
           total: state.examPaper.length,
           question: { id: q.id, subject: q.subject, text: q.text, options: q.options },
+        };
+      }
+      case 'INVENTORY': {
+        const pending = state.pendingInventory;
+        const inventory = pending ? inventoryOf(pack, pending.inventoryId) : undefined;
+        if (!pending || !inventory) throw new Error('INVENTORY screen without pending inventory');
+        const item = inventory.items[pending.cursor];
+        return {
+          kind: 'INVENTORY',
+          inventoryId: inventory.id,
+          name: inventory.name,
+          disclaimer: inventory.disclaimer,
+          index: pending.cursor,
+          total: inventory.items.length,
+          question: pending.result || !item
+            ? null
+            : { text: item.text, options: item.options },
+          result: pending.result
+            ? {
+                score: pending.result.score,
+                maxScore: pending.result.maxScore,
+                bandLabel: pending.result.bandLabel,
+                bandText: pending.result.bandText,
+                discrepancyText: pending.result.discrepancyText,
+                stateRepair: pending.result.stateRepair,
+              }
+            : null,
         };
       }
       case 'EXAM_RESULT':
@@ -671,6 +702,13 @@ export function createEngine(pack: ContentPack): Engine {
             authorship: paper.authorship,
             year: paper.year,
             replicated: paper.replicated ?? null,
+            auditStatus: paper.auditStatus ?? null,
+          })),
+          students: (state.students ?? []).map(student => ({
+            label: student.label,
+            graduatedYear: student.graduatedYear,
+            path: student.path,
+            note: student.note,
           })),
           // **做废的课题和论文清单一样重要。** 做废是这个职业最普遍的经验,不是惩罚,
           // 所以它不该只体现为"结局页少了一行"。
@@ -704,12 +742,13 @@ export function createEngine(pack: ContentPack): Engine {
                 }).filter(Boolean),
               };
             }),
+          originEcho: originEcho(state),
           shareCard: {
             title: ending.title,
             tagline: ending.shareCard?.tagline ?? '普通人的十二年，也有自己的重量。',
             tone: ending.shareCard?.tone ?? 'warm',
             seed: state.seed,
-            years: '2014-2026',
+            years: '2014-2034',
             traits: pack.traits.filter(t => Boolean(state.flags[t.id])).map(t => t.label),
             traitEvolutions: pack.traitEvolutions
               .filter(evolution => Boolean(state.flags[evolution.id]))
@@ -744,6 +783,28 @@ export function createEngine(pack: ContentPack): Engine {
     const score = Math.max(0, Math.min(100, Math.round(raw)));
     const grade = score >= 92 ? 'S' : score >= 82 ? 'A' : score >= 64 ? 'B' : score >= 45 ? 'C' : 'D';
     return { score, grade };
+  }
+
+  /** 动机隐线只收束叙事，不改变分数、门槛或路径。 */
+  function originEcho(state: GameState): string {
+    if (state.flags.origin_illness) {
+      return state.flags.origin_shared
+        ? '你当年说出了家里那段病史。二十年后，你仍没能替它找到一个完整解释；你只是终于能分清，哪些是你的问题，哪些是这门学科还回答不了的问题。'
+        : '你很少对人说起家里那段病史。它没有被心理学解释清楚，也没有消失；只是你终于不再把所有没答案的部分都算成自己的责任。';
+    }
+    if (state.flags.origin_rural) {
+      return '当年那 1200 块是半个月生活费。后来你见过更大的数字，也学会承认：理解一个人的处境，不能把房租、路程和谁能停下来休息删掉。';
+    }
+    if (state.flags.origin_medical_family) {
+      return '你小时候以为“帮助别人”就是穿白大褂的人做的事。后来你走了另一条专业边界，也终于明白：知道自己不能做什么，是帮助里最难的一部分。';
+    }
+    if (state.flags.origin_teacher_family) {
+      return '你曾经最怕自己变成家里那个总把工作带回饭桌的人。后来你也会在晚饭时想起一个学生，但你开始知道什么时候该把门关上。';
+    }
+    if (state.flags.origin_county) {
+      return '你离开县城时，以为专业会给所有问题一套更准确的词。二十年后你带回去的不是答案，而是少用几个轻率的判断。';
+    }
+    return '你没有找到一个足够漂亮的理由解释当年为什么填了心理学。二十年后，这反而变成了一个诚实的答案：人不是先想清楚意义，再开始生活。';
   }
 
   /**
@@ -1334,12 +1395,23 @@ export function createEngine(pack: ContentPack): Engine {
       choiceId: choice.id,
       outcomeTag: outcome.outcomeTag,
     });
+    // 配额在“玩家真正处理了这件事”时才消费。调度阶段就 +1 的话，
+    // 队列前方某个 jumpToPhase 事件会把尚未展示的黑天鹅丢掉，却永久占掉配额。
+    if (ev.category === 'blackswan') {
+      state.blackSwanCount = (state.blackSwanCount ?? 0) + 1;
+    }
     state.pendingOutcome = { text: outcome.text, deltas };
     state.screen = 'OUTCOME';
   }
 
   function continueAfterOutcome(state: GameState, rng: Rng): void {
     state.pendingOutcome = null;
+    // 量表是事件结果后的短暂岔出。答完并读完结果后会再次回到这里，
+    // 所以不需要复制事件游标、flow 跳转和提前结局的整套续航逻辑。
+    if (state.pendingInventory) {
+      state.screen = 'INVENTORY';
+      return;
+    }
     if (state.forcedEndingId) {
       finishWithEnding(state, state.forcedEndingId);
       return;
@@ -1512,6 +1584,19 @@ export function createEngine(pack: ContentPack): Engine {
         if (state.examCursor < state.examPaper.length) return;
         if (isCourseExam) resolveCoursesAndSettle(state, rng);
         else resolveExamScore(state, rng);
+        return;
+      }
+      case 'INVENTORY': {
+        const pending = state.pendingInventory;
+        if (!pending) invalid(state, action);
+        if (pending.result) {
+          if (action.type !== 'CONTINUE') invalid(state, action);
+          state.pendingInventory = undefined;
+          continueAfterOutcome(state, rng);
+          return;
+        }
+        if (action.type !== 'ANSWER_INVENTORY') invalid(state, action);
+        answerInventory(state, pack, action.optionIndex);
         return;
       }
       case 'EXAM_RESULT':

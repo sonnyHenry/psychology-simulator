@@ -729,6 +729,15 @@ const CASES: Case[] = [
     expect: '黑天鹅事件不得直接触发结局',
   },
   {
+    rule: 'M7 量表缺少“非诊断、非评估”边界提示',
+    break: pack => {
+      const inventory = pack.inventories?.[0];
+      if (!inventory) throw new Error('反例夹具需要更新:内容包里没有量表');
+      inventory.disclaimer = '这是一份供玩家阅读的结果说明。';
+    },
+    expect: 'disclaimer must explicitly say it is not diagnosis or assessment',
+  },
+  {
     rule: '换导师的 late 档被删掉了(规则 22)',
     break: pack => {
       pack.advisorSwitchOptions = (pack.advisorSwitchOptions ?? []).filter(

@@ -51,7 +51,10 @@ export const advisorSwitchEvents: GameEvent[] = [
     pools: ['grad'],
     category: 'social',
     tier: 'major',
-    // 关系差 + 还在窗口期。**这一幕是玩家自己撞上的,不是每年问一次**
+    // 关系差 + 还在窗口期时必然把选择摆到玩家面前；事件默认 once，仍然只问一次。
+    // 让它再去抢随机槽会把“逐年关闭的窗口”变成几千局都看不到的死机制。
+    mandatory: true,
+    eventSlotCost: 0,
     trigger: {
       all: [
         { advisor: { favor: { op: '<=', value: 34 } } },
@@ -102,6 +105,8 @@ export const advisorSwitchEvents: GameEvent[] = [
     pools: ['grad'],
     category: 'social',
     tier: 'major',
+    mandatory: true,
+    eventSlotCost: 0,
     trigger: {
       all: [
         { advisor: { favor: { op: '<=', value: 30 } } },
@@ -156,6 +161,8 @@ export const advisorSwitchEvents: GameEvent[] = [
     pools: ['grad'],
     category: 'social',
     tier: 'major',
+    mandatory: true,
+    eventSlotCost: 0,
     // **窗口没有关。** 它只是贵到几乎没有人还换得动
     trigger: {
       all: [

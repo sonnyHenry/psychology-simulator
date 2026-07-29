@@ -201,6 +201,23 @@ export type ViewModel =
     }
   | { kind: 'SETUP'; genders: Gender[]; tracks: Track[] }
   | { kind: 'EXAM'; index: number; total: number; question: PublicExamQuestion }
+  | {
+      kind: 'INVENTORY';
+      inventoryId: string;
+      name: string;
+      disclaimer: string;
+      index: number;
+      total: number;
+      question: { text: string; options: { text: string; score: number }[] } | null;
+      result: {
+        score: number;
+        maxScore: number;
+        bandLabel: string;
+        bandText: string;
+        discrepancyText: string;
+        stateRepair: number;
+      } | null;
+    }
   | { kind: 'EXAM_RESULT'; score: number; correct: number; total: number }
   | {
       kind: 'APPLICATION';
@@ -433,6 +450,14 @@ export type ViewModel =
         year: number;
         /** `null` = 从来没有人试过重复。**这是绝大多数论文的真实结局** */
         replicated: boolean | null;
+        auditStatus: 'questioned' | 'cleared' | 'corrected' | 'retracted' | null;
+      }[];
+      /** 结局页三份招牌清单里的第二份。 */
+      students: {
+        label: string;
+        graduatedYear: number;
+        path: string;
+        note: string;
       }[];
       /** 做废的课题。跟论文清单一样重要——做废是这个职业最普遍的经验 */
       abandonedProjects: { title: string; stage: string; yearsSpent: number }[];
@@ -461,6 +486,8 @@ export type ViewModel =
         coolCount: number;
         moments: string[];
       }[];
+      /** 背景卡与早期选择在终局的一句收束，不改变任何门槛。 */
+      originEcho: string;
       shareCard: {
         title: string;
         tagline: string;
@@ -484,6 +511,7 @@ export type PlayerAction =
   | { type: 'CHOOSE_TRAITS'; traitIds: string[] }
   | { type: 'CHOOSE_SETUP'; gender: Gender; track: Track }
   | { type: 'ANSWER'; optionIndex: number }
+  | { type: 'ANSWER_INVENTORY'; optionIndex: number }
   | { type: 'SKIP_EXAM' }
   | { type: 'APPLY'; optionId: string; majorId?: string }
   | { type: 'CHOOSE_NPCS'; npcIds: string[] }

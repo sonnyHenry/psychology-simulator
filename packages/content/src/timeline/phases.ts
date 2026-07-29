@@ -9,14 +9,8 @@ import type { PhaseConfig } from '@psy-sim/core';
  * 四个回合分别是 2015(大一)/ 2016(大二)/ 2017(大三)/ 2018(大四)。
  * 内容侧的年份门控和时代事件都用这套口径。
  *
- * ## 当前边界(M3)
- * **学术线已经铺到博士毕业**:硕士 3 年 → 硕士岔口 → 博士 3 年,以及直博 5 年。
- * 培养年限按真实规则设定。博后与教职求职季是 M5,所以博士毕业就是学术线现在的终点。
- *
- * 其余五条路径仍是一个回合的"2018 年之后"快照:临床线是 M4,二级线是 M6。
- *
- * 保留这些快照而不是留空,是为了让 `validate` 的阶段图连通性/可终止性和
- * `simulate --check` 的结局分布门禁**从现在起就在真的查东西**——不用等到 M5 才发现路由有洞。
+ * M6 之后所有入口都铺到 2034:国内学术、海外 PhD、临床、医院、学校、企业与离开。
+ * 一级线保留跨年对象和工作台,二级线只用阶段、事件与收入规则(P6 精度分级)。
  */
 
 /**
@@ -31,20 +25,27 @@ import type { PhaseConfig } from '@psy-sim/core';
  * 同理,brief 里**不许出现具体年月**——一句"2018 年七月你入职了"会在 2021 年入口下变成谎话。
  * 展开成真正的阶段时可以再写年份,但那时每条路径得有自己的入口年份。
  */
-function pathStub(
+function secondaryPhase(
   id: string,
   label: string,
-  brief: string,
+  fromYear: number,
+  rounds: number,
+  pools: string[],
+  briefs: string[],
+  tail: { nextPhaseId: string } | { isFinal: true },
+  yearsPerRound = 1,
 ): Extract<PhaseConfig, { kind: 'rounds' }> {
   return {
     kind: 'rounds',
     id,
     label,
-    rounds: 1,
-    eventSlots: 0,
-    pools: [],
-    briefs: [brief],
-    isFinal: true,
+    date: { year: fromYear, month: 9 },
+    rounds,
+    yearsPerRound,
+    eventSlots: 2,
+    pools,
+    briefs,
+    ...tail,
   };
 }
 
@@ -270,7 +271,15 @@ export const timeline: PhaseConfig[] = [
   // 注册系统那条路没有一步是可以跳过的:个案小时、督导小时、然后才是头衔。
   // 时间结构:专硕 2019–2021(与学硕同表申请,一屏四用)→ 执业 2022–2026 →
   // 2027 起两年一回合,终点 2033——与设计文档"非学术路径统一收在 2034 观测点"对齐。
-  applyPhase('apply_clinical', '投申请', 'master', 'clinical'),
+  applyPhase('apply_clinical', '投申请', 'master', 'clinical_entry_2019'),
+  {
+    kind: 'flow',
+    id: 'clinical_entry_2019',
+    label: '培养方向',
+    date: { year: 2019, month: 9 },
+    steps: ['CROSSROAD'],
+    nextPhaseId: 'clinical',
+  },
   {
     kind: 'rounds',
     id: 'clinical',
@@ -289,6 +298,13 @@ export const timeline: PhaseConfig[] = [
     ],
     roundOpeners: ['DESK'],
     allocationSlots: 3,
+    nextPhaseId: 'clinical_practice',
+  },
+  {
+    kind: 'flow',
+    id: 'clinical_entry_2021',
+    label: '培养出口',
+    steps: ['CROSSROAD'],
     nextPhaseId: 'clinical_practice',
   },
   {
@@ -337,9 +353,79 @@ export const timeline: PhaseConfig[] = [
     isFinal: true,
   },
 
-  // ── 其余四条路径(M6 展开)──────────────────────────────
-  pathStub('overseas_phd', '海外 PhD', '你拖着两个箱子落地。六年,一个没有人认识你的地方。'),
-  pathStub('school', '中小学心理教师', '你考上了教师编。全校两千一百个学生,心理老师一个。'),
-  pathStub('industry', '大厂用研', '你入职了。工位在十七楼,你的组叫"用户研究"。'),
-  pathStub('left', '离开这一行', '你去做了别的。这些年不算白读,你只是不在这条路上了。'),
+  // ── 海外 PhD:不再停在“第一个学期”,六年后接回博士毕业岔口 ─────
+  gradPhase('overseas_phd', '海外 PhD', 2019, 6, [
+    '第一年。TA、课程和口语一起占满你的日历。',
+    '第二年。资格考。你第一次用另一种语言完整 defending 一个想法。',
+    '第三年。课题终于像一件自己的东西,而时差也成了日常。',
+    '第四年。你开始带本科生,也开始被问毕业以后留不留下。',
+    '第五年。市场、签证和论文同时进入倒计时。',
+    '第六年。viva 或答辩结束后,你仍然要回答那句“接下来去哪”。',
+  ], { nextPhaseId: 'crossroad_phd' }),
+
+  // ── M6 医院线:专硕培养 → 医院早期 → 成熟期 ─────────────
+  secondaryPhase('hospital_grad', '临床培养(医院方向)', 2019, 3,
+    ['hospital_grad', 'hospital_common'], [
+      '研一。你第一次把量表分数和病历放在同一张桌上。',
+      '研二。见习轮转。心理科和精神科只隔一条走廊,边界却很清楚。',
+      '研三。职称考试、招聘名额、以及那家医院今年到底招不招人。',
+    ], { nextPhaseId: 'hospital_practice' }),
+  secondaryPhase('hospital_practice', '医院心理科', 2022, 7,
+    ['hospital_practice', 'hospital_common'], [
+      '入职第一年。测评室门口每天都有人等。',
+      '第二年。你开始独立做心理治疗门诊。',
+      '第三年。门诊量涨了,每个人分到的时间没涨。',
+      '第四年。职称材料里既要业务量,也要论文。',
+      '第五年。你已经能从转诊单上看出这一天会有多长。',
+      '第六年。科室让你带一个新人。',
+      '第七年。你开始参与医院的危机流程和会诊制度。',
+    ], { nextPhaseId: 'hospital_late' }),
+  secondaryPhase('hospital_late', '医院心理科(成熟期)', 2029, 3,
+    ['hospital_late', 'hospital_practice', 'hospital_common'], [
+      '你成了科里那个会被叫去处理最难沟通的人的人。',
+      '门诊、会诊、教学和科研考核同时排在一张表上。',
+      '你回头看,这间诊室已经换过三轮年轻人。',
+    ], { isFinal: true }, 2),
+
+  // ── M6 学校线:本科/硕士两个入口,2029 汇入同一成熟期 ───────
+  secondaryPhase('school', '中小学心理教师', 2019, 10,
+    ['school'], Array.from({ length: 10 }, (_, i) => `入职第 ${i + 1} 年。全校两千多个学生,心理老师仍然只有你。`),
+    { nextPhaseId: 'school_late' }),
+  secondaryPhase('school_after_master', '中小学心理教师', 2022, 7,
+    ['school'], Array.from({ length: 7 }, (_, i) => `入职第 ${i + 1} 年。硕士学历写在档案里,日常仍从值班表开始。`),
+    { nextPhaseId: 'school_late' }),
+  secondaryPhase('school_late', '中小学心理教师(成熟期)', 2029, 3,
+    ['school', 'school_late'], [
+      '你开始带区里的新心理老师。',
+      '筛查、复学与危机转介被写成了一套流程。',
+      '又一届学生毕业了。大多数人不会记得来过这间屋子。',
+    ], { isFinal: true }, 2),
+
+  // ── M6 企业线 ────────────────────────────────────────
+  secondaryPhase('industry', '大厂用研', 2019, 10,
+    ['industry'], Array.from({ length: 10 }, (_, i) => `工作第 ${i + 1} 年。研究问题跟着业务线一起换。`),
+    { nextPhaseId: 'industry_late' }),
+  secondaryPhase('industry_after_master', '大厂用研', 2022, 7,
+    ['industry'], Array.from({ length: 7 }, (_, i) => `工作第 ${i + 1} 年。那三年硕士最先兑现成的是一份更高的职级。`),
+    { nextPhaseId: 'industry_late' }),
+  secondaryPhase('industry_late', '企业(成熟期)', 2029, 3,
+    ['industry', 'industry_late'], [
+      '你的汇报对象又换了一次。',
+      '你开始决定新人该问什么问题。',
+      '三十八岁。心理学仍在你的工作里,只是岗位名已经变了。',
+    ], { isFinal: true }, 2),
+
+  // ── M6 离开线:离开不是空白,也有逐年的生活 ─────────────
+  secondaryPhase('left', '离开这一行', 2019, 10,
+    ['left'], Array.from({ length: 10 }, (_, i) => `离开后的第 ${i + 1} 年。心理学从专业变成了你的旧背景。`),
+    { nextPhaseId: 'left_late' }),
+  secondaryPhase('left_after_master', '离开这一行', 2022, 7,
+    ['left'], Array.from({ length: 7 }, (_, i) => `离开后的第 ${i + 1} 年。七年训练没有消失,只是换了用法。`),
+    { nextPhaseId: 'left_late' }),
+  secondaryPhase('left_late', '另一种生活', 2029, 3,
+    ['left', 'left_late'], [
+      '你已经很少用“转行”介绍自己。',
+      '有人来问你当年为什么走,你给不出一句话的答案。',
+      '三十八岁。那张心理学学位证还在抽屉里。',
+    ], { isFinal: true }, 2),
 ];

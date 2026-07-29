@@ -238,7 +238,7 @@ export const masterCrossroadOptions: CrossroadOption[] = [
       { setFlag: 'path_industry' },
       { setCareer: 'industry' },
       { stats: { money: 180000, capital: 2, method: -1 } },
-      { jumpToPhase: 'industry' },
+      { jumpToPhase: 'industry_after_master' },
     ],
   },
   {
@@ -259,8 +259,8 @@ export const masterCrossroadOptions: CrossroadOption[] = [
       { setFlag: 'path_clinical' },
       { setCareer: 'clinical' },
       { stats: { clinical: 6, state: -1 } },
-      // 学硕转临床不再读一个专硕:直接进执业阶段,从机构挂靠开始攒小时数
-      { jumpToPhase: 'clinical_practice' },
+      // 学硕转临床不再读一个专硕,但仍要明确选择医院建制还是社会机构。
+      { jumpToPhase: 'clinical_entry_2021' },
     ],
   },
   {
@@ -273,7 +273,7 @@ export const masterCrossroadOptions: CrossroadOption[] = [
       { setFlag: 'path_school' },
       { setCareer: 'school' },
       { stats: { capital: 3, state: 4 } },
-      { jumpToPhase: 'school' },
+      { jumpToPhase: 'school_after_master' },
     ],
   },
   {
@@ -286,7 +286,78 @@ export const masterCrossroadOptions: CrossroadOption[] = [
       { setFlag: 'path_leave' },
       { setCareer: 'left' },
       { stats: { money: 60000, state: 6 } },
-      { jumpToPhase: 'left' },
+      { jumpToPhase: 'left_after_master' },
+    ],
+  },
+];
+
+/**
+ * 临床培养出口(M6)。同一个应用心理专硕可以去社会机构,也可以进医院心理科；
+ * 学硕转临床的人同样从这里选。医院不是“咨询做得更好”的高阶版本,而是另一套建制、
+ * 职称与工作节奏,所以用显式岔口分开,不靠一个后期事件偷偷改 career。
+ */
+export const clinicalEntryOptions: CrossroadOption[] = [
+  {
+    id: 'cl_enter_practice',
+    label: '去机构,走注册系统',
+    text: '你去了一家咨询机构。个案小时、督导小时、继续教育,一格一格地攒。\n\n这条路没有编制,也没有谁替你兜底；但五十分钟完整属于坐在你对面的人。',
+    group: 'clinical_entry_2021',
+    hint: '完整的咨询训练,收入和案源都要从零长出来',
+    effects: [
+      { setFlag: 'path_clinical' },
+      { setCareer: 'clinical' },
+      { stats: { clinical: 3, state: 1 } },
+      { jumpToPhase: 'clinical_practice' },
+    ],
+  },
+  {
+    id: 'cl_enter_hospital',
+    label: '进医院心理科',
+    text: '你去医院。心理测量、心理治疗、门诊会诊和一套完整的职称体系。\n\n你会很早再次撞上那堵墙:**你能评估、能治疗,但你不是精神科医生,没有处方权。**',
+    group: 'clinical_entry_2021',
+    availableWhen: {
+      any: [
+        { flag: 'college_medical' },
+        { flag: 'mastered_assessment' },
+        { stat: 'clinical', op: '>=', value: 52 },
+      ],
+    },
+    hint: '医疗建制更稳,门诊节奏更快；医学/评估背景更顺',
+    effects: [
+      { setFlag: 'path_hospital' },
+      { setCareer: 'hospital' },
+      { stats: { clinical: 4, capital: 2, state: -2 } },
+      { jumpToPhase: 'hospital_practice' },
+    ],
+  },
+];
+
+/** 本科毕业后读应用心理专硕时,在培养开始前选机构/医院方向。 */
+export const clinicalTrainingOptions: CrossroadOption[] = [
+  {
+    ...clinicalEntryOptions[0]!,
+    id: 'cl_train_practice',
+    group: 'clinical_entry_2019',
+    label: '咨询与注册方向',
+    text: '你选了咨询与注册方向。课程、个人体验、督导,然后才轮到第一个实习个案。\n\n这三年训练的终点不是一张证,是你能不能在五十分钟里不急着替别人解决人生。',
+    effects: [
+      { setFlag: 'path_clinical' },
+      { setCareer: 'clinical' },
+      { stats: { clinical: 3, state: 1 } },
+      { jumpToPhase: 'clinical' },
+    ],
+  },
+  {
+    ...clinicalEntryOptions[1]!,
+    id: 'cl_train_hospital',
+    group: 'clinical_entry_2019',
+    label: '医院临床心理方向',
+    text: '你选了医院方向。课程表里多了精神病学、心理评估与见习轮转。\n\n三年后你会进入一套稳定得多、也拥挤得多的建制。',
+    effects: [
+      { setFlag: 'path_hospital' },
+      { setCareer: 'hospital' },
+      { stats: { clinical: 4, capital: 2, state: -2 } },
+      { jumpToPhase: 'hospital_grad' },
     ],
   },
 ];

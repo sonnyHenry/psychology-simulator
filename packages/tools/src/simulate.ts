@@ -63,13 +63,18 @@ const engine = createEngine(contentPack);
 const eventsById = new Map(contentPack.events.map(e => [e.id, e]));
 const backgroundLabels = new Map(contentPack.backgrounds.map(b => [b.id, b.label]));
 const CAREER_LABELS: Record<string, string> = {
-  cs: '计算机',
-  education: '教育',
-  gov: '体制内',
-  local: '县城/本地',
-  finance: '金融',
-  medicine: '医学',
-  psychology: '心理',
+  master: '学术硕士',
+  phd: '博士',
+  phd_direct: '直博',
+  overseas_phd: '海外 PhD',
+  postdoc: '博后',
+  faculty_candidate: '教职候选',
+  faculty: '高校教职',
+  clinical: '独立咨询',
+  hospital: '医院心理科',
+  school: '学校心理教师',
+  industry: '企业用研/产品',
+  left: '离开这一行',
 };
 const STRATEGY_LABELS: Record<Strategy, string> = {
   random: '随机',
@@ -241,6 +246,10 @@ function botAction(
     case 'OUTCOME':
     case 'SETTLEMENT':
       return { type: 'CONTINUE' };
+    case 'INVENTORY':
+      if (view.result) return { type: 'CONTINUE' };
+      if (!view.question) throw new Error(`INVENTORY ${view.inventoryId} has neither question nor result`);
+      return { type: 'ANSWER_INVENTORY', optionIndex: bot.int(0, view.question.options.length - 1) };
     case 'SETUP':
       return {
         type: 'CHOOSE_SETUP',
@@ -563,7 +572,11 @@ export function runOne(
         tenureJudged,
         twoBody: state.jobMarket?.twoBody ?? null,
         rivalCompare: state.rival
-          ? { playerPapers: (state.papers ?? []).length, rivalPapers: state.rival.papers }
+          ? {
+              // 预印本进结局清单，但不拿来和竞争者的正式发表数比赛。
+              playerPapers: (state.papers ?? []).filter(paper => paper.tier !== 'preprint').length,
+              rivalPapers: state.rival.papers,
+            }
           : null,
       };
     }
@@ -825,6 +838,23 @@ interface BatchStats {
   social: SocialStats;
   /** M5 求职季与长聘首考门禁 */
   career: CareerStats;
+  /** M6 六条职业出口的互斥分布(后续转向按最终出口归类) */
+  m6Paths: Map<string, number>;
+  /** M7 量表 / drama / 黑天鹅 / 隐线的动态门禁。 */
+  m7: {
+    fullRuns: number;
+    inventoryById: Map<string, number>;
+    discrepancyRuns: number;
+    dramaTotal: number;
+    academicRuns: number;
+    academicDramaTotal: number;
+    clinicalRuns: number;
+    clinicalDramaTotal: number;
+    blackSwanCounts: Map<number, number>;
+    retractions: number;
+    originTotal: number;
+    studentLists: number;
+  };
 }
 
 /**
@@ -918,6 +948,21 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
       tenurePassed: 0,
       twoBody: new Map(),
     },
+    m6Paths: new Map(),
+    m7: {
+      fullRuns: 0,
+      inventoryById: new Map(),
+      discrepancyRuns: 0,
+      dramaTotal: 0,
+      academicRuns: 0,
+      academicDramaTotal: 0,
+      clinicalRuns: 0,
+      clinicalDramaTotal: 0,
+      blackSwanCounts: new Map(),
+      retractions: 0,
+      originTotal: 0,
+      studentLists: 0,
+    },
     social: {
       askOfferedRuns: 0,
       askUsedRuns: 0,
@@ -960,11 +1005,51 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
     for (const h of fs.history) {
       if (h.kind === 'event') stats.eventsSeen.add(h.eventId);
     }
+    // ── M7 元玩法与高强度内容统计 ──
+    {
+      const eventHistory = fs.history.filter(h => h.kind === 'event');
+      const drama = eventHistory.filter(h => h.category === 'drama');
+      const blackSwans = eventHistory.filter(h => h.category === 'blackswan').length;
+      const origin = eventHistory.filter(h => h.category === 'origin').length;
+      const early = earlyEndingIds.has(result.endingId);
+      if (!early) {
+        stats.m7.fullRuns++;
+        stats.m7.blackSwanCounts.set(
+          blackSwans,
+          (stats.m7.blackSwanCounts.get(blackSwans) ?? 0) + 1,
+        );
+        stats.m7.originTotal += origin;
+      }
+      stats.m7.dramaTotal += drama.length;
+      for (const inventory of fs.inventoryResults ?? []) {
+        stats.m7.inventoryById.set(
+          inventory.inventoryId,
+          (stats.m7.inventoryById.get(inventory.inventoryId) ?? 0) + 1,
+        );
+      }
+      if ((fs.inventoryResults ?? []).some(item => item.discrepancyKind !== 'aligned')) {
+        stats.m7.discrepancyRuns++;
+      }
+      const academic = Boolean(fs.flags.path_phd_direct || fs.flags.path_phd_after_master || fs.flags.path_overseas);
+      if (academic) {
+        stats.m7.academicRuns++;
+        stats.m7.academicDramaTotal += drama.filter(h => h.eventId.startsWith('ev_drama_ac_')).length;
+        if (fs.flags.paper_retracted) stats.m7.retractions++;
+      }
+      if (fs.flags.path_clinical) {
+        stats.m7.clinicalRuns++;
+        stats.m7.clinicalDramaTotal += drama.filter(h => {
+          const event = eventsById.get(h.eventId);
+          return event?.pools.some(pool => pool.startsWith('clinical')) ?? false;
+        }).length;
+      }
+      if ((fs.students ?? []).length > 0) stats.m7.studentLists++;
+    }
     for (const key of ['method', 'money', 'state', 'capital', 'clinical'] as StatKey[]) {
       stats.statSums[key] += fs.stats[key];
     }
     // 学术线专项统计(GAME_DESIGN 五节的三条硬约束在这里被量化)
-    if (fs.flags.path_phd_direct || fs.flags.path_phd_after_master) {
+    if (fs.flags.path_phd_direct || fs.flags.path_phd_after_master || fs.flags.path_overseas) {
       const papers = (fs.papers ?? []).length;
       stats.academic.runs++;
       stats.academic.papers += papers;
@@ -1012,6 +1097,16 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
       stats.career.twoBody.set(result.twoBody, (stats.career.twoBody.get(result.twoBody) ?? 0) + 1);
     }
 
+    // ── M6 路径分布。按最终出口互斥归类,避免“读硕后转学校”同时算学术与学校。──
+    const m6Path = fs.flags.path_hospital ? 'hospital'
+      : fs.flags.path_school ? 'school'
+      : fs.flags.path_industry ? 'industry'
+      : fs.flags.path_leave ? 'left'
+      : fs.flags.path_clinical ? 'clinical'
+      : fs.flags.track_academic ? 'academic'
+      : null;
+    if (m6Path) stats.m6Paths.set(m6Path, (stats.m6Paths.get(m6Path) ?? 0) + 1);
+
     // ── M4.5 社会层统计 ──
     if (result.askOffered) {
       stats.social.askOfferedRuns++;
@@ -1026,7 +1121,13 @@ function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill 
       // **分母只算学术线。** 论文数是学术线的记分方式;一个去了大厂的玩家
       // 和一个还在发论文的旧同学之间,"谁领先"这个问题本身就没有定义。
       // 算进去的话这条门禁量的是路径分布,不是这个对手强不强。
-      if (fs.flags.track_academic && playerPapers + rivalPapers > 0) {
+      const stayedAcademic = Boolean(fs.flags.track_academic)
+        && !fs.flags.path_hospital
+        && !fs.flags.path_school
+        && !fs.flags.path_industry
+        && !fs.flags.path_leave
+        && !fs.flags.path_clinical;
+      if (stayedAcademic && playerPapers + rivalPapers > 0) {
         stats.social.rivalRuns++;
         if (playerPapers > rivalPapers) stats.social.playerAheadRuns++;
         stats.social.playerPapersSum += playerPapers;
@@ -1290,6 +1391,37 @@ function printBatch(s: BatchStats): void {
   };
   printGroups('按家境分组', s.byBackground);
   printGroups('按职业线分组', s.byCareer);
+  console.log(
+    `M6 六出口: ${['academic', 'clinical', 'hospital', 'school', 'industry', 'left']
+      .map(id => `${id} ${(((s.m6Paths.get(id) ?? 0) / s.runs) * 100).toFixed(1)}%`)
+      .join(' · ')}`,
+  );
+
+  // ── M7。四行分别守住四种不会由静态校验发现的退化。──
+  {
+    const m = s.m7;
+    const inventories = (contentPack.inventories ?? [])
+      .map(item => `${item.id} ${(((m.inventoryById.get(item.id) ?? 0) / s.runs) * 100).toFixed(1)}%`)
+      .join(' · ');
+    const black = [...m.blackSwanCounts.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([count, runs]) => `${count}次 ${((runs / Math.max(1, m.fullRuns)) * 100).toFixed(1)}%`)
+      .join(' · ');
+    console.log(`M7 量表: ${inventories} · 偏差文案 ${((m.discrepancyRuns / s.runs) * 100).toFixed(1)}%`);
+    console.log(
+      `M7 drama: 全局 ${(m.dramaTotal / s.runs).toFixed(2)} 幕/局` +
+      ` · 学术专属 ${m.academicRuns ? (m.academicDramaTotal / m.academicRuns).toFixed(2) : '—'}` +
+      ` · 临床专属 ${m.clinicalRuns ? (m.clinicalDramaTotal / m.clinicalRuns).toFixed(2) : '—'}`,
+    );
+    console.log(
+      `M7 黑天鹅(非提前结局 ${m.fullRuns} 局): ${black || '(无)'}` +
+      ` · origin ${(m.originTotal / Math.max(1, m.fullRuns)).toFixed(2)} 次/局`,
+    );
+    console.log(
+      `M7 诚信/清单: 撤回 ${m.academicRuns ? ((m.retractions / m.academicRuns) * 100).toFixed(2) : '—'}%` +
+      ` · 有学生清单 ${((m.studentLists / s.runs) * 100).toFixed(1)}%`,
+    );
+  }
 
   const years = [...s.stateYearly.keys()].sort((a, b) => a - b);
   if (years.length > 0) {
@@ -1356,6 +1488,13 @@ function printBatch(s: BatchStats): void {
 // 分布类门禁(结局占比、提前结局、NPC 收官率)仍只看主队列,基线不受影响。
 function runCheck(s: BatchStats, extra?: BatchStats): void {
   const failures: string[] = [];
+  // M6:六条职业出口都必须真的有人走到。按主队列分布判定,不是拿精英补样本。
+  for (const path of ['academic', 'clinical', 'hospital', 'school', 'industry', 'left']) {
+    const rate = (s.m6Paths.get(path) ?? 0) / s.runs;
+    if (rate < 0.03) {
+      failures.push(`M6 路径可达率过低(<3%): ${path} ${(rate * 100).toFixed(1)}%`);
+    }
+  }
   // **地基塌方**(M3.6 门禁)。文献可靠性是一级线机制,不能是稀有彩蛋——
   // 而它最容易的失效方式是静默的:塌方年份挑得不对,这个机制一次都不会触发,
   // 而所有别的检查都会是绿的(第一版就是这样:唯一会塌的那条在 2015 年,
@@ -1484,8 +1623,8 @@ function runCheck(s: BatchStats, extra?: BatchStats): void {
       failures.push(`学术线平均论文数超出 1.2–9(随机 bot 口径): ${avgPapers.toFixed(2)}`);
     }
     const emptyRate = academic.emptyLists / academic.runs;
-    if (emptyRate > 0.2) {
-      failures.push(`论文清单为空的比例过高(>20%): ${(emptyRate * 100).toFixed(1)}%`);
+    if (emptyRate > 0.05) {
+      failures.push(`论文清单为空的比例过高(>5%,M7): ${(emptyRate * 100).toFixed(1)}%`);
     }
     const abandonRate = academic.withAbandoned / academic.runs;
     if (abandonRate < 0.7) {
@@ -1493,6 +1632,39 @@ function runCheck(s: BatchStats, extra?: BatchStats): void {
         `至少一个课题做废的比例过低(<70%): ${(abandonRate * 100).toFixed(1)}%` +
           `——做废是这个职业最普遍的经验,不该是稀有事件`,
       );
+    }
+  }
+
+  // ── M7 量表 / drama / 黑天鹅 / origin / 诚信门禁 ─────────
+  {
+    const m = s.m7;
+    for (const inventory of contentPack.inventories ?? []) {
+      const rate = (m.inventoryById.get(inventory.id) ?? 0) / s.runs;
+      if (rate < 0.75) {
+        failures.push(`量表 ${inventory.id} 命中率过低(<75%): ${(rate * 100).toFixed(1)}%`);
+      }
+    }
+    if (m.discrepancyRuns / s.runs < 0.2) {
+      failures.push(`量表偏差文案命中率过低(<20%): ${((m.discrepancyRuns / s.runs) * 100).toFixed(1)}%`);
+    }
+    const avgDrama = m.dramaTotal / s.runs;
+    if (avgDrama < 3) failures.push(`Drama 平均覆盖过低(<3): ${avgDrama.toFixed(2)} 幕/局`);
+    if (m.academicRuns >= 20 && m.academicDramaTotal / m.academicRuns < 1) {
+      failures.push(`学术专属 drama 平均覆盖过低(<1): ${(m.academicDramaTotal / m.academicRuns).toFixed(2)}`);
+    }
+    if (m.clinicalRuns >= 20 && m.clinicalDramaTotal / m.clinicalRuns < 1) {
+      failures.push(`临床专属 drama 平均覆盖过低(<1): ${(m.clinicalDramaTotal / m.clinicalRuns).toFixed(2)}`);
+    }
+    const invalidBlackSwanRuns = [...m.blackSwanCounts.entries()]
+      .filter(([count]) => count < 1 || count > 2)
+      .reduce((sum, [, runs]) => sum + runs, 0);
+    if (invalidBlackSwanRuns > 0) {
+      failures.push(`黑天鹅不是每局 1–2 次: ${invalidBlackSwanRuns}/${m.fullRuns} 个非提前结局对局违规`);
+    }
+    const avgOrigin = m.originTotal / Math.max(1, m.fullRuns);
+    if (avgOrigin < 3) failures.push(`origin 隐线回响过少(<3): ${avgOrigin.toFixed(2)} 次/局`);
+    if (m.academicRuns >= 20 && m.retractions / m.academicRuns > 0.03) {
+      failures.push(`撤稿结局率过高(>3%): ${((m.retractions / m.academicRuns) * 100).toFixed(2)}%`);
     }
   }
 

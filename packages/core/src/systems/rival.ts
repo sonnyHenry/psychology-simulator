@@ -123,7 +123,7 @@ export function advanceRivalYear(state: GameState, rng: Rng): void {
 export function rivalAheadOfPlayer(state: GameState): boolean {
   const rival = state.rival;
   if (!rival) return false;
-  return rival.papers > (state.papers ?? []).length;
+  return rival.papers > (state.papers ?? []).filter(paper => paper.tier !== 'preprint').length;
 }
 
 /** momentum 的钳位。上不封顶的对手不好玩,压到 0 的对手不真实 */

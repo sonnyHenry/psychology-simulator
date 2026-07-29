@@ -27,16 +27,17 @@ export const endings: EndingDef[] = [
     shareCard: { tone: 'bitter', tagline: '在一个不允许停下来的系统里停了下来。' },
   },
 
-  // ── 七条路径的 2018 快照 ─────────────────────────────────
+  // 诚信线终局。只读真正进入撤回状态的论文；重复失败或发表更正都不会命中。
   {
-    id: 'end_m2_overseas',
-    title: '第一个学期结束了',
-    text: '2019 年一月,你在一个下午四点就天黑的地方过完了第一个学期。\n\n你做 TA,带两个 section,每周要批四十份作业。资格考在明年。你的英语在讨论课上永远慢半拍,而你已经学会了在别人说完之后先说 "That\'s a good point"。\n\n你发工资条那天拍了张照发回家。你妈问的是"这是一个月的吗"。\n\n**你说是。然后你在屏幕这边坐了很久。**',
+    id: 'end_ac_retraction',
+    title: '撤回',
+    text: '期刊页面上的标题还在，下面多了一条红色的 RETRACTED。\n\n公告写得很短：原始记录不足以核实分析流程。它没有替任何人判断你当年每一个决定的动机，也不会阻止别人替你判断。\n\n你把能交接的学生和课题一项项交出去。**真正漫长的不是公告发布那天，是以后每次有人搜索你的名字。**\n\n那篇论文仍在下面的清单里。撤回不是让它消失；撤回是让它以另一种方式永远存在。',
     category: 'final',
-    priority: 12,
-    condition: { flag: 'path_overseas' },
-    shareCard: { tone: 'warm', tagline: '一个下午四点就天黑的地方,第一个学期。' },
+    priority: 2,
+    condition: { flag: 'paper_retracted' },
+    shareCard: { tone: 'bitter', tagline: '撤回不是消失，是以另一种方式永远存在。' },
   },
+
   // ── 临床线(M4:六个结局,读的是六种不同的十五年)──────────
   //
   // 与学术线同一套排法:priority 升序、条件从最独特到最普通。
@@ -116,32 +117,120 @@ export const endings: EndingDef[] = [
     condition: { flag: 'path_clinical' },
     shareCard: { tone: 'warm', tagline: '下周三,你还在。' },
   },
+  // ══════════ M6 医院线:四个结局 ══════════
   {
-    id: 'end_m2_school',
-    title: '阳光小屋',
-    text: '2019 年,你是这所中学唯一的心理老师。\n\n办公室在四楼最里面,门口挂着"阳光小屋"。你负责两千一百个学生:每周六节课、咨询室值班、心理健康月、新生普测、危机个案跟进,以及三十四个表格。\n\n你父母很满意。有编制、有寒暑假,亲戚问起来一句话就能说清楚。\n\n上个学期有一个孩子被你筛出来、转去了医院。你至今不知道后续。\n\n**"不知道后续"是这个岗位最常见的结局**,而它比失败更难受。',
+    id: 'end_h_system',
+    title: '那条转介线终于接上了',
+    text: '你没有让医院多出一个科室,也没有让每个人都得到足够长的治疗。\n\n你做成的是一条能走通的线:学校发现风险之后知道送到哪里,急诊知道谁来接,出院之后社区知道怎样跟。流程图贴在值班室,边角已经卷了。\n\n**系统的价值很难被看见——它最好的结果是某件事没有发生。**\n\n后来年轻同事问这套流程是谁做的,护士指了指你。你正在隔壁做当天第十七个门诊。',
     category: 'final',
-    priority: 14,
+    priority: 24,
+    condition: { all: [{ flag: 'path_hospital' }, { flag: 'hospital_built_pathway' }] },
+    shareCard: { tone: 'triumph', tagline: '系统最好的结果,是某件事没有发生。' },
+  },
+  {
+    id: 'end_h_mentor',
+    title: '科里那个可以去问的人',
+    text: '你的门很少完全关上。年轻治疗师第一次遇到危机、第一次被投诉、第一次不知道下一句话怎么接时,会在门口站一下。\n\n你不替他们下判断。你问风险、问边界、问有没有督导,然后陪他们把下一步排出来。\n\n**医院给你的头衔写在工牌上。真正的资历,是别人不知道怎么办时愿意来找你。**',
+    category: 'final',
+    priority: 25,
+    condition: { all: [{ flag: 'path_hospital' }, { flag: 'hospital_mentor' }] },
+    shareCard: { tone: 'warm', tagline: '别人不知道怎么办时,愿意来找你。' },
+  },
+  {
+    id: 'end_h_manager',
+    title: '你开始替一间科室争时间',
+    text: '你的门诊少了一些,会议多了很多。排班表、投诉、医保和科研考核都到你这里。\n\n你最常做的事不是治疗,是替治疗争一段不会立刻产生收入的时间:一个完整初访、一小时督导、一次认真交接。\n\n**你离那把椅子远了一点,让更多椅子能留在那里。**',
+    category: 'final',
+    priority: 26,
+    condition: { all: [{ flag: 'path_hospital' }, { flag: 'hospital_manager' }] },
+    shareCard: { tone: 'warm', tagline: '离那把椅子远一点,让更多椅子留下。' },
+  },
+  {
+    id: 'end_h_therapist',
+    title: '医院里的心理治疗师',
+    text: '你仍然没有处方权。你有一张排满的门诊表、一摞评估记录、几位每周回来的人,以及一套知道什么时候必须转给精神科的判断。\n\n一天二十个号的时候,你很难把每个人都记住。有人复诊时提起你三年前说过的一句话,你完全不记得。\n\n**这份工作的重量不在你记住了多少人,在每一次见面时你有没有把眼前这个人当成完整的人。**',
+    category: 'final',
+    priority: 29,
+    condition: { flag: 'path_hospital' },
+    shareCard: { tone: 'warm', tagline: '没有处方权,有另一种手艺。' },
+  },
+
+  // ══════════ M6 学校线 ══════════
+  {
+    id: 'end_s_system',
+    title: '筛查系统',
+    text: '你在这个区搭起了一套筛查、复核、转介和复学流程。每年秋天问卷会铺开,高风险名单会经过人工复核,医院和学校之间终于有了能找到人的电话。\n\n你不知道它“救过几个人”。这种数字既算不准,也不该拿来做你的勋章。\n\n**你知道的是,现在没有一个班主任需要在最慌的时候从通讯录里猜该打给谁。**',
+    category: 'final', priority: 40,
+    condition: { all: [{ flag: 'path_school' }, { flag: 'school_district_system' }] },
+    shareCard: { tone: 'triumph', tagline: '最慌的时候,不用再猜该打给谁。' },
+  },
+  {
+    id: 'end_s_room',
+    title: '那间屋子还只做一件事',
+    text: '你拒绝过班主任、拒绝过把心理课让成机动课,也拒绝过把筛查分数当诊断。关系不是一直好,那间屋子的用途却一直很清楚。\n\n学生毕业后不会记得流程。他们会记得有一扇门,进去以后不用先证明自己“够严重”。\n\n**在一所学校里保住这样一间屋子,已经是一件很具体的事。**',
+    category: 'final', priority: 41,
+    condition: { all: [{ flag: 'path_school' }, { any: [{ flag: 'school_protected_room' }, { flag: 'school_protected_class' }] }] },
+    shareCard: { tone: 'warm', tagline: '保住一间只做这一件事的屋子。' },
+  },
+  {
+    id: 'end_s_teacher',
+    title: '心理老师',
+    text: '你还是这所学校的心理老师。心理课偶尔被占,咨询室里也改过作业,危机电话仍会在周末来。\n\n每年都有一届学生离开。大多数人不会记得你,这很好——他们不需要把高中最难的那些日子一直带着。\n\n新生入学时,你又在第一节课上说了一遍预约方式。**门开着。你还在。**',
+    category: 'final', priority: 42,
     condition: { flag: 'path_school' },
-    shareCard: { tone: 'warm', tagline: '两千一百个学生,心理老师一个。' },
+    shareCard: { tone: 'warm', tagline: '门开着。你还在。' },
+  },
+
+  // ══════════ M6 企业线 ══════════
+  {
+    id: 'end_i_laid_off',
+    title: '被裁那年,你三十岁出头',
+    text: '那张名单没有解释你做得好不好。它解释的是公司今年还愿不愿意为“理解用户”单独保留一个岗位。\n\n补偿到账后,你花了几个月重新给自己的能力命名:研究设计、数据、访谈、把模糊问题拆清楚。下一份工作不一定叫用研。\n\n**岗位消失过一次,那套能力没有跟着消失。**',
+    category: 'final', priority: 43,
+    condition: { all: [{ flag: 'path_industry' }, { flag: 'industry_laid_off' }] },
+    shareCard: { tone: 'bitter', tagline: '岗位消失了,能力没有。' },
   },
   {
-    id: 'end_m2_industry',
-    title: '十七楼',
-    text: '2019 年,你在十七楼,组名叫"用户研究"。\n\n你的工作是:两周一个项目,访谈八到十二个用户,出一份报告,在评审会上讲十五分钟。你用的技能有三样来自那四年:访谈、问卷、还有看数据时的那点警惕。\n\n年包比读研的同学一年的补助多十倍。你妈终于不用跟亲戚解释你学的是什么。\n\n有一次你在会上说"这个样本量不够,结论不稳",产品经理说"我们只是要个方向"。\n\n**他说得对,而你那一刻很想念一个你曾经很讨厌的东西:显著性检验。**',
-    category: 'final',
-    priority: 15,
+    id: 'end_i_product',
+    title: '转了产品',
+    text: '你的岗位名不再有“研究”。日历里全是评审、排期、对齐和上线。\n\n你招人时会说“心理学背景是加分项”,也会追问 SQL、业务判断和有没有真的做过决定。你知道那四年能给什么,也知道它不能替代什么。\n\n**你没有离开心理学,只是把它从工作成果变成了工作方式。**',
+    category: 'final', priority: 44,
+    condition: { all: [{ flag: 'path_industry' }, { flag: 'industry_product' }] },
+    shareCard: { tone: 'warm', tagline: '从工作成果,变成工作方式。' },
+  },
+  {
+    id: 'end_i_research',
+    title: '用研专家',
+    text: '汇报对象换过很多次,团队名字也换过。你仍然在问同一类问题:用户说的和做的为什么不一样,一条曲线背后是哪几种人,这个结论够不够支撑一次昂贵的决定。\n\n年轻同事把最难的项目拿来找你。你通常先问:“**我们做完之后,到底要决定什么?**”\n\n这是你从心理学带来的、最值钱的一句话。',
+    category: 'final', priority: 45,
     condition: { flag: 'path_industry' },
-    shareCard: { tone: 'warm', tagline: '年包是他们的十倍。而你想念显著性检验。' },
+    shareCard: { tone: 'triumph', tagline: '我们做完之后,到底要决定什么？' },
+  },
+
+  // ══════════ M6 离开线:三个都是体面的终点 ══════════
+  {
+    id: 'end_l_data',
+    title: '转去做数据',
+    text: '你的工牌上写数据科学。每天处理的不是心理实验,但你仍然会追问样本从哪来、指标替代了什么、相关是不是被人写成了因果。\n\n有人说你博士或者硕士白读了。你不再解释。\n\n**那段训练没有把你留在学术界,它让你在另一个地方少相信几次漂亮但站不住的数字。**',
+    category: 'final', priority: 46,
+    condition: { all: [{ flag: 'path_leave' }, { flag: 'left_data_science' }] },
+    shareCard: { tone: 'triumph', tagline: '少相信几次漂亮但站不住的数字。' },
   },
   {
-    id: 'end_m2_left',
-    title: '你去做了别的',
-    text: '2019 年,你在一个和心理学没关系的地方上班。\n\n那四年没有白读。你比同事更会读一份数据、更知道什么时候一个结论站不住、更能听出一个人在会上说的和想说的不是同一件事。这些能力没有名字,也不写在简历上。\n\n有时候有人知道你学过心理学,会说"那你帮我分析分析"。你笑一下,不接。\n\n**你没有背叛什么。** 这一行留下的人和离开的人,谁也不比谁更完整。\n\n只是每年有那么一两次,你会点开一篇论文,读完摘要,然后关掉。',
-    category: 'final',
-    priority: 16,
+    id: 'end_l_public',
+    title: '一份能算清楚的生活',
+    text: '工资每个月同一天到账,周末大多不用回邮件。你做的事情和心理学关系不大,但在窗口、会议和群众沟通里,你仍然比很多人晚一点下判断。\n\n父母终于不用解释你学心理学能做什么。你也不再需要他们解释。\n\n**稳定不是退而求其次。对你来说,它是把生活从长期待定里拿回来。**',
+    category: 'final', priority: 47,
+    condition: { all: [{ flag: 'path_leave' }, { flag: 'left_public_service' }] },
+    shareCard: { tone: 'warm', tagline: '把生活从长期待定里拿回来。' },
+  },
+  {
+    id: 'end_l_other',
+    title: '你现在就是做这个的',
+    text: '你已经很少说自己“转行”。那个词总把心理学放在时间线的中心,仿佛后来的十几年只是一次偏离。\n\n现在有人问你做什么,你直接说现在的职业。偶尔有人知道你以前学心理学,你说:“对,以前学过。”\n\n那四年或者七年没有白读,也不需要被证明没有白读。**它们已经长在你身上,然后人生继续往前。**',
+    category: 'final', priority: 48,
     condition: { flag: 'path_leave' },
-    shareCard: { tone: 'warm', tagline: '那四年没有白读,只是不在那条路上了。' },
+    shareCard: { tone: 'warm', tagline: '那段时间长在身上,然后人生继续。' },
   },
 
   // ── 学术线:博士毕业(M3 的终点。博后与求职季是 M5)────────

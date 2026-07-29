@@ -1,7 +1,8 @@
-import type { Authorship, PaperTier, ProjectOp, ProjectStage } from './project';
+import type { Authorship, PaperAuditOp, PaperTier, ProjectOp, ProjectStage } from './project';
 import type { CaseOp, CaseStatus, ClinicalCase } from './case';
 import type { FavorOp, RivalOp } from './social';
 import type { StatKey } from './stats';
+import type { StudentOp } from './student';
 
 export type Op = '>' | '>=' | '<' | '<=' | '==';
 
@@ -118,6 +119,8 @@ export type Effect =
   | { extendPhase: { rounds: number } }
   /** 课题操作:create / advance / regress / abandon / setField(见 types/project.ts) */
   | { project: ProjectOp }
+  /** 论文重复/审计状态。默认作用于诚信风险最高的一篇。 */
+  | { paperAudit: PaperAuditOp }
   /** 个案操作:open / setStatus / drop / complete / refer / adjustAlliance / setField(见 types/case.ts) */
   | { case: CaseOp }
   | { advisorFavor: number }
@@ -133,6 +136,10 @@ export type Effect =
   | { advisorLine: string }
   /** 抽导师:亮出 `count` 张候选,进 ADVISOR_DRAW 屏 */
   | { drawAdvisor: { count: number } }
+  /** 答完当前事件结果后进入量表屏，完成后回到原事件流程。 */
+  | { startInventory: string }
+  /** 结构化记录一名毕业学生，供结局清单使用。 */
+  | { student: StudentOp }
   /**
    * 临时增减**本回合**的精力格数(负数就是"这一年你被别的事吃掉了一格")。
    * 每回合开始清零,所以它只影响当年。消费方是 `ALLOCATION` 屏(M2)。

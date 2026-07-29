@@ -127,7 +127,15 @@ export interface Paper {
   integrityRisk: number;
   /** `null` = 从来没有人试过重复。**这是最真实的情况**,也是默认值 */
   replicated?: boolean | null;
+  /** 重复失败之后的编辑流程。重复失败不等于造假，所以它与 `replicated` 分开记。 */
+  auditStatus?: 'questioned' | 'cleared' | 'corrected' | 'retracted';
 }
+
+/** 诚信事件链对论文清单的操作。省略 target 时作用于诚信风险最高的一篇。 */
+export type PaperAuditOp = {
+  op: 'replicationFailed' | 'clear' | 'correct' | 'retract';
+  target?: string;
+};
 
 /**
  * 课题模板(内容侧)。决定标题候选、领域、以及**这个课题走哪一条阶段序列**。

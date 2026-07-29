@@ -5,7 +5,14 @@ import { traits } from './setup/traits';
 import { applications } from './setup/applications';
 import { examBank } from './setup/exam';
 import { allocationItems } from './setup/allocation';
-import { crossroadOptions, lifeGoals, masterCrossroadOptions, phdCrossroadOptions } from './setup/crossroad';
+import {
+  clinicalEntryOptions,
+  clinicalTrainingOptions,
+  crossroadOptions,
+  lifeGoals,
+  masterCrossroadOptions,
+  phdCrossroadOptions,
+} from './setup/crossroad';
 import { courses } from './courses';
 import { projectTemplates } from './projects';
 import { advisors } from './advisors';
@@ -41,7 +48,13 @@ import { rivalEncounterEvents } from './events/social/encounters';
 import { favorEvents } from './events/social/favors';
 import { advisorConsultEvents } from './events/advisor/consult';
 import { projectStageEvents } from './events/project/stages';
+import { trackEvents } from './events/tracks';
 import { endings } from './endings';
+import { inventories } from './inventories';
+import { inventoryEvents, originEvents } from './events/meta';
+import { integrityEvents } from './events/integrity';
+import { dramaConsequences, dramaEvents } from './events/drama';
+import { blackSwanEvents } from './events/blackswan';
 
 /**
  * 《心理学模拟器》内容包。
@@ -56,7 +69,7 @@ import { endings } from './endings';
 export const contentPack: ContentPack = {
   meta: {
     id: 'psy-sim-2014',
-    version: '0.4.0',
+    version: '0.7.0',
     title: '心理学模拟器',
     fallbackEndingId: 'end_m2_fallback',
     examQuestionCount: 6,
@@ -89,6 +102,13 @@ export const contentPack: ContentPack = {
     ...foundationEvents,
     ...clinicalEvents,
     ...caseStageEvents,
+    ...trackEvents,
+    ...inventoryEvents,
+    ...originEvents,
+    ...integrityEvents,
+    ...dramaEvents,
+    ...dramaConsequences,
+    ...blackSwanEvents,
   ],
   incomes,
   endings,
@@ -97,8 +117,15 @@ export const contentPack: ContentPack = {
   courses,
   projectTemplates,
   caseTemplates,
+  inventories,
   allocationItems: [...allocationItems, ...gradAllocationItems, ...clinicalAllocationItems, ...tenureAllocationItems],
-  crossroadOptions: [...crossroadOptions, ...masterCrossroadOptions, ...phdCrossroadOptions],
+  crossroadOptions: [
+    ...crossroadOptions,
+    ...masterCrossroadOptions,
+    ...clinicalTrainingOptions,
+    ...clinicalEntryOptions,
+    ...phdCrossroadOptions,
+  ],
   advisors,
   advisorSwitchOptions,
   institutions,

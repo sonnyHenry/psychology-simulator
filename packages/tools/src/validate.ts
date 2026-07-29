@@ -220,6 +220,43 @@ for (const application of contentPack.applications) {
 }
 checkUnique('background', contentPack.backgrounds.map(b => b.id));
 
+// ---------- M7 量表校验 ----------
+// 量表最危险的失效不是类型错，而是“看起来像评估”却没有边界提示，或计分带有空洞。
+checkUnique('inventory', (contentPack.inventories ?? []).map(inventory => inventory.id));
+if ((contentPack.inventories ?? []).length < 4) {
+  error(`M7 requires at least 4 inventories, got ${(contentPack.inventories ?? []).length}`);
+}
+const inventoryIds = new Set((contentPack.inventories ?? []).map(inventory => inventory.id));
+for (const inventory of contentPack.inventories ?? []) {
+  if (inventory.items.length < 5 || inventory.items.length > 7) {
+    error(`inventory ${inventory.id} must have 5–7 items, got ${inventory.items.length}`);
+  }
+  if (!inventory.disclaimer.includes('诊断') || !inventory.disclaimer.includes('评估')) {
+    error(`inventory ${inventory.id} disclaimer must explicitly say it is not diagnosis or assessment`);
+  }
+  if (inventory.discrepancy.length < 3) {
+    error(`inventory ${inventory.id} needs at least 3 discrepancy lines`);
+  }
+  let maxScore = 0;
+  for (const [index, item] of inventory.items.entries()) {
+    if (!item.text.trim()) error(`inventory ${inventory.id} item ${index} has empty text`);
+    if (item.options.length < 2) error(`inventory ${inventory.id} item ${index} has fewer than 2 options`);
+    if (item.options.some(option => !option.text.trim() || !Number.isFinite(option.score))) {
+      error(`inventory ${inventory.id} item ${index} has invalid option`);
+    }
+    maxScore += Math.max(0, ...item.options.map(option => option.score));
+  }
+  const bands = [...inventory.bands].sort((a, b) => a.min - b.min);
+  if (bands.length === 0 || bands[0]?.min !== 0 || (bands[bands.length - 1]?.max ?? -1) < maxScore) {
+    error(`inventory ${inventory.id} score bands do not cover 0–${maxScore}`);
+  }
+  for (let i = 1; i < bands.length; i++) {
+    if (bands[i]!.min > bands[i - 1]!.max + 1) {
+      error(`inventory ${inventory.id} score bands have a gap before ${bands[i]!.min}`);
+    }
+  }
+}
+
 // ---- 特质校验 ----
 checkUnique('trait', contentPack.traits.map(t => t.id));
 const traitIds = new Set(contentPack.traits.map(t => t.id));
@@ -506,7 +543,10 @@ for (const event of contentPack.events) {
         e =>
           ('stats' in e && Object.values(e.stats).some(v => v !== 0)) ||
           'moneyCost' in e ||
-          'setStat' in e,
+          'setStat' in e ||
+          // 量表 effect 不是静默 flag：它会立刻进入一个可见的逐题屏，
+          // 完成后由 inventory system 展示偏差文案并给小幅状态修复。
+          'startInventory' in e,
       );
       if (!hasVisibleStat) {
         error(`outcome has no visible stat change (选完不展示加减分): ${event.id}.${choice.id}`);
@@ -515,6 +555,9 @@ for (const event of contentPack.events) {
         if ('fn' in cond && !fnIds.has(cond.fn)) error(`outcome ${event.id}.${choice.id} references missing condition fn: ${cond.fn}`);
       });
       visitEffects(outcome.effects, effect => {
+        if ('startInventory' in effect && !inventoryIds.has(effect.startInventory)) {
+          error(`event ${event.id}.${choice.id} starts unknown inventory: ${effect.startInventory}`);
+        }
         if ('addFlag' in effect) {
           if (effect.addFlag.delta === 0) {
             error(`event ${event.id} has a no-op addFlag (delta 0): ${effect.addFlag.key}`);

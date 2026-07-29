@@ -83,6 +83,11 @@ function defaultAction(
       const answer = answers.get(view.question.id);
       return { type: 'ANSWER', optionIndex: answer ?? 0 };
     }
+    case 'INVENTORY':
+      // 开发快进不试图优化自评；逐题取第一个选项，结果页再继续。
+      return view.result
+        ? { type: 'CONTINUE' }
+        : { type: 'ANSWER_INVENTORY', optionIndex: 0 };
     case 'APPLICATION': {
       const collegeOf = new Map<string, string>();
       for (const option of pack.applications) {
@@ -172,8 +177,28 @@ function defaultAction(
       return { type: 'JOB_MARKET_STEP', optionId: view.options[0]!.id };
     }
     case 'EVENT':
-      // "默认值" = 第一个可见选项。跳转是路过,不是替测试者做戏剧选择
-      return { type: 'CHOOSE', choiceId: view.choices[0]!.id };
+      // 快进首先要活着到达目标。M7 加入高强度 drama 后，“永远点第一个”会在学术线
+      // 连续吃满状态代价，使长聘跳转 100 多个种子才偶尔成功。这里不读隐藏状态、
+      // 不算综合收益，只在**可见选项**里选名义 state 期望最高的一项，避免测试工具自杀。
+      // 玩家手玩与 simulate 的策略完全不受影响。
+      {
+        const event = pack.events.find(item => item.id === view.eventId);
+        const stateDelta = (choiceId: string): number => {
+          const choice = event?.choices.find(item => item.id === choiceId);
+          if (!choice) return 0;
+          const totalWeight = choice.outcomes.reduce((sum, outcome) => sum + outcome.weight, 0);
+          if (totalWeight <= 0) return 0;
+          return choice.outcomes.reduce((sum, outcome) => {
+            const delta = outcome.effects.reduce(
+              (value, effect) => value + ('stats' in effect ? (effect.stats.state ?? 0) : 0),
+              0,
+            );
+            return sum + delta * outcome.weight;
+          }, 0) / totalWeight;
+        };
+        const chosen = [...view.choices].sort((a, b) => stateDelta(b.id) - stateDelta(a.id))[0];
+        return { type: 'CHOOSE', choiceId: chosen?.id ?? view.choices[0]!.id };
+      }
     default:
       return { type: 'CONTINUE' };
   }

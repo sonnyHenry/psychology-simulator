@@ -218,6 +218,10 @@ export const favorEvents: GameEvent[] = [
     pools: FAVOR_POOLS,
     category: 'social',
     tier: 'major',
+    // 稿件在审与尚未贬值的人情同时存在时，这个伦理冲突本身就已经发生；
+    // 不再让它和日常随机事件竞争一次额外的抽签。
+    mandatory: true,
+    eventSlotCost: 0,
     // **伦理灰区,而这正是个好事件**(13.2 点名要的那一个)
     trigger: {
       all: [

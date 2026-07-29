@@ -5,6 +5,7 @@ import type { CaseStatus, CaseTemplate } from './case';
 import type { ProjectStage, ProjectTemplate } from './project';
 import type { StatKey, Track } from './stats';
 import type { RumorDef } from './social';
+import type { Inventory } from './inventory';
 
 /**
  * 影子竞争者的候选设定(M4.5,GAME_DESIGN 13.1)。
@@ -60,6 +61,11 @@ export interface GameEvent {
   weight?: number;
   once?: boolean;
   mandatory?: boolean;
+  /**
+   * 是否占用阶段的普通事件槽。默认占 1 格；0 用于量表、origin、黑天鹅等
+   * 独立叙事层，避免它们挤掉同年本来应当可达的职业/课程事件。
+   */
+  eventSlotCost?: 0 | 1;
   /** 同组事件同一轮只会抽取一个,用于时代/人生节点变体池 */
   variantGroup?: string;
   /** 同一回合内的展示顺序,越小越靠前,默认 0(如毕业散伙饭应排在当年最后) */
@@ -438,6 +444,8 @@ export interface ContentPack {
   projectTemplates?: ProjectTemplate[];
   /** 个案模板(M4 临床线)。主诉、风险分级、取向匹配面都在数据里 */
   caseTemplates?: CaseTemplate[];
+  /** 量表自评题库。只用于叙事，所有条目都必须带非诊断提示。 */
+  inventories?: Inventory[];
   advisors?: AdvisorDef[];
   /** 真实素材层(M3.5)。院校/职位/文献是**数据源**,不是事件——由申请屏和事件引用 */
   institutions?: Institution[];

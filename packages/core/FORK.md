@@ -349,6 +349,30 @@ P5 的第三个使用者。与课题的关键差别:**课题的序列在模板�
 `supervised` 每年由"本年有没有督导格"重置。去年做过督导不等于今年还在做;
 内容侧年中把个案带进督导(`setField supervised`)仍然有效,因为脱落判定在年末。
 
+### 28. M7 量表 detour 与恢复
+
+新增 `INVENTORY` 屏、`pendingInventory` / `inventoryResults` 与 `startInventory` effect。
+量表是 OUTCOME 后的临时 detour:逐题完成、展示分数档与偏差文案后,必须回到
+`continueAfterOutcome`,继续兑现原事件可能携带的抽卡、跳阶段或结局。
+
+### 29. 论文 audit 与学生清单是结构化对象
+
+`Paper` 新增 `auditStatus`,由 `paperAudit` effect 操作;学生用 `StudentRecord[]` + `student` effect
+记录。预印本进入展示清单,但 `countPapers`、录取、毕业、长聘与竞争者比较都只读正式论文。
+这避免“为保证结局有清单而送一篇预印本”反过来改写所有职业门槛。
+
+### 30. 黑天鹅配额在完成时消费
+
+`blackSwanQuota` 由种子决定为 1 或 2,调度器只挑事件,不增加 `blackSwanCount`;
+玩家完成该事件时引擎才计数。否则同轮前面的事件若触发 `jumpToPhase`,排在后面的黑天鹅会被丢弃,
+但配额已经被静默消费。
+
+### 31. 独立叙事层用 `eventSlotCost: 0`
+
+`GameEvent.eventSlotCost` 默认 1。量表、origin、黑天鹅、诚信链以及条件已经成立的重大抉择写 0,
+不占阶段的普通事件槽。M7 第一版没有这层口径,2016 年两幕新增 mandatory 直接挤掉本科随机池,
+最终让 25 个旧事件和两个旧结局在 4500 局验收中失去样本。
+
 这些都在 `engine/engine.ts` 里——**它们是前作的设计债:内容被写进了引擎**。M0 刻意没有动它们,因为前作那 38 个单测正是靠它们才能验证 fork 是干净的(拆掉就等于同时删掉 6 个测试,也就同时失去了"fork 没搞坏东西"的证据)。
 
 | 位置 | 内容 | 状态 |
@@ -358,9 +382,9 @@ P5 的第三个使用者。与课题的关键差别:**课题的序列在模板�
 | ~~`REQUIRED_NPC_ID = 'first_love'` + `OPTIONAL_NPC_COUNT`~~ | 改成 `pack.meta.npcPickCount`,**没有必选人物**(恋人线不强制) | ✅ **M2 已清** |
 | ~~`tools/validate.ts` 的 `EXHAUSTIVE_CONTEXT_EVENTS` 白名单~~ | 清空重开(前作那两个 id 在本作不存在) | ✅ **M1 已清** |
 | `RELATIONSHIP_WARM_MILESTONES`(love/roommate/mentor/grinder/hometown) | 换成本作的人物线 | **M4.5** |
-| `view()` ENDING 分支里的 `relationshipDefinitions`(6 段前作 NPC 收束文案) | 本作结局页是**三份清单**(论文/学生/来访者),且不该硬编码在引擎里 | **M7** |
+| `view()` ENDING 分支里的 `relationshipDefinitions`(6 段前作 NPC 收束文案) | M7 已加入论文/学生/来访者三份结构化清单;这 6 段旧人物收束仍待随本作 NPC 线一起替换 | **遗留债:M7.5/M8** |
 | `MONEY_MILESTONES`(十万/五十万/一百万) | 本作钱的戏剧性在**机会成本**不在资产(GAME_DESIGN 3.5) | **M4.5**(SETTLEMENT 改造成年度回顾页时) |
-| `tools/simulate.ts` 的 `CAREER_LABELS`(cs/finance/medicine…) | 换成本作七条路径 | **M6** |
+| ~~`tools/simulate.ts` 的 `CAREER_LABELS`(cs/finance/medicine…)~~ | 已换成本作学术/临床/医院/学校/企业/离开等职业标签,并新增六出口互斥分布门禁 | ✅ **M6 已清** |
 | `tools/validate.ts` 的 `NPC_TAG_PREFIXES`(grinder/hometown/roommate/love/mentor) | 换成本作人物线前缀。**现在它是空转的**:本作没有这些前缀的标签,这条检查等于没跑 | **M4.5** |
 
 > 清理这张表的时候,**顺手把内容搬出引擎**,不要原地改字符串。前作在这里踩的坑就是"先硬编码一版,以后再抽出来",结果七十一轮之后还在引擎里。

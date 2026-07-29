@@ -65,7 +65,7 @@ const KIND_BAR_SHIFT: Record<GradApplyKind, number> = {
  * 论文按篇加,前两篇加得多、后面递减:第一篇论文改变的是"有没有",不是"有几篇"。
  */
 export function applicantScore(state: GameState, kind: GradApplyKind): number {
-  const papers = (state.papers ?? []).length;
+  const papers = (state.papers ?? []).filter(paper => paper.tier !== 'preprint').length;
   const paperTerm = papers === 0 ? 0 : 10 + Math.min(18, (papers - 1) * 6);
   const advisorTerm = state.advisor ? Math.min(8, (state.advisor.favor - 50) / 6) : 0;
   const base = state.stats.method * 0.75 + state.stats.capital * 0.25;

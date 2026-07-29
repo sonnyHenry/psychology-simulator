@@ -6,6 +6,8 @@ export * from './types/dsl';
 export * from './types/content';
 export * from './types/state';
 export * from './types/view';
+export * from './types/inventory';
+export * from './types/student';
 export { Rng, randomSeed } from './rng/rng';
 export { evalCondition, readNumericFlag, type EvalCtx } from './dsl/evaluate';
 export { applyEffects, type ApplyResult } from './dsl/apply';
@@ -141,6 +143,15 @@ export {
 export { buildTenureReview, tenurePassed } from './systems/tenure';
 export { findEnding } from './systems/ending';
 export { selectContextLine } from './systems/context-lines';
+export {
+  answerInventory,
+  inventoryOf,
+  startInventory,
+  INVENTORY_STATE_REPAIR,
+} from './systems/inventory';
+export { applyPaperAuditOp, riskiestPaper } from './systems/integrity';
+export { applyStudentOp } from './systems/student';
+export { pickBlackSwan } from './systems/blackswan';
 export { createEngine, type Engine } from './engine/engine';
 export { devJump, type DevJumpResult, type DevJumpTarget } from './dev/jump';
 export {

@@ -11,6 +11,7 @@ import {
 } from '../systems/project';
 import { pendingAdvisorEvent } from '../systems/advisor';
 import { activeCases, openNewCasesForYear, rollCaseTrends } from '../systems/case';
+import { pickBlackSwan } from './blackswan';
 
 // ---------- 导演式选择器(storyteller) ----------
 // 只调整非 mandatory 事件进入随机槽位的相对概率;强制/NPC/schedule 事件不受影响。
@@ -152,6 +153,8 @@ export function pickRoundEvents(
     // 管线阶段事件由 ②' 单独挑、个案阶段事件由 ②'' 单独挑,都不进普通池
     if (ev.projectStage !== undefined) return false;
     if (ev.caseStatus !== undefined) return false;
+    // 黑天鹅只走独立配额器，绝不混进普通随机槽导致一局超过配额。
+    if (ev.category === 'blackswan') return false;
     if (!ev.pools.some(p => phase.pools.includes(p))) return false;
     if (ev.once !== false && state.triggeredEventIds.includes(ev.id)) return false;
     if (picked.includes(ev.id)) return false;
@@ -184,6 +187,10 @@ export function pickRoundEvents(
     const chosen = rng.weightedPick(group, ev => ev.weight ?? 1);
     if (!picked.includes(chosen.id)) picked.push(chosen.id);
   }
+
+  // ② 黑天鹅走独立配额，不占普通槽位，也不经过导演器的属性/情绪加权。
+  const blackSwan = pickBlackSwan(state, pack, rng, phase, new Set(picked));
+  if (blackSwan && !picked.includes(blackSwan.id)) picked.push(blackSwan.id);
 
   // ②' 课题管线阶段事件(TECH 4.5)。不占 `eventSlots` 名额。
   //
@@ -318,14 +325,16 @@ export function pickRoundEvents(
   const recentCounts = recentCategoryCounts(state);
   const pickedCategories = new Set<string>();
   let randomPoolPicked = 0;
+  let occupiedEventSlots = 0;
   for (const id of picked) {
     const ev = eventsById.get(id);
     const cat = ev?.category;
     if (cat) pickedCategories.add(cat);
     if (ev?.pools.includes('random')) randomPoolPicked += 1;
+    occupiedEventSlots += ev?.eventSlotCost ?? 1;
   }
 
-  while (picked.length < phase.eventSlots) {
+  while (occupiedEventSlots < phase.eventSlots) {
     const candidates = pack.events.filter(ev => {
       if (ev.mandatory || !isEligible(ev)) return false;
       if (randomPoolPicked >= MAX_RANDOM_POOL_EVENTS_PER_ROUND && ev.pools.includes('random')) {
@@ -341,6 +350,7 @@ export function pickRoundEvents(
         directorMultiplier(ev, state, activeTraits, activeEvolutions, activeGoal, pickedCategories, recentCounts),
     );
     picked.push(chosen.id);
+    occupiedEventSlots += chosen.eventSlotCost ?? 1;
     if (chosen.category) pickedCategories.add(chosen.category);
     if (chosen.pools.includes('random')) randomPoolPicked += 1;
   }

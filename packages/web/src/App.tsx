@@ -14,6 +14,7 @@ import {
   ExamResultScreen,
   ExamScreen,
   LifeGoalScreen,
+  InventoryScreen,
   NpcSelectionScreen,
   OutcomeScreen,
   SettlementScreen,
@@ -56,6 +57,8 @@ export default function App() {
               return <ExamScreen view={view} act={act} isCourseExam={game.examKind === 'course'} />;
             case 'EXAM_RESULT':
               return <ExamResultScreen view={view} act={act} />;
+            case 'INVENTORY':
+              return <InventoryScreen key={`${view.inventoryId}-${view.result ? 'result' : view.index}`} view={view} act={act} />;
             case 'APPLICATION':
               return <ApplicationScreen view={view} act={act} />;
             case 'NPC_SELECTION':

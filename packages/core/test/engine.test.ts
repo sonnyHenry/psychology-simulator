@@ -60,6 +60,8 @@ import {
   eventStateValence,
   pickRoundEvents,
   selectContextLine,
+  startInventory,
+  answerInventory,
   migrateSaveFile,
   restoreSave,
   Rng,
@@ -68,6 +70,29 @@ import {
   type GameState,
   type PlayerAction,
 } from '../src/index';
+
+const TEST_INVENTORY = {
+  id: 'inv_test',
+  name: '测试短表',
+  disclaimer: '这不是诊断，也不是评估。',
+  direction: 'distress' as const,
+  items: Array.from({ length: 2 }, (_, index) => ({
+    text: `题目 ${index + 1}`,
+    options: [
+      { text: '没有', score: 0 },
+      { text: '经常', score: 3 },
+    ],
+  })),
+  bands: [
+    { min: 0, max: 2, label: '低', text: '低分' },
+    { min: 3, max: 6, label: '高', text: '高分' },
+  ],
+  discrepancy: [
+    { minGap: 18, text: '自报明显更好：{{score}} / {{state}}' },
+    { minGap: -17, text: '大致一致' },
+    { minGap: -100, text: '自报明显更差' },
+  ],
+};
 
 /** 在 BACKGROUND_DRAW 屏按 offer 顺序选满 pickCount 个特质 */
 function pickTraits(engine: Engine, state: GameState): PlayerAction {
@@ -3570,5 +3595,98 @@ describe('M5 求职季', () => {
     // 没有"要求"那一栏 = 不判定。**把它做成判定项就变成了"会来事的人过"**
     expect(relation!.required).toBeNull();
     expect(relation!.met).toBe(true);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// M7 量表、诚信清单与黑天鹅配额
+// ─────────────────────────────────────────────────────────────
+
+describe('M7 元玩法', () => {
+  it('量表按方向计分，选择偏差文案，并只给很小的状态修复', () => {
+    const pack = miniPack();
+    pack.inventories = [TEST_INVENTORY];
+    const state = createEngine(pack).start(41);
+    state.stats.state = 20;
+    startInventory(state, pack, TEST_INVENTORY.id);
+
+    expect(answerInventory(state, pack, 0)).toBeNull();
+    const result = answerInventory(state, pack, 0);
+    expect(result).not.toBeNull();
+    expect(result!.score).toBe(0);
+    expect(result!.bandLabel).toBe('低');
+    expect(result!.discrepancyKind).toBe('defensive');
+    expect(result!.discrepancyText).toContain('0 / 20');
+    expect(state.stats.state).toBe(22);
+    expect(state.inventoryResults).toHaveLength(1);
+  });
+
+  it('量表从事件结果岔出，答完后回到原事件游标继续结算', () => {
+    const pack = miniPack();
+    pack.inventories = [TEST_INVENTORY];
+    const engine = createEngine(pack);
+    let state = engine.start(42);
+    state.phaseIndex = 1;
+    state.screen = 'OUTCOME';
+    state.eventQueue = ['ev_a'];
+    state.eventCursor = 0;
+    state.pendingOutcome = { text: '先填表', deltas: {} };
+    startInventory(state, pack, TEST_INVENTORY.id);
+
+    state = engine.dispatch(state, { type: 'CONTINUE' });
+    expect(state.screen).toBe('INVENTORY');
+    state = engine.dispatch(state, { type: 'ANSWER_INVENTORY', optionIndex: 1 });
+    state = engine.dispatch(state, { type: 'ANSWER_INVENTORY', optionIndex: 0 });
+    expect(engine.view(state).kind).toBe('INVENTORY');
+    state = engine.dispatch(state, { type: 'CONTINUE' });
+    expect(state.eventCursor).toBe(1);
+    expect(state.screen).toBe('SETTLEMENT');
+  });
+
+  it('论文审计状态与毕业学生都写进结构化清单', () => {
+    const pack = miniPack();
+    const state = createEngine(pack).start(43);
+    state.date.year = 2031;
+    state.papers = [
+      { id: 'p1', title: '低风险', tier: 'q2', authorship: 'first', year: 2025, domain: 'x', integrityRisk: 3 },
+      { id: 'p2', title: '高风险', tier: 'q1', authorship: 'first', year: 2026, domain: 'x', integrityRisk: 40 },
+    ];
+    applyEffects([
+      { paperAudit: { op: 'replicationFailed' } },
+      { paperAudit: { op: 'correct' } },
+      { student: { op: 'graduate', path: 'industry', note: '去了企业' } },
+    ], state, pack);
+    expect(state.papers[1]!.replicated).toBe(false);
+    expect(state.papers[1]!.auditStatus).toBe('corrected');
+    expect(state.students).toEqual([
+      expect.objectContaining({ label: '第一位毕业生', graduatedYear: 2031, path: 'industry' }),
+    ]);
+  });
+
+  it('黑天鹅只走独立配额，达到配额后不会混进普通随机槽', () => {
+    const pack = miniPack();
+    pack.events.push({
+      id: 'ev_bs_test', pools: ['main'], category: 'blackswan', title: '意外', text: '意外发生',
+      choices: [
+        { id: 'a', text: 'A', outcomes: [{ weight: 1, text: 'A', effects: [{ stats: { state: -1 } }] }] },
+        { id: 'b', text: 'B', outcomes: [{ weight: 1, text: 'B', effects: [{ stats: { method: 1 } }] }] },
+      ],
+    });
+    const state = createEngine(pack).start(44);
+    state.phaseIndex = 1;
+    state.date.year = 2025;
+    state.blackSwanQuota = 1;
+    const phase = pack.timeline[1];
+    if (!phase || phase.kind !== 'rounds') throw new Error('expected rounds phase');
+
+    const first = pickRoundEvents(state, pack, new Rng(7), phase);
+    expect(first).toContain('ev_bs_test');
+    // 调度不提前消费配额；真正处理事件时 engine.resolveChoice 才 +1。
+    expect(state.blackSwanCount).toBe(0);
+    state.triggeredEventIds.push('ev_bs_test');
+    state.blackSwanCount = 1;
+    const second = pickRoundEvents(state, pack, new Rng(8), phase);
+    expect(second).not.toContain('ev_bs_test');
+    expect(state.blackSwanCount).toBe(1);
   });
 });

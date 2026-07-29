@@ -8,6 +8,9 @@ import { applyCaseOp } from '../systems/case';
 import { changeAdvisorFavor, setAdvisorStage } from '../systems/advisor';
 import { applyRivalOp } from '../systems/rival';
 import { applyFavorOp } from '../systems/favor';
+import { startInventory } from '../systems/inventory';
+import { applyPaperAuditOp } from '../systems/integrity';
+import { applyStudentOp } from '../systems/student';
 
 function clampStat(key: StatKey, value: number): number {
   if (key === 'money') return Math.max(0, Math.round(value));
@@ -49,6 +52,8 @@ export function applyEffects(effects: Effect[], state: GameState, pack: ContentP
       state.flags[key] = Math.max(min, Math.min(max, next));
     } else if ('project' in effect) {
       applyProjectOp(state, pack, effect.project);
+    } else if ('paperAudit' in effect) {
+      applyPaperAuditOp(state, effect.paperAudit);
     } else if ('case' in effect) {
       applyCaseOp(state, pack, effect.case);
     } else if ('advisorFavor' in effect) {
@@ -67,6 +72,10 @@ export function applyEffects(effects: Effect[], state: GameState, pack: ContentP
     } else if ('drawAdvisor' in effect) {
       // 只标记"该抽卡了",真正的抽样在引擎里做——它需要 RNG,而 applyEffects 没有。
       state.pendingAdvisorDraw = effect.drawAdvisor.count;
+    } else if ('startInventory' in effect) {
+      startInventory(state, pack, effect.startInventory);
+    } else if ('student' in effect) {
+      applyStudentOp(state, effect.student);
     } else if ('extendPhase' in effect) {
       // 延毕。累加而不是覆盖:同一个阶段里延两次就是延两次
       state.phaseExtraRounds = (state.phaseExtraRounds ?? 0) + effect.extendPhase.rounds;

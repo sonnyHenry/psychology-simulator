@@ -184,6 +184,58 @@ export function ExamResultScreen(props: { view: Of<'EXAM_RESULT'>; act: Act }) {
   );
 }
 
+export function InventoryScreen(props: { view: Of<'INVENTORY'>; act: Act }) {
+  const { view, act } = props;
+  return (
+    <Card className="inventory">
+      <div className="screen-head">
+        <h2>{view.name}</h2>
+        {!view.result && (
+          <p className="screen-sub">
+            第 {view.index + 1} / {view.total} 题 · 按你<strong>最近两周最接近的情况</strong>作答
+          </p>
+        )}
+      </div>
+      {view.question && (
+        <>
+          <RichText text={view.question.text} />
+          <div className="choices">
+            {view.question.options.map((option, index) => (
+              <ChoiceButton
+                key={`${option.text}-${index}`}
+                onClick={() => act({ type: 'ANSWER_INVENTORY', optionIndex: index })}
+              >
+                {option.text}
+              </ChoiceButton>
+            ))}
+          </div>
+        </>
+      )}
+      {view.result && (
+        <>
+          <div className="review-block">
+            <div className="review-label">这次自评</div>
+            <div className="review-row">
+              <span>{view.result.bandLabel}</span>
+              <span className="review-value">
+                {view.result.score} / {view.result.maxScore}
+              </span>
+            </div>
+            <RichText text={view.result.bandText} />
+          </div>
+          <div className="review-block">
+            <div className="review-label">你写下的，和这一年留下的</div>
+            <RichText text={view.result.discrepancyText} />
+            <p className="hint">停下来辨认一次自己的状态：状态 +{view.result.stateRepair}</p>
+          </div>
+          <ContinueButton onClick={() => act({ type: 'CONTINUE' })} label="收起这张表" />
+        </>
+      )}
+      <p className="disclaimer">{view.disclaimer}</p>
+    </Card>
+  );
+}
+
 export function ApplicationScreen(props: { view: Of<'APPLICATION'>; act: Act }) {
   const { view, act } = props;
   const [openId, setOpenId] = useState<string | null>(null);
@@ -578,9 +630,9 @@ export function EndingScreen(props: { view: Of<'ENDING'>; onRestart: () => void 
           </span>
         </div>
       </div>
-      {view.papers.length > 0 && (
-        <div className="review-block">
-          <div className="review-label">你的论文</div>
+      <div className="review-block">
+        <div className="review-label">你的论文</div>
+        {view.papers.length === 0 && <div className="review-row review-plain">没有形成公开论文。</div>}
           {view.papers.map((paper, i) => (
             <div key={i} className="review-row">
               <span>
@@ -588,6 +640,8 @@ export function EndingScreen(props: { view: Of<'ENDING'>; onRestart: () => void 
                 {/* null = 从来没有人试过重复。**这是绝大多数论文的真实结局**,
                     所以它不显示任何标记——只有真的被试过的才标。 */}
                 {paper.replicated === false && <span className="not-replicated">没有被重复出来</span>}
+                {paper.auditStatus === 'retracted' && <span className="not-replicated">已撤回</span>}
+                {paper.auditStatus === 'corrected' && <span className="not-replicated">发表了更正</span>}
               </span>
               <span className="review-value">
                 {paper.year} · {TIER_NAME[paper.tier] ?? paper.tier} ·{' '}
@@ -595,8 +649,17 @@ export function EndingScreen(props: { view: Of<'ENDING'>; onRestart: () => void 
               </span>
             </div>
           ))}
-        </div>
-      )}
+      </div>
+      <div className="review-block">
+        <div className="review-label">你带过的学生</div>
+        {view.students.length === 0 && <div className="review-row review-plain">没有带到毕业的学生。</div>}
+          {view.students.map((student, i) => (
+            <div key={i} className="review-row">
+              <span>{student.label}</span>
+              <span className="review-value">{student.graduatedYear} · {student.note}</span>
+            </div>
+          ))}
+      </div>
       {view.abandonedProjects.length > 0 && (
         <div className="review-block">
           <div className="review-label">没做完的</div>
@@ -608,9 +671,9 @@ export function EndingScreen(props: { view: Of<'ENDING'>; onRestart: () => void 
           ))}
         </div>
       )}
-      {view.cases.length > 0 && (
-        <div className="review-block">
-          <div className="review-label">你的来访者们</div>
+      <div className="review-block">
+        <div className="review-label">你的来访者们</div>
+        {view.cases.length === 0 && <div className="review-row review-plain">没有持续接过个案。</div>}
           {view.cases.map((kase, i) => (
             <div key={i} className="review-row">
               <span>「{kase.label}」</span>
@@ -626,9 +689,12 @@ export function EndingScreen(props: { view: Of<'ENDING'>; onRestart: () => void 
             </div>
           ))}
           {/* 后来怎么样了?**你不知道。咨询结束之后就不该知道了。** */}
-          <p className="hint">他们后来怎么样了,你多数不知道。咨询结束之后,就不该知道了。</p>
-        </div>
-      )}
+          {view.cases.length > 0 && <p className="hint">他们后来怎么样了,你多数不知道。咨询结束之后,就不该知道了。</p>}
+      </div>
+      <div className="review-block">
+        <div className="review-label">你为什么走进这行</div>
+        <RichText text={view.originEcho} />
+      </div>
       <MoneyTrend trend={view.moneyTrend} />
       <p className="share-tagline">{view.shareCard.tagline}</p>
       <p className="disclaimer">

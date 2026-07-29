@@ -4,6 +4,8 @@ import type { ClinicalCase } from './case';
 import type { Paper, Project } from './project';
 import type { Favor, RivalState, Rumor } from './social';
 import type { JobMarketState } from './jobmarket';
+import type { InventoryResult, PendingInventory } from './inventory';
+import type { StudentRecord } from './student';
 import type { Flags, StatDeltas, Stats, Track } from './stats';
 
 export type ScreenId =
@@ -25,6 +27,8 @@ export type ScreenId =
   | 'JOB_MARKET'
   /** 长聘首考的清单式结算屏(M5) */
   | 'TENURE_REVIEW'
+  /** 量表自评。问题与结果复用一个屏，状态在 pendingInventory 中推进 */
+  | 'INVENTORY'
   | 'BRIEF'
   | 'EVENT'
   | 'OUTCOME'
@@ -130,12 +134,21 @@ export interface GameState {
   projects?: Project[];
   /** 已发表的论文。**结局页的招牌清单**,也是所有门槛判定的实质依据 */
   papers?: Paper[];
+  /** 带毕业的学生。需要枚举，所以不能只留 `students_graduated` 一个计数 flag。 */
+  students?: StudentRecord[];
   /**
    * 个案列表(P5 的第三个使用者,临床线的骨架)。
    * 与课题一样跨年存在;终结的个案(脱落/结束/转介)留在列表里——
    * 结局页"你的来访者们"那份清单要用。旧存档没有此字段时按空数组处理。
    */
   cases?: ClinicalCase[];
+  /** 正在填写的量表；结果页显示完才清空。 */
+  pendingInventory?: PendingInventory;
+  /** 历次量表结果，结局与模拟门禁可复述偏差。 */
+  inventoryResults?: InventoryResult[];
+  /** 黑天鹅独立配额：种子决定 1 或 2，不受属性保护。 */
+  blackSwanQuota?: 1 | 2;
+  blackSwanCount?: number;
   /**
    * 本回合"这个事件是替哪个个案弹出来的"。由调度器写,回合开始时重建。
    * (与 `eventProjects` 同源:阶段事件必须知道自己在说哪个个案。)

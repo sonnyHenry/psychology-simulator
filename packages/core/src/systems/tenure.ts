@@ -50,7 +50,7 @@ export function buildTenureReview(state: GameState, pack: ContentPack): TenureRe
   const q3 = countPapers(state, { tier: 'q3' });
   const chinese = countPapers(state, { tier: 'cssci' }) + countPapers(state, { tier: 'chinese_core' });
   const top = q1 + q2;
-  const total = (state.papers ?? []).length;
+  const total = (state.papers ?? []).filter(paper => paper.tier !== 'preprint').length;
   const grant = Boolean(state.flags.got_young_grant);
   const teaching = readNumericFlag(state.flags.teaching_load);
   const students = readNumericFlag(state.flags.students_graduated);

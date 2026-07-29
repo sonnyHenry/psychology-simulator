@@ -491,6 +491,8 @@ export function countPapers(
   query: { tier?: Paper['tier']; authorship?: Paper['authorship'] },
 ): number {
   return (state.papers ?? []).filter(paper => {
+    // 预印本进入结局论文清单，但不冒充期刊/会议成果去过毕业、申请或考核门槛。
+    if (paper.tier === 'preprint') return false;
     if (query.tier !== undefined && paper.tier !== query.tier) return false;
     if (query.authorship !== undefined && paper.authorship !== query.authorship) return false;
     return true;

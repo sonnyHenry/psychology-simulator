@@ -166,7 +166,8 @@ export function graduationProgress(state: GameState, pack: ContentPack): DeskVie
   if (!inst || !admission?.graduationBar || !admission.graduationReq) return null;
 
   const req = admission.graduationReq;
-  const papers = state.papers ?? [];
+  // 预印本是公开记录，展示在白板和结局清单；毕业硬指标只认正式成果。
+  const papers = (state.papers ?? []).filter(paper => paper.tier !== 'preprint');
   const counts = new Map<string, number>();
   for (const paper of papers) {
     const label = TIER_TEXT[paper.tier] ?? paper.tier;

@@ -188,6 +188,7 @@ export const tenureEvents: GameEvent[] = [
             effects: [
               { addFlag: { key: 'students_graduated', delta: 1, min: 0, max: 12 } },
               { addFlag: { key: 'student_progress', delta: -2, min: 0, max: 20 } },
+              { student: { op: 'graduate', path: 'industry', note: '去了企业；你认真说了“挺好的”' } },
               { stats: { state: 4, capital: 2 } },
               { favor: { op: 'add', who: 'peer_generic', direction: 'owed', weight: 2, reason: '你带出来的第一个学生' } },
             ],
@@ -205,6 +206,7 @@ export const tenureEvents: GameEvent[] = [
             effects: [
               { addFlag: { key: 'students_graduated', delta: 1, min: 0, max: 12 } },
               { addFlag: { key: 'student_progress', delta: -2, min: 0, max: 20 } },
+              { student: { op: 'graduate', path: 'phd', note: '继续读博；你多了一份七年的责任' } },
               { stats: { capital: 4, method: 2, state: -2 } },
             ],
           },

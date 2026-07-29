@@ -64,10 +64,11 @@ const ADVISOR_OFFER_COUNT = 3;
 const DEFAULT_NPC_PICK_COUNT = 2;
 
 const RELATIONSHIP_WARM_MILESTONES: Readonly<Record<string, number>> = {
-  love: 3,
+  partner: 3,
+  senior: 3,
+  peer: 3,
+  teacher: 3,
   roommate: 3,
-  mentor: 2,
-  grinder: 3,
   hometown: 2,
 };
 
@@ -323,6 +324,7 @@ export function createEngine(pack: ContentPack): Engine {
       // 黑天鹅的 1/2 次配额只由种子决定，不消耗随机流，也不读任何角色属性。
       blackSwanQuota: (actualSeed & 1) === 0 ? 1 : 2,
       blackSwanCount: 0,
+      filledSlots: [],
     };
   }
 
@@ -663,28 +665,52 @@ export function createEngine(pack: ContentPack): Engine {
         const goal = pack.lifeGoals.find(item => item.id === state.flags.life_goal);
         const relationshipDefinitions = [
           {
-            flag: 'love_true_companion', tagPrefix: 'love', npcId: 'first_love', name: '初恋', title: '一起抵达的人',
-            text: '异地、车票和等待都没有被浪漫化，但你们还是把“以后”过成了共同生活。',
+            flag: 'npc_senior_bond', tagPrefix: 'senior', npcId: 'npc_senior_sister', name: '师姐', title: '后来也能问近况的人',
+            text: '她先教会你报销、延毕和离开都具体是什么样；后来你们不在同一条路上，仍然会把最难解释的部分讲给对方。',
           },
           {
-            flag: 'love_history_closure', tagPrefix: 'love', npcId: 'first_love', name: '初恋', title: '认真告别的人',
-            text: '你们认真爱过，所以最后的不打扰不是逃避，而是替那段感情守住边界。',
+            flag: 'npc_senior_closure', tagPrefix: 'senior', npcId: 'npc_senior_sister', name: '师姐', title: '教过你第一步的人',
+            text: '你们后来很少谈当年，但你替别人圈过的每一张表上，都留着她教你的那一笔。',
           },
           {
-            flag: 'grinder_true_mirror', tagPrefix: 'grinder', npcId: 'grinder', name: '卷王同学', title: '真正的镜子',
-            text: '你们互相追赶了十年，也在对方跑不动的时候，成为那个没有走开的人。',
+            flag: 'npc_peer_bond', tagPrefix: 'peer', npcId: 'npc_rival', name: '同期', title: '终于不再只算排名的人',
+            text: '你们被放在同一把尺上量了很多年，最后仍然记得两个人曾经一起读不懂一篇文章。',
           },
           {
-            flag: 'hometown_true_friend', tagPrefix: 'hometown', npcId: 'hometown_friend', name: '县城发小', title: '没有走散的人',
-            text: '你们走上不同的路，却仍能在多年以后接住十年前没有说完的半句话。',
+            flag: 'npc_peer_closure', tagPrefix: 'peer', npcId: 'npc_rival', name: '同期', title: '最熟悉的同行',
+            text: '你们没有变成朋友，也没有变成敌人；后来坐到评审桌同一边时，仍然知道对方一路付过什么。',
           },
           {
-            flag: 'roommate_true_partner', tagPrefix: 'roommate', npcId: 'roommate', name: '创业室友', title: '没散的创始团队',
-            text: '第一家公司早就倒了，但一起冒过险、收过场的人，始终留在彼此的人生里。',
+            flag: 'npc_teacher_bond', tagPrefix: 'teacher', npcId: 'npc_advisor_to_be', name: '那位老师', title: '页边那个框',
+            text: '他未必记得当年画过什么，你却已经把同样的一笔画给了后来的人。',
           },
           {
-            flag: 'mentor_true_legacy', tagPrefix: 'mentor', npcId: 'mentor', name: '职场贵人', title: '传下去的那支笔',
-            text: '他曾经替你圈出真正属于你的判断；后来，你也成为了能接住别人的人。',
+            flag: 'npc_teacher_closure', tagPrefix: 'teacher', npcId: 'npc_advisor_to_be', name: '那位老师', title: '不必被确认的影响',
+            text: '你没有回头确认那段影响是否被记得；它已经在你的工作里继续发生。',
+          },
+          {
+            flag: 'npc_roommate_bond', tagPrefix: 'roommate', npcId: 'npc_roommate', name: '同宿舍的那个人', title: '仍然能一起浪费时间的人',
+            text: '你们没有靠宏大的共同经历维持关系，只是到了很多年后，仍然愿意为对方空出一个周末。',
+          },
+          {
+            flag: 'npc_roommate_closure', tagPrefix: 'roommate', npcId: 'npc_roommate', name: '同宿舍的那个人', title: '一直留着钥匙的人',
+            text: '生活没有让你们重新变回学生，也没有把那间宿舍里养成的默契全部拿走。',
+          },
+          {
+            flag: 'npc_hometown_bond', tagPrefix: 'hometown', npcId: 'npc_hometown_friend', name: '高中同学', title: '另一张时间表',
+            text: '你们终于承认彼此羡慕过什么，也不再需要把两种人生排成先后。',
+          },
+          {
+            flag: 'npc_hometown_closure', tagPrefix: 'hometown', npcId: 'npc_hometown_friend', name: '高中同学', title: '没有被排序的二十年',
+            text: '一张履历解释不了另一张，但你们仍然知道，对方走过的是一条完整的路。',
+          },
+          {
+            flag: 'npc_partner_bond', tagPrefix: 'partner', npcId: 'npc_partner', name: '在一起的那个人', title: '工作之外的共同生活',
+            text: '异地、截止日期和两张地图都没有被浪漫化；你们只是一次次把职业放回生活的一部分。',
+          },
+          {
+            flag: 'npc_partner_closure', tagPrefix: 'partner', npcId: 'npc_partner', name: '在一起的那个人', title: '一直亮着的那盏灯',
+            text: '支持从来不是没有代价，只是有些账没有被拿来清算，而是被两个人一起过了下去。',
           },
         ];
         return {
@@ -1387,6 +1413,13 @@ export function createEngine(pack: ContentPack): Engine {
     const outcome = rng.weightedPick(outcomePool, o => o.weight);
     const { deltas } = applyEffects(outcome.effects, state, pack);
     state.triggeredEventIds.push(ev.id);
+    // 功能位只在玩家真正处理候选事件时才算填过。调度时提前消费会遇到与
+    // 黑天鹅相同的问题：同一回合若队列被重建，尚未展示的候选会永久占掉功能位。
+    const filledSlots = new Set(state.filledSlots ?? []);
+    for (const slot of pack.narrativeSlots ?? []) {
+      if (slot.candidates.includes(ev.id)) filledSlots.add(slot.id);
+    }
+    state.filledSlots = [...filledSlots];
     state.history.push({
       kind: 'event',
       year: state.date.year,

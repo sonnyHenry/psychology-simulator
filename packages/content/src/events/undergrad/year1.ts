@@ -97,6 +97,7 @@ export const year1Events: GameEvent[] = [
     contextLines: [
       { text: '交卷的时候你听见前排两个人在小声争论"感觉阈限"和"差别阈限"哪个是哪个。' },
       { condition: { flag: 'trait_quant' }, text: '说实话,这种题你做得挺顺的。' },
+      { condition: { flag: 'reads_outside_syllabus' }, text: '你书包里那本自己找来的书，今天一道题也没帮上。' },
     ],
     choices: [
       {

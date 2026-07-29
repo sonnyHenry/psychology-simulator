@@ -69,7 +69,7 @@ export const gradEvents: GameEvent[] = [
     trigger: { projectCount: { active: true, isThesis: false, op: '<', value: 1 } },
     order: -20,
     title: '你的第一个真课题',
-    text: '{{advisor}} 让你自己定一个方向。\n\n"毕业论文那种不算,"他说,"那是练手。这次是要能发出去的。"\n\n三条路摆在你面前,而你现在还不知道它们各自意味着几年。',
+    text: '{{advisor}} 让你自己定一个方向。\n\n"毕业论文那种不算,"他说,"那是练手。这次是要能发出去的。"\n\n八条路摆在你面前,而你现在还不知道它们各自意味着几年。',
     presentationVariants: [
       {
         condition: { projectCount: { isThesis: false, op: '>=', value: 1 } },
@@ -131,6 +131,51 @@ export const gradEvents: GameEvent[] = [
             ],
           },
         ],
+      },
+      {
+        id: 'clinical_sample',
+        text: '做临床样本研究',
+        outcomes: [{
+          weight: 1,
+          text: '招募慢、伦理严、脱落高。你研究的变量不只在表格里，也在诊室和随访电话里。',
+          effects: [{ stats: { clinical: 3, method: 1 } }, { project: { op: 'create', templateId: 'tpl_clinical_sample' } }, { setFlag: 'domain_clinical' }, { schedule: { eventId: 'ev_ps_ideation_too_big', afterRounds: 0 } }],
+        }],
+      },
+      {
+        id: 'development',
+        text: '做儿童发展研究',
+        outcomes: [{
+          weight: 1,
+          text: '幼儿园排期、家长同意和孩子当天愿不愿意坐下，都会成为方法的一部分。',
+          effects: [{ stats: { clinical: 2, method: 2 } }, { project: { op: 'create', templateId: 'tpl_development' } }, { setFlag: 'domain_development' }, { schedule: { eventId: 'ev_ps_ideation_done_before', afterRounds: 0 } }],
+        }],
+      },
+      {
+        id: 'education',
+        text: '做学校与教育研究',
+        outcomes: [{
+          weight: 1,
+          text: '课堂不是实验室。老师、班级、课表和政策都会进入设计，也都会进入误差。',
+          effects: [{ stats: { clinical: 2, capital: 1, method: 1 } }, { project: { op: 'create', templateId: 'tpl_education' } }, { setFlag: 'domain_education' }, { schedule: { eventId: 'ev_ps_ideation_done_before', afterRounds: 0 } }],
+        }],
+      },
+      {
+        id: 'psychometrics',
+        text: '做心理测量',
+        outcomes: [{
+          weight: 1,
+          text: '不是“编一张量表”，而是证明不同的人拿到同一个分数时，它真的在说同一件事。',
+          effects: [{ stats: { method: 4, state: -1 } }, { project: { op: 'create', templateId: 'tpl_psychometrics' } }, { setFlag: 'domain_psychometrics' }, { schedule: { eventId: 'ev_ps_ideation_journal_club', afterRounds: 0 } }],
+        }],
+      },
+      {
+        id: 'health',
+        text: '做健康行为研究',
+        outcomes: [{
+          weight: 1,
+          text: '睡眠、压力、运动与依从都发生在诊室外。你要研究的是一段生活，不是一张表。',
+          effects: [{ stats: { clinical: 2, method: 2 } }, { project: { op: 'create', templateId: 'tpl_health' } }, { setFlag: 'domain_health' }, { schedule: { eventId: 'ev_ps_ideation_too_big', afterRounds: 0 } }],
+        }],
       },
     ],
   },
@@ -329,6 +374,7 @@ export const gradEvents: GameEvent[] = [
     id: 'ev_adv_star_reveal',
     pools: [],
     category: 'social',
+    trigger: { advisor: { archetype: 'star' } },
     tier: 'major',
     title: '你一年见了他三次',
     text: '年底你算了一下:这一年你和 {{advisor}} 单独说话的次数是三次,每次不超过十分钟。\n\n组会由博后代开。你发邮件问问题,平均四天回一次,回的是"你先试试"。\n\n实验室的机器是最好的,经费从来不缺,他的推荐信在圈里分量很重。\n\n**这些都是真的,而且它们同时为真。**',
@@ -373,6 +419,7 @@ export const gradEvents: GameEvent[] = [
     id: 'ev_adv_young_pi_reveal',
     pools: [],
     category: 'social',
+    trigger: { advisor: { archetype: 'young_pi' } },
     tier: 'major',
     title: '他把你当同事用',
     text: '晚上十一点,{{advisor}} 在群里发了一段分析思路,然后 @ 你:"明天能出个结果吗?"\n\n第二天他自己也在实验室待到十点。\n\n他不是在压榨你——**他自己就在非升即走的倒计时里**,而他真的把你当成能一起解决问题的人。\n\n这两件事让人很难生气,也很难拒绝。',
@@ -437,6 +484,7 @@ export const gradEvents: GameEvent[] = [
     id: 'ev_adv_hands_off_reveal',
     pools: [],
     category: 'social',
+    trigger: { advisor: { archetype: 'hands_off' } },
     tier: 'major',
     title: '他真的不催你',
     text: '这一年 {{advisor}} 问过你两次进度。两次你都说"在做了",他都说"好,你自己安排"。\n\n组会一学期开了三次。你的开题报告他看了两天就签了字,一个字没改。\n\n**这是很多人梦想的导师**,而你现在有点慌。',
@@ -492,6 +540,7 @@ export const gradEvents: GameEvent[] = [
     id: 'ev_adv_clinical_reveal',
     pools: [],
     category: 'counseling',
+    trigger: { advisor: { archetype: 'clinical' } },
     tier: 'major',
     title: '你的临床长得很快,文章一篇没有',
     text: '这一年你跟着 {{advisor}} 出了四十多次门诊,做了督导,还参加了一个 CBT 的连续培训。\n\n你的个案概念化能力比同批任何人都强。\n\n年底填科研考核表的时候,"发表论文"那一栏你填了 0。',
@@ -547,6 +596,7 @@ export const gradEvents: GameEvent[] = [
     id: 'ev_adv_boundary_reveal',
     pools: [],
     category: 'social',
+    trigger: { advisor: { archetype: 'boundary' } },
     tier: 'major',
     // 这条线要写得**准确但不猎奇**,并给玩家真实的处理选项:忍、谈、换导师、举报、走人。
     title: '周六下午的电话',
@@ -623,6 +673,7 @@ export const gradEvents: GameEvent[] = [
     id: 'ev_adv_warm_reveal',
     pools: [],
     category: 'social',
+    trigger: { advisor: { archetype: 'warm' } },
     tier: 'major',
     title: '她记得你的生日',
     text: '你生日那天,{{advisor}} 在组会结束时拿出一个小蛋糕。\n\n她记得组里每个人的生日,记得你上次说过喜欢什么口味,也记得你妈妈住院那次。\n\n她是你见过最好的人之一。\n\n年底评奖学金,你们组一个都没评上——因为评审看的是一区文章数,而她这五年一篇都没有。',

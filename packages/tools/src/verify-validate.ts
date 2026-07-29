@@ -70,9 +70,79 @@ interface Case {
   break: (pack: ContentPack) => void;
   /** 期望在 validate 输出里出现的片段 */
   expect: string;
+  /** warning 规则不让 validate 退出非零，只要求输出命中。 */
+  warningOnly?: boolean;
 }
 
 const CASES: Case[] = [
+  // ── 术语与时代一致性(M8,规则 6)────────────────────────────
+  {
+    rule: '规则 6:量表版本必须使用术语表中的标准写法',
+    break: pack => {
+      const event = pack.events[0];
+      if (!event) throw new Error('事件池是空的');
+      event.text = `${event.text}\n\n你拿到一份 WAIS-Ⅳ 记录。`;
+    },
+    expect: '规则 6:非标准写法「WAIS-Ⅳ」',
+  },
+  {
+    rule: '规则 6:取消后的年份不得仍然报考心理咨询师二级',
+    break: pack => {
+      pack.events.push(stubEvent('ev_bad_expired_qualification', {
+        trigger: { year: { from: 2024 } },
+        text: '你决定今年报考心理咨询师二级。',
+      }));
+    },
+    expect: '规则 6:术语「心理咨询师二级」只在 2017 年及以前有效',
+  },
+  {
+    rule: '规则 6:心理咨询师不得被写成开药处方',
+    break: pack => {
+      const event = pack.events[0];
+      if (!event) throw new Error('事件池是空的');
+      event.text = `${event.text}\n\n心理咨询师给来访者开了处方。`;
+    },
+    expect: '规则 6:心理咨询师不得诊断/治疗精神障碍或开药处方',
+  },
+  {
+    rule: '规则 6:否定句可以正确说明咨询师没有处方权',
+    break: pack => {
+      const event = pack.events[0];
+      if (!event) throw new Error('事件池是空的');
+      event.text = `${event.text}\n\n心理咨询师不能开药，也没有处方权。`;
+    },
+    expect: '',
+  },
+  {
+    rule: 'NPC 阶段效果不得指向不存在的阶段',
+    break: pack => {
+      for (const event of pack.events) {
+        for (const choice of event.choices) {
+          for (const outcome of choice.outcomes) {
+            const effect = outcome.effects.find(item => 'npcStage' in item);
+            if (effect && 'npcStage' in effect) {
+              effect.stage = 'stage_typo';
+              return;
+            }
+          }
+        }
+      }
+      throw new Error('反例夹具需要更新:没有 npcStage 效果');
+    },
+    expect: '推进到不存在的阶段: stage_typo',
+  },
+  {
+    rule: 'NPC 阶段事件每个 outcome 都必须推进人物线',
+    break: pack => {
+      const npc = pack.npcs.find(item => Object.values(item.stages).some(stage => stage.eventId));
+      const eventId = npc && Object.values(npc.stages).find(stage => stage.eventId)?.eventId;
+      const event = pack.events.find(item => item.id === eventId);
+      const outcome = event?.choices[0]?.outcomes[0];
+      if (!npc || !event || !outcome) throw new Error('反例夹具需要更新:没有 NPC 阶段事件');
+      outcome.effects = outcome.effects.filter(effect => !('npcStage' in effect));
+    },
+    expect: '存在不会推进阶段的 outcome',
+  },
   // ── 文献可靠性(M3.6,规则 13)────────────────────────────────
   //
   // 这条规则最要紧的一条是**"会砸到玩家的基础 <3 就报错"**:
@@ -530,6 +600,47 @@ const CASES: Case[] = [
     },
     expect: '只有 1 个成员(要求 ≥3)',
   },
+  {
+    rule: '叙事功能位候选少于 3 个(规则 23)',
+    break: pack => {
+      const slot = (pack.narrativeSlots ?? [])[0];
+      if (!slot) throw new Error('反例夹具需要更新:没有叙事功能位');
+      slot.candidates = slot.candidates.slice(0, 2);
+    },
+    expect: '只有 2 个候选(<3)',
+  },
+  {
+    rule: '临床取向专属事件不足配额(规则 25)',
+    break: pack => {
+      const events = pack.events.filter(event => (JSON.stringify(event.trigger) ?? '').includes('orientation_cbt'));
+      if (events.length < 5) throw new Error('反例夹具需要更新:CBT 专属事件不足 5 个');
+      const remove = new Set(events.slice(4).map(event => event.id));
+      pack.events = pack.events.filter(event => !remove.has(event.id));
+    },
+    expect: '临床取向 orientation_cbt 只有 4 个专属事件(<5)',
+  },
+  {
+    rule: '领域在收数据站不足 2 个专属事件(规则 26)',
+    break: pack => {
+      const event = pack.events.find(item => item.id === 'ev_domain_cognition_collect_1');
+      if (!event) throw new Error('反例夹具需要更新:找不到认知收数据事件');
+      event.projectStage = 'ideation';
+    },
+    expect: '领域 cognition 的 collect 专属阶段事件只有 1 个(<2)',
+  },
+  {
+    rule: '管线阶段正文没有参数占位符(规则 27 warning)',
+    break: pack => {
+      const event = pack.events.find(item => item.id === 'ev_domain_cognition_collect_1');
+      if (!event) throw new Error('反例夹具需要更新:找不到认知收数据事件');
+      event.text = '没有任何参数。';
+      for (const choice of event.choices) {
+        for (const outcome of choice.outcomes) outcome.text = '仍然没有任何参数。';
+      }
+    },
+    expect: '规则 27:管线阶段事件正文没有课题/年数/导师占位符:ev_domain_cognition_collect_1',
+    warningOnly: true,
+  },
   // ── 规则 1:课题阶段图无死锁(M2.5)──────────────────────
   {
     rule: '课题阶段死锁:序列最后一个阶段没有出口(规则 1)',
@@ -841,6 +952,16 @@ for (const [index, testCase] of CASES.entries()) {
     output = `${e.stdout ?? ''}${e.stderr ?? ''}`;
   }
 
+  if (testCase.warningOnly) {
+    if (!output.includes(testCase.expect)) {
+      failures++;
+      console.log(`❌ ${testCase.rule}:validate 没有给出预期 warning\n  期望片段: ${testCase.expect}\n${output}`);
+    } else {
+      console.log(`✅ ${testCase.rule}`);
+    }
+    continue;
+  }
+
   if (testCase.expect === '') {
     // 阳性对照:合法的内容包不该被这些新规则误伤
     if (exitCode !== 0) {
@@ -868,4 +989,8 @@ if (failures > 0) {
   console.log(`validate 反例自测失败:${failures}/${CASES.length}`);
   process.exit(1);
 }
-console.log(`validate 反例自测通过:${CASES.length} 条规则都会在反例上变红(含 1 条阳性对照)`);
+const positiveControls = CASES.filter(testCase => testCase.expect === '').length;
+console.log(
+  `validate 反例自测通过:${CASES.length} 条规则都会在反例上变红` +
+    `(含 ${positiveControls} 条阳性对照)`,
+);

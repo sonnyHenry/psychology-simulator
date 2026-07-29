@@ -55,6 +55,55 @@ function visitCondition(cond: Condition | undefined, visit: (cond: Condition) =>
   else if ('not' in cond) visitCondition(cond.not, visit);
 }
 
+/**
+ * 静态判断一个条件树是否“必然要求”某个维度。
+ * all 中任一分支要求即可；any 中必须每条分支都要求；not 不算正向专属。
+ */
+function necessarilyRequires(cond: Condition | undefined, leaf: (cond: Condition) => boolean): boolean {
+  if (!cond) return false;
+  if ('all' in cond) return cond.all.some(item => necessarilyRequires(item, leaf));
+  if ('any' in cond) return cond.any.length > 0 && cond.any.every(item => necessarilyRequires(item, leaf));
+  if ('not' in cond) return false;
+  return leaf(cond);
+}
+
+function eventNecessarilyRequires(
+  event: ContentPack['events'][number],
+  leaf: (cond: Condition) => boolean,
+): boolean {
+  return necessarilyRequires(event.trigger, leaf) ||
+    event.choices.some(choice => necessarilyRequires(choice.visibleIf, leaf));
+}
+
+/** 条件为真时，事件年份必然不早于哪一年；无法证明时返回 undefined。 */
+function necessaryYearFrom(cond: Condition | undefined): number | undefined {
+  if (!cond) return undefined;
+  if ('year' in cond) return cond.year.from;
+  if ('all' in cond) {
+    const bounds = cond.all.map(necessaryYearFrom).filter((year): year is number => year !== undefined);
+    return bounds.length > 0 ? Math.max(...bounds) : undefined;
+  }
+  if ('any' in cond) {
+    const bounds = cond.any.map(necessaryYearFrom);
+    return bounds.length > 0 && bounds.every((year): year is number => year !== undefined)
+      ? Math.min(...bounds)
+      : undefined;
+  }
+  return undefined;
+}
+
+/** 事件所有会展示给玩家的文字；术语检查不能只看标题和主正文。 */
+function eventProse(event: ContentPack['events'][number]): string {
+  const parts = [event.title, event.text];
+  for (const variant of event.presentationVariants ?? []) parts.push(variant.title, variant.text);
+  for (const line of event.contextLines ?? []) parts.push(line.text);
+  for (const choice of event.choices) {
+    parts.push(choice.text);
+    for (const outcome of choice.outcomes) parts.push(outcome.text);
+  }
+  return parts.join('\n');
+}
+
 function visitEffects(effects: Effect[], visit: (effect: Effect) => void): void {
   for (const effect of effects) visit(effect);
 }
@@ -151,6 +200,7 @@ function* allConditionSources(): Generator<{ owner: string; condition: Condition
 const eventIds = new Set(contentPack.events.map(e => e.id));
 const endingIds = new Set(contentPack.endings.map(e => e.id));
 const npcIds = new Set(contentPack.npcs.map(n => n.id));
+const npcDefsById = new Map(contentPack.npcs.map(npc => [npc.id, npc]));
 const fnIds = new Set(Object.keys(contentPack.fns));
 const phasePoolIds = new Set(
   contentPack.timeline.flatMap(phase => (phase.kind === 'rounds' ? phase.pools : [])),
@@ -169,6 +219,44 @@ for (const event of contentPack.events) {
     for (const outcome of choice.outcomes) {
       for (const effect of outcome.effects) {
         if ('schedule' in effect) scheduledEventIds.add(effect.schedule.eventId);
+      }
+    }
+  }
+}
+
+// ---------- 规则 23:叙事功能位三倍超配 ----------
+{
+  const slots = contentPack.narrativeSlots ?? [];
+  checkUnique('narrativeSlot', slots.map(slot => slot.id));
+  const phases = new Map(contentPack.timeline.map(phase => [phase.id, phase]));
+  for (const slot of slots) {
+    if (slot.candidates.length < 3) {
+      error(`规则 23:功能位 ${slot.id} 只有 ${slot.candidates.length} 个候选(<3)`);
+    }
+    checkUnique(`narrativeSlot ${slot.id} candidate`, slot.candidates);
+    const phase = phases.get(slot.phaseId);
+    if (!phase || phase.kind !== 'rounds') {
+      error(`规则 23:功能位 ${slot.id} 指向不存在或非 rounds 的阶段 ${slot.phaseId}`);
+      continue;
+    }
+    const [from, to] = slot.roundWindow;
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from || to >= phase.rounds) {
+      error(`规则 23:功能位 ${slot.id} 的窗口 [${from}, ${to}] 超出 ${phase.id} 的 ${phase.rounds} 回合`);
+    }
+    if (!Number.isInteger(slot.fill) || slot.fill < 1 || slot.fill > slot.candidates.length) {
+      error(`规则 23:功能位 ${slot.id} 的 fill=${slot.fill} 无效`);
+    }
+    for (const id of slot.candidates) {
+      const event = contentPack.events.find(item => item.id === id);
+      if (!event) {
+        error(`规则 23:功能位 ${slot.id} 引用了不存在的事件 ${id}`);
+        continue;
+      }
+      if (!event.pools.some(pool => phase.pools.includes(pool))) {
+        error(`规则 23:功能位 ${slot.id} 的候选 ${id} 与阶段 ${phase.id} 没有公共 pool`);
+      }
+      if (event.category === 'crisis') {
+        error(`规则 23:本科危机事件不得进入功能位:${id}`);
       }
     }
   }
@@ -606,8 +694,13 @@ for (const event of contentPack.events) {
           error(`event ${event.id} sets unknown stat: ${effect.setStat}`);
         } else if ('npcFavor' in effect && !npcIds.has(effect.npcFavor)) {
           error(`event ${event.id} changes missing npc favor: ${effect.npcFavor}`);
-        } else if ('npcStage' in effect && !npcIds.has(effect.npcStage)) {
-          error(`event ${event.id} changes missing npc stage: ${effect.npcStage}`);
+        } else if ('npcStage' in effect) {
+          const npc = npcDefsById.get(effect.npcStage);
+          if (!npc) {
+            error(`event ${event.id} changes missing npc stage: ${effect.npcStage}`);
+          } else if (!npc.stages[effect.stage]) {
+            error(`event ${event.id} 把 NPC ${effect.npcStage} 推进到不存在的阶段: ${effect.stage}`);
+          }
         } else if ('jumpToPhase' in effect && !contentPack.timeline.some(p => p.id === effect.jumpToPhase)) {
           error(`event ${event.id} jumps to missing phase: ${effect.jumpToPhase}`);
         } else if ('fn' in effect && !fnIds.has(effect.fn)) {
@@ -623,6 +716,21 @@ for (const npc of contentPack.npcs) {
   for (const [stageId, stage] of Object.entries(npc.stages)) {
     if (stage.eventId && !eventIds.has(stage.eventId)) {
       error(`npc ${npc.id}.${stageId} references missing event: ${stage.eventId}`);
+    } else if (stage.eventId) {
+      const event = contentPack.events.find(item => item.id === stage.eventId)!;
+      const everyOutcomeAdvances = event.choices.every(choice =>
+        choice.outcomes.every(outcome =>
+          outcome.effects.some(effect =>
+            'npcStage' in effect && effect.npcStage === npc.id && effect.stage !== stageId,
+          ),
+        ),
+      );
+      if (!everyOutcomeAdvances) {
+        error(
+          `npc ${npc.id}.${stageId} 的事件 ${stage.eventId} 存在不会推进阶段的 outcome` +
+            `(事件播过后会因 once 卡死整条人物线)`,
+        );
+      }
     }
     visitCondition(stage.advanceWhen, cond => {
       if ('fn' in cond && !fnIds.has(cond.fn)) error(`npc ${npc.id}.${stageId} references missing condition fn: ${cond.fn}`);
@@ -887,6 +995,68 @@ for (const [key, owners] of accumulatorReads) {
   );
 }
 
+// ---------- 规则 6：术语与时代一致性（TECH 7.1 / GAME_DESIGN 二十二节） ----------
+//
+// 术语错误不会让程序崩溃，却会直接破坏目标玩家最在意的专业可信度。
+// 三类错误在这里统一拦截：非标准写法、过期资格出现在更晚的事件、咨询师越过诊疗边界。
+const glossary = contentPack.glossary ?? [];
+if (glossary.length === 0) error('规则 6:术语表为空或缺失');
+checkUnique('glossary', glossary.map(entry => entry.id));
+
+const canonicalOwners = new Map<string, string>();
+for (const entry of glossary) {
+  if (!entry.canonical.trim()) error(`规则 6:术语 ${entry.id} 缺少 canonical`);
+  if (!entry.definition.trim()) error(`规则 6:术语 ${entry.id} 缺少 definition`);
+  const owner = canonicalOwners.get(entry.canonical);
+  if (owner) error(`规则 6:术语 canonical 重复「${entry.canonical}」:${owner}, ${entry.id}`);
+  canonicalOwners.set(entry.canonical, entry.id);
+  if (
+    entry.validFromYear !== undefined &&
+    entry.validThroughYear !== undefined &&
+    entry.validFromYear > entry.validThroughYear
+  ) {
+    error(`规则 6:术语 ${entry.id} 的生效年份区间倒置`);
+  }
+}
+
+function scanTerminology(owner: string, prose: string, yearFrom?: number): void {
+  for (const entry of glossary) {
+    for (const alias of entry.aliases ?? []) {
+      if (prose.includes(alias)) {
+        error(`规则 6:非标准写法「${alias}」(${owner});请改为「${entry.canonical}」`);
+      }
+    }
+    if (
+      entry.validThroughYear !== undefined &&
+      yearFrom !== undefined &&
+      yearFrom > entry.validThroughYear &&
+      prose.includes(entry.canonical)
+    ) {
+      error(
+        `规则 6:术语「${entry.canonical}」只在 ${entry.validThroughYear} 年及以前有效，` +
+          `${owner} 必然发生于 ${yearFrom} 年以后`,
+      );
+    }
+  }
+
+  // 按句检查，避免“咨询师不能开药”这种合规说明被误报。
+  for (const sentence of prose.split(/[。！？!?；;\n]+/)) {
+    const hasCounselor = /心理咨询师|咨询师/.test(sentence);
+    const crossesBoundary = /开药|开(?:了|具)?处方|诊断精神障碍|治疗精神障碍/.test(sentence);
+    const isNegated = /不得|不能|不可以|不可|没有|无权|不具备|禁止/.test(sentence);
+    if (hasCounselor && crossesBoundary && !isNegated) {
+      error(`规则 6:心理咨询师不得诊断/治疗精神障碍或开药处方(${owner})`);
+    }
+  }
+}
+
+for (const event of contentPack.events) {
+  scanTerminology(`event ${event.id}`, eventProse(event), necessaryYearFrom(event.trigger));
+}
+for (const ending of contentPack.endings) {
+  scanTerminology(`ending ${ending.id}`, `${ending.title}\n${ending.text}`);
+}
+
 // ---------- 规则 1:课题阶段图无死锁(TECH 7.1) ----------
 //
 // **每个 `ProjectStage` 至少有一个内容事件能推进出去;`abandoned`/`published` 是唯一允许的终态。**
@@ -1029,6 +1199,8 @@ for (const event of contentPack.events) {
     'orientation_cbt',
     'orientation_dynamic',
     'orientation_humanistic',
+    'orientation_family',
+    'orientation_act',
     'orientation_integrative',
   ]);
 
@@ -1597,6 +1769,85 @@ for (const event of contentPack.events) {
   });
   if (usesChance) {
     error(`时代节点变体不得用 chance 分流(必须按处境):${event.id}`);
+  }
+}
+
+// ---------- 规则 25:构筑维度专属事件配额 ----------
+{
+  const domains = ['cognition', 'cogneuro', 'social', 'clinical', 'development', 'education', 'psychometrics', 'health'];
+  const orientations = [
+    'orientation_cbt',
+    'orientation_dynamic',
+    'orientation_humanistic',
+    'orientation_family',
+    'orientation_act',
+    'orientation_integrative',
+  ];
+  const colleges = ['science', 'education', 'medical', 'normal'];
+  const paths: Record<string, string[]> = {
+    academic: ['master', 'phd', 'phd_direct', 'overseas_phd', 'postdoc', 'faculty_candidate', 'faculty'],
+    clinical: ['clinical'],
+    hospital: ['hospital'],
+    school: ['school'],
+    industry: ['industry'],
+    left: ['left'],
+  };
+  const count = (leaf: (cond: Condition) => boolean) =>
+    contentPack.events.filter(event => eventNecessarilyRequires(event, leaf)).length;
+
+  for (const domain of domains) {
+    const actual = count(cond => 'projectCount' in cond && cond.projectCount.domain === domain);
+    if (actual < 6) error(`规则 25:研究领域 ${domain} 只有 ${actual} 个专属事件(<6)`);
+  }
+  for (const orientation of orientations) {
+    const actual = count(cond =>
+      'flag' in cond && cond.flag === orientation && (cond.equals === undefined || cond.equals === true),
+    );
+    if (actual < 5) error(`规则 25:临床取向 ${orientation} 只有 ${actual} 个专属事件(<5)`);
+  }
+  for (const archetype of new Set((contentPack.advisors ?? []).map(advisor => advisor.archetype))) {
+    const actual = count(cond => 'advisor' in cond && cond.advisor.archetype === archetype);
+    if (actual < 8) error(`规则 25:导师原型 ${archetype} 只有 ${actual} 个专属事件(<8)`);
+  }
+  for (const college of colleges) {
+    const actual = contentPack.events.filter(event =>
+      event.pools.includes('undergrad') && eventNecessarilyRequires(event, cond =>
+        'flag' in cond && cond.flag === 'college' && cond.equals === college,
+      ),
+    ).length;
+    if (actual < 4) error(`规则 25:学院归属 ${college} 只有 ${actual} 个本科专属事件(<4)`);
+  }
+  for (const [path, careers] of Object.entries(paths)) {
+    const actual = count(cond => 'career' in cond && careers.includes(cond.career));
+    if (actual < 10) error(`规则 25:培养路径 ${path} 只有 ${actual} 个专属事件(<10)`);
+  }
+}
+
+// ---------- 规则 26:收数据/分析两站的领域专属覆盖 ----------
+{
+  const domains = ['cognition', 'cogneuro', 'social', 'clinical', 'development', 'education', 'psychometrics', 'health'];
+  for (const domain of domains) {
+    for (const stage of ['collect', 'analyze'] as const) {
+      const actual = contentPack.events.filter(event =>
+        event.projectStage === stage &&
+        event.projectDomains?.includes(domain) &&
+        eventNecessarilyRequires(event, cond => 'projectCount' in cond && cond.projectCount.domain === domain),
+      ).length;
+      if (actual < 2) error(`规则 26:领域 ${domain} 的 ${stage} 专属阶段事件只有 ${actual} 个(<2)`);
+    }
+  }
+}
+
+// ---------- 规则 27:管线文案参数化(半自动 warning) ----------
+for (const event of contentPack.events) {
+  if (!event.projectStage) continue;
+  const surface = [
+    event.text,
+    ...(event.presentationVariants ?? []).map(variant => variant.text),
+    ...event.choices.flatMap(choice => choice.outcomes.map(outcome => outcome.text)),
+  ].join('\n');
+  if (!/\{\{(?:project|years|advisor)\}\}/.test(surface)) {
+    warn(`规则 27:管线阶段事件正文没有课题/年数/导师占位符:${event.id}`);
   }
 }
 

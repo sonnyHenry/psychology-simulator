@@ -32,6 +32,7 @@ export const rivalEncounterEvents: GameEvent[] = [
   // ══════════ ① 一作之争 ══════════
   encounter('ev_rv_authorship_behind', {
     tier: 'major',
+    weight: 4,
     title: '同一批数据,两个人',
     trigger: {
       all: [

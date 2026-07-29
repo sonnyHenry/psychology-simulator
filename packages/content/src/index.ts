@@ -48,6 +48,9 @@ import { rivalEncounterEvents } from './events/social/encounters';
 import { favorEvents } from './events/social/favors';
 import { advisorConsultEvents } from './events/advisor/consult';
 import { projectStageEvents } from './events/project/stages';
+import { domainProjectEvents } from './events/project/domains';
+import { advisorArchetypeEvents } from './events/advisor/archetypes';
+import { orientationEvents } from './events/clinical/orientations';
 import { trackEvents } from './events/tracks';
 import { endings } from './endings';
 import { inventories } from './inventories';
@@ -55,6 +58,11 @@ import { inventoryEvents, originEvents } from './events/meta';
 import { integrityEvents } from './events/integrity';
 import { dramaConsequences, dramaEvents } from './events/drama';
 import { blackSwanEvents } from './events/blackswan';
+import { narrativeSlotEvents } from './events/slots';
+import { narrativeSlots } from './narrative-slots';
+import { glossary } from './glossary';
+import { npcEvents } from './events/npcs';
+import { m8ConfiguredEvents } from './events/m8';
 
 /**
  * 《心理学模拟器》内容包。
@@ -69,7 +77,7 @@ import { blackSwanEvents } from './events/blackswan';
 export const contentPack: ContentPack = {
   meta: {
     id: 'psy-sim-2014',
-    version: '0.7.0',
+    version: '0.8.0',
     title: '心理学模拟器',
     fallbackEndingId: 'end_m2_fallback',
     examQuestionCount: 6,
@@ -99,8 +107,11 @@ export const contentPack: ContentPack = {
     ...advisorSwitchEvents,
     ...tenureEvents,
     ...projectStageEvents,
+    ...domainProjectEvents,
+    ...advisorArchetypeEvents,
     ...foundationEvents,
     ...clinicalEvents,
+    ...orientationEvents,
     ...caseStageEvents,
     ...trackEvents,
     ...inventoryEvents,
@@ -109,7 +120,12 @@ export const contentPack: ContentPack = {
     ...dramaEvents,
     ...dramaConsequences,
     ...blackSwanEvents,
+    ...narrativeSlotEvents,
+    ...npcEvents,
+    ...m8ConfiguredEvents,
   ],
+  narrativeSlots,
+  glossary,
   incomes,
   endings,
   examBank,

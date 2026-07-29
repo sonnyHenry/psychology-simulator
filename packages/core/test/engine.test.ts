@@ -40,8 +40,10 @@ import {
   hasHeard,
   MAX_ASKS_PER_ROUND,
   marketTightnessFor,
+  spouseHireAvailable,
   letterWeightFor,
   materialQualityFor,
+  buildJobMarketView,
   startJobMarket,
   buildTenureReview,
   tenurePassed,
@@ -59,6 +61,7 @@ import {
   evalCondition,
   eventStateValence,
   pickRoundEvents,
+  fillNarrativeSlots,
   selectContextLine,
   startInventory,
   answerInventory,
@@ -499,15 +502,18 @@ describe('event scheduling variety', () => {
     const state = engine.start(42);
     state.screen = 'ENDING';
     state.endingId = 'end_fallback';
-    state.flags.roommate_true_partner = true;
-    state.flags.mentor_true_legacy = true;
+    state.flags.npc_roommate_bond = true;
+    state.flags.npc_teacher_closure = true;
     const view = engine.view(state);
     expect(view.kind).toBe('ENDING');
     if (view.kind !== 'ENDING') return;
-    expect(view.relationships.map(relationship => relationship.npcId)).toEqual(['roommate', 'mentor']);
+    expect(view.relationships.map(relationship => relationship.npcId)).toEqual([
+      'npc_advisor_to_be',
+      'npc_roommate',
+    ]);
     expect(view.relationships.map(relationship => relationship.title)).toEqual([
-      '没散的创始团队',
-      '传下去的那支笔',
+      '不必被确认的影响',
+      '仍然能一起浪费时间的人',
     ]);
   });
 
@@ -1133,15 +1139,15 @@ describe('relationship outcome hints', () => {
   }
 
   it('explains relationship memory only on the first tagged outcome', () => {
-    expect(outcomeView(['love_warm']).relationshipHint).toContain('你的选择会被这段关系记住');
-    expect(outcomeView(['love_warm', 'love_cool']).relationshipHint).toBeUndefined();
+    expect(outcomeView(['partner_warm']).relationshipHint).toContain('你的选择会被这段关系记住');
+    expect(outcomeView(['partner_warm', 'partner_cool']).relationshipHint).toBeUndefined();
   });
 
   it('shows a milestone hint exactly when a route reaches its warm threshold', () => {
-    expect(outcomeView(['love_warm', 'love_cool', 'love_warm']).relationshipHint).toBeUndefined();
-    expect(outcomeView(['love_warm', 'love_cool', 'love_warm', 'love_warm']).relationshipHint)
+    expect(outcomeView(['partner_warm', 'partner_cool', 'partner_warm']).relationshipHint).toBeUndefined();
+    expect(outcomeView(['partner_warm', 'partner_cool', 'partner_warm', 'partner_warm']).relationshipHint)
       .toContain('正在改变这段关系未来的走向');
-    expect(outcomeView(['love_warm', 'love_warm', 'love_warm', 'love_warm']).relationshipHint)
+    expect(outcomeView(['partner_warm', 'partner_warm', 'partner_warm', 'partner_warm']).relationshipHint)
       .toBeUndefined();
   });
 });
@@ -3569,6 +3575,34 @@ describe('M5 求职季', () => {
     expect(materialQualityFor(8)).toBeGreaterThan(0.4);
   });
 
+  it('同校配偶岗读取岗位的 twoBodyFriendly，而不是只认海外或头部硬编码', () => {
+    const pack = miniPack();
+    pack.positions = [{
+      id: 'pos_partner_friendly', institutionId: 'inst_test', kind: 'faculty_cn',
+      domainFit: [], requires: { always: true }, twoBodyFriendly: true,
+    }];
+    const state = createEngine(pack).start(35);
+    state.flags.partner_academic = true;
+    const offer = {
+      positionId: 'pos_partner_friendly', institutionName: '测试大学', city: '测试市',
+      region: 'cn' as const, terms: {} as never, termLines: [], negotiated: false,
+    };
+
+    expect(spouseHireAvailable(state, offer, pack)).toBe(true);
+    pack.positions[0]!.twoBodyFriendly = false;
+    expect(spouseHireAvailable(state, offer, pack)).toBe(false);
+
+    // 不能只看 offers[0]：最前面的 offer 不支持、第二份支持时，这条路仍应出现。
+    pack.positions[0]!.twoBodyFriendly = true;
+    const firstOffer = { ...offer, positionId: 'pos_other' };
+    state.jobMarket = {
+      step: 'two_body', year: 2027, marketTightness: 1, letters: [], letterWeight: 1,
+      materialQuality: 1, applied: [], invited: [], offers: [firstOffer, offer], accepted: null,
+    };
+    const view = buildJobMarketView(state, pack, new Rng(1), '');
+    expect(view.options.map(option => option.id)).toContain('spouse_hire');
+  });
+
   it('首考是一张清单,而基金那一行是硬指标', () => {
     const pack = miniPack();
     const state = createEngine(pack).start(33);
@@ -3603,6 +3637,92 @@ describe('M5 求职季', () => {
 // ─────────────────────────────────────────────────────────────
 
 describe('M7 元玩法', () => {
+  it('叙事功能位从三倍候选中抽一幕，实际处理后才记入存档状态', () => {
+    const pack = miniPack();
+    for (const id of ['ev_slot_a', 'ev_slot_b', 'ev_slot_c']) {
+      pack.events.push({
+        id, pools: ['main'], title: id, text: id,
+        choices: [{ id: 'ok', text: '好', outcomes: [{ weight: 1, text: '好', effects: [] }] }],
+      });
+    }
+    pack.narrativeSlots = [{
+      id: 'slot_test', label: '测试功能', phaseId: 'life', roundWindow: [0, 0], fill: 1,
+      candidates: ['ev_slot_a', 'ev_slot_b', 'ev_slot_c'],
+    }];
+    pack.timeline = [{
+      kind: 'rounds', id: 'life', label: '人生', date: { year: 2020, month: 1 },
+      rounds: 1, eventSlots: 1, pools: ['main'], briefs: ['这一年'], isFinal: true,
+    }];
+    const engine = createEngine(pack);
+    let state = engine.start(40);
+    const phase = pack.timeline[0];
+    if (!phase || phase.kind !== 'rounds') throw new Error('expected rounds phase');
+
+    const first = fillNarrativeSlots(state, pack, new Rng(7), phase, new Set());
+    expect(first).toHaveLength(1);
+    expect(first[0]!.events).toHaveLength(1);
+    expect(pack.narrativeSlots[0]!.candidates).toContain(first[0]!.events[0]!.id);
+    expect(state.filledSlots).toEqual([]);
+
+    state = engine.dispatch(state, { type: 'START' });
+    expect(state.eventQueue).toHaveLength(1);
+    expect(pack.narrativeSlots[0]!.candidates).toContain(state.eventQueue[0]);
+    state = engine.dispatch(state, { type: 'CONTINUE' });
+    const view = engine.view(state);
+    if (view.kind !== 'EVENT') throw new Error('expected EVENT');
+    state = engine.dispatch(state, { type: 'CHOOSE', choiceId: view.choices[0]!.id });
+    expect(state.filledSlots).toEqual(['slot_test']);
+  });
+
+  it('功能位事件占普通事件预算，不会在同年额外塞满随机池', () => {
+    const pack = miniPack();
+    for (const id of ['ev_slot_a', 'ev_slot_b', 'ev_slot_c']) {
+      pack.events.push({
+        id, pools: ['main'], title: id, text: id,
+        choices: [{ id: 'ok', text: '好', outcomes: [{ weight: 1, text: '好', effects: [] }] }],
+      });
+    }
+    pack.narrativeSlots = [{
+      id: 'slot_test', label: '测试功能', phaseId: 'life', roundWindow: [0, 0], fill: 1,
+      candidates: ['ev_slot_a', 'ev_slot_b', 'ev_slot_c'],
+    }];
+    const state = createEngine(pack).start(41);
+    state.phaseIndex = 1;
+    state.roundIndex = 0;
+    const phase = pack.timeline[1];
+    if (!phase || phase.kind !== 'rounds') throw new Error('expected rounds phase');
+
+    const picked = pickRoundEvents(state, pack, new Rng(9), phase);
+    expect(picked).toHaveLength(1);
+    expect(pack.narrativeSlots[0]!.candidates).toContain(picked[0]);
+  });
+
+  it('功能位未选中的兄弟候选不会再次混入普通随机池', () => {
+    const pack = miniPack();
+    for (const id of ['ev_slot_a', 'ev_slot_b', 'ev_slot_c', 'ev_regular_a', 'ev_regular_b']) {
+      pack.events.push({
+        id, pools: ['main'], title: id, text: id,
+        choices: [{ id: 'ok', text: '好', outcomes: [{ weight: 1, text: '好', effects: [] }] }],
+      });
+    }
+    pack.narrativeSlots = [{
+      id: 'slot_test', label: '测试功能', phaseId: 'life', roundWindow: [0, 0], fill: 1,
+      candidates: ['ev_slot_a', 'ev_slot_b', 'ev_slot_c'],
+    }];
+    pack.timeline = [{
+      kind: 'rounds', id: 'life', label: '人生', date: { year: 2020, month: 1 },
+      rounds: 1, eventSlots: 3, pools: ['main'], briefs: ['这一年'], isFinal: true,
+    }];
+    const state = createEngine(pack).start(42);
+    const phase = pack.timeline[0];
+    if (!phase || phase.kind !== 'rounds') throw new Error('expected rounds phase');
+
+    const picked = pickRoundEvents(state, pack, new Rng(10), phase);
+    const slotPicks = picked.filter(id => pack.narrativeSlots![0]!.candidates.includes(id));
+    expect(slotPicks).toHaveLength(1);
+    expect(picked).toEqual(expect.arrayContaining(['ev_regular_a', 'ev_regular_b']));
+  });
+
   it('量表按方向计分，选择偏差文案，并只给很小的状态修复', () => {
     const pack = miniPack();
     pack.inventories = [TEST_INVENTORY];

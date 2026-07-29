@@ -24,6 +24,7 @@ function trackEvent(args: {
   year?: { from?: number; to?: number };
   category?: string;
   tier?: 'major';
+  weight?: number;
 }): GameEvent {
   const trigger: Condition = args.year
     ? { all: [{ career: args.career }, { year: args.year }] }
@@ -36,6 +37,7 @@ function trackEvent(args: {
     trigger,
     category: args.category ?? 'work',
     tier: args.tier,
+    weight: args.weight,
     once: true,
     choices: args.choices.map(choice => ({
       id: choice.id,
@@ -55,7 +57,7 @@ const HOSPITAL_LATE = ['hospital_late'];
 
 export const hospitalEvents: GameEvent[] = [
   trackEvent({
-    id: 'ev_h_grad_first_record', pools: ['hospital_grad'], career: 'hospital', year: { to: 2019 },
+    id: 'ev_h_grad_first_record', pools: ['hospital_grad'], career: 'hospital', year: { to: 2019 }, weight: 6,
     title: '第一份评估记录',
     text: '带教老师把一份 WAIS-IV 记录交给你。数字、行为观察、家属叙述,最后要落成一句能进病历的话。\n\n**量表给的是分数,病历要写的是这个人。**',
     choices: [
@@ -224,6 +226,14 @@ export const schoolEvents: GameEvent[] = [
     { id: 'build', text: '把每个接口谈到有人签字', result: '一年后,这张图没有漂亮到能拿奖,但学校再遇到危机时知道该往哪送、谁来接、怎样回来。\n\n没人知道这套流程避免过什么。你也不知道。', effects: [{ stats: { capital: 7, method: 3, state: -5 } }, { setFlag: 'school_district_system' }] },
     { id: 'pilot', text: '先在三所学校做小范围试点', result: '它没有覆盖全区,却真的跑过三次。你宁愿有一条走过的窄路,也不愿有一张没人照着走的大图。', effects: [{ stats: { method: 4, capital: 3, state: -2 } }] },
   ] }),
+  trackEvent({ id: 'ev_s_parent_group', pools: ['school_late'], career: 'school', title: '家长群里的截图', text: '一张学生筛查通知被截到家长群，有人问学校是不是在给孩子“贴标签”。通知本身没有诊断字样，恐惧却已经有了方向。', choices: [
+    { id: 'meeting', text: '开一场说明会，把筛查与诊断分清', result: '质疑没有全部消失，家长至少知道分数之后还有复核、访谈和转介，而不是一张名单决定孩子是谁。', effects: [{ stats: { clinical: 3, capital: 3, state: -2 } }] },
+    { id: 'rewrite', text: '先重写通知和知情流程', result: '流程慢了一周，下一轮每个家庭都能看见数据去哪里、谁能看、何时删除。', effects: [{ stats: { method: 3, capital: 1 } }] },
+  ] }),
+  trackEvent({ id: 'ev_s_graduate_message', pools: ['school_late'], career: 'school', year: { from: 2030 }, title: '毕业生发来一条消息', text: '一个毕业多年的学生说，ta 不记得你心理课讲过什么，只记得有一年在咨询室里，你没有立刻给建议。', choices: [
+    { id: 'reply', text: '回一句“谢谢你告诉我”', result: '这句话不能写进年度考核，也比大多数考核更接近你想知道的结果。', effects: [{ stats: { state: 5, clinical: 2 } }] },
+    { id: 'keep', text: '把消息留在收藏里', result: '它和危机流程、课表、筛查名单放在同一个职业里，没有谁能单独代表全部。', effects: [{ stats: { state: 4 } }] },
+  ] }),
 ];
 
 export const industryEvents: GameEvent[] = [
@@ -259,6 +269,14 @@ export const industryEvents: GameEvent[] = [
     { id: 'ask_question', text: '问那个最慢的问题', result: '“这个指标变化,对用户的生活具体意味着什么?”\n\n会议停了十秒。你仍然在做心理学教你的第一件事:别把一个数当成一个人。', effects: [{ stats: { method: 3, state: 3 } }] },
     { id: 'let_team', text: '让年轻同事把结论讲完', result: 'ta 讲得比你当年短,也更能被使用。你没有补充。\n\n一个团队真正长出来的标志,是有些话不再需要你说。', effects: [{ stats: { capital: 4, state: 3 } }] },
   ] }),
+  trackEvent({ id: 'ev_i_metric_moved', pools: ['industry_late'], career: 'industry', title: '指标涨了，但不是因为那个功能', text: '上线后一周核心指标上涨，团队准备把成功写进复盘。同期市场投放翻倍，旧版本用户也被强制迁移。', choices: [
+    { id: 'separate', text: '把不能归因的部分写清', result: '复盘少了一句胜利宣言，多了一张下一轮真正能验证的实验计划。', effects: [{ stats: { method: 4, capital: 1 } }] },
+    { id: 'take_win', text: '先承认业务结果，再标注归因限制', result: '团队拿到了结果，你也没有让相关性在文档里悄悄变成因果。', effects: [{ stats: { capital: 4, method: 2 } }] },
+  ] }),
+  trackEvent({ id: 'ev_i_archive_interview', pools: ['industry_late'], career: 'industry', year: { from: 2030 }, title: '十年前的访谈还能不能看', text: '新人翻到一批十年前的录音，里面的人、产品和同意范围都属于另一个时代。洞察可能仍有用，授权未必覆盖今天。', choices: [
+    { id: 'audit', text: '先核对授权与保存期限', result: '一部分材料被删除，一部分匿名后留下。证据库第一次也有了忘记的能力。', effects: [{ stats: { method: 3, capital: 2 } }] },
+    { id: 'summary', text: '只使用当年已匿名的研究摘要', result: '细节少了，参与者没有因为组织记性太好而被重新识别。', effects: [{ stats: { method: 2, state: 2 } }] },
+  ] }),
 ];
 
 export const leftEvents: GameEvent[] = [
@@ -293,6 +311,14 @@ export const leftEvents: GameEvent[] = [
   trackEvent({ id: 'ev_l_drawer', pools: ['left_late'], career: 'left', year: { from: 2033 }, title: '抽屉里的学位证', text: '搬家时你翻到心理学学位证。纸边已经有点卷。\n\n它没有证明你应该留下,也没有因为你离开就失效。', choices: [
     { id: 'keep', text: '放回文件袋', result: '你把它和现在职业的证件放在一起。它们不是前后两个人,都是你。', effects: [{ stats: { state: 5 } }] },
     { id: 'photo', text: '拍张照发给旧同学', result: '群里有人回了一个笑脸,有人说自己也刚翻到。没人问谁走得更对。', effects: [{ stats: { state: 4, capital: 1 } }] },
+  ] }),
+  trackEvent({ id: 'ev_l_reunion', pools: ['left_late'], career: 'left', title: '同学会上的职业名单', text: '当年的同学现在分散在医院、学校、高校、公司和完全不相关的行业。没有哪两条履历能按同一把尺排序。', choices: [
+    { id: 'listen', text: '只问这些年具体在做什么', result: '“留下”和“离开”很快被更具体的工作、家庭和偶然替代。', effects: [{ stats: { state: 4, capital: 2 } }] },
+    { id: 'share', text: '也讲讲自己的现在', result: '你没有从“我本来学心理学”开始。现在的职业终于不再需要一个旧专业做前言。', effects: [{ stats: { state: 5 } }] },
+  ] }),
+  trackEvent({ id: 'ev_l_skill_decay', pools: ['left_late'], career: 'left', year: { from: 2030 }, title: '有些东西确实忘了', text: '旧同学问一个统计问题，你发现公式记不清了。技能没有永远待在原地，这并不证明那几年白费。', choices: [
+    { id: 'relearn', text: '需要用，就重新查一遍', result: '两小时后你找回了思路。遗忘和能重新学会可以同时成立。', effects: [{ stats: { method: 2, state: 2 } }] },
+    { id: 'refer', text: '坦白忘了，介绍更合适的人', result: '你没有用旧身份冒充现在的专业能力，也没有因此否定那段训练。', effects: [{ stats: { capital: 2, state: 3 } }] },
   ] }),
 ];
 

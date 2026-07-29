@@ -1,5 +1,5 @@
 import { contentPack } from '@psy-sim/content';
-import type { GameEvent } from '@psy-sim/core';
+import type { Condition, GameEvent, GameState } from '@psy-sim/core';
 import { runOne, type Strategy } from './simulate';
 
 interface Args {
@@ -7,11 +7,13 @@ interface Args {
   seed: number;
   strategy: Strategy;
   top: number;
+  check: boolean;
 }
 
 interface LifeRun {
   eventIds: string[];
   eventSet: Set<string>;
+  renderSet: Set<string>;
   /** 事件 id -> 首次出现的年份,用来量化"节奏记忆"(同一件事是不是每局都在同一年撞见) */
   eventYears: Map<string, number>;
   signature: string;
@@ -19,17 +21,19 @@ interface LifeRun {
   college: string;
   presentationHits: string[];
   contextLineHits: string[];
+  eligibleLibrarySize: number;
 }
 
 type Source = '强制节点' | 'NPC线' | '职业线' | '公共池' | '主时间线';
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { runs: 300, seed: 42, strategy: 'random', top: 15 };
+  const args: Args = { runs: 300, seed: 42, strategy: 'random', top: 15, check: false };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if ((arg === '-n' || arg === '--runs') && argv[i + 1]) args.runs = Number(argv[++i]);
     else if (arg === '--seed' && argv[i + 1]) args.seed = Number(argv[++i]);
     else if (arg === '--top' && argv[i + 1]) args.top = Number(argv[++i]);
+    else if (arg === '--check') args.check = true;
     else if (arg === '--bot' && argv[i + 1]) {
       const strategy = argv[++i];
       if (strategy === 'random' || strategy === 'money' || strategy === 'state' || strategy === 'score') {
@@ -81,6 +85,91 @@ function perceivedVariation(event: GameEvent): string[] {
   return labels;
 }
 
+const variantGroupSizes = new Map<string, number>();
+for (const event of contentPack.events) {
+  if (event.variantGroup) variantGroupSizes.set(event.variantGroup, (variantGroupSizes.get(event.variantGroup) ?? 0) + 1);
+}
+
+/** 基础版也算一个版本；多种机制并存时取能让玩家感知到的最大变体池。 */
+function perceivedVariantCount(event: GameEvent): number {
+  return Math.max(
+    event.variantGroup ? (variantGroupSizes.get(event.variantGroup) ?? 1) : 1,
+    1 + (event.presentationVariants?.length ?? 0),
+    event.contextLines?.length ?? 0,
+  );
+}
+
+function configurationSignature(state: GameState): string {
+  const advisor = contentPack.advisors?.find(item => item.id === state.advisor?.id)?.archetype ?? 'none';
+  const domain = (state.projects ?? []).find(project => !project.isThesis)?.domain ?? 'none';
+  const orientation = Object.keys(state.flags)
+    .filter(key => key.startsWith('orientation_') && Boolean(state.flags[key]))
+    .sort()[0] ?? 'none';
+  return [
+    `advisor:${advisor}`,
+    `domain:${domain}`,
+    `orientation:${orientation}`,
+    `path:${state.profile.career ?? 'none'}`,
+    `college:${String(state.flags.college ?? 'none')}`,
+  ].join('|');
+}
+
+function necessarilyRequires(cond: Condition | undefined, leaf: (cond: Condition) => boolean): boolean {
+  if (!cond) return false;
+  if ('all' in cond) return cond.all.some(item => necessarilyRequires(item, leaf));
+  if ('any' in cond) return cond.any.length > 0 && cond.any.every(item => necessarilyRequires(item, leaf));
+  if ('not' in cond) return false;
+  return leaf(cond);
+}
+
+function eventRequires(event: GameEvent, leaf: (cond: Condition) => boolean): boolean {
+  return necessarilyRequires(event.trigger, leaf) ||
+    event.choices.some(choice => necessarilyRequires(choice.visibleIf, leaf));
+}
+
+const DOMAIN_IDS = ['cognition', 'cogneuro', 'social', 'clinical', 'development', 'education', 'psychometrics', 'health'];
+const ORIENTATION_IDS = ['orientation_cbt', 'orientation_dynamic', 'orientation_humanistic', 'orientation_family', 'orientation_act', 'orientation_integrative'];
+const PATH_CAREERS: Record<string, string[]> = {
+  academic: ['master', 'phd', 'phd_direct', 'overseas_phd', 'postdoc', 'faculty_candidate', 'faculty'],
+  clinical: ['clinical'],
+  hospital: ['hospital'],
+  school: ['school'],
+  industry: ['industry'],
+  left: ['left'],
+};
+
+/**
+ * 一局真正可达的内容库：剔除与本局领域、取向、导师、路径、学院互斥的专属事件。
+ * 同时保留“全库覆盖率”诊断值，避免这个口径把库规模藏起来。
+ */
+function eligibleLibrarySize(state: GameState): number {
+  const domains = new Set((state.projects ?? []).filter(project => !project.isThesis).map(project => project.domain));
+  const orientation = ORIENTATION_IDS.find(id => Boolean(state.flags[id]));
+  const advisor = contentPack.advisors?.find(item => item.id === state.advisor?.id)?.archetype;
+  const college = String(state.flags.college ?? 'none');
+  const career = state.profile.career ?? 'none';
+  const path = Object.entries(PATH_CAREERS).find(([, careers]) => careers.includes(career))?.[0];
+
+  return contentPack.events.filter(event => {
+    for (const domain of DOMAIN_IDS) {
+      if (eventRequires(event, cond => 'projectCount' in cond && cond.projectCount.domain === domain) && !domains.has(domain)) return false;
+    }
+    for (const id of ORIENTATION_IDS) {
+      if (eventRequires(event, cond => 'flag' in cond && cond.flag === id && (cond.equals === undefined || cond.equals === true)) && orientation !== id) return false;
+    }
+    for (const archetype of new Set((contentPack.advisors ?? []).map(item => item.archetype))) {
+      if (eventRequires(event, cond => 'advisor' in cond && cond.advisor.archetype === archetype) && advisor !== archetype) return false;
+    }
+    for (const id of ['science', 'education', 'medical', 'normal']) {
+      if (eventRequires(event, cond => 'flag' in cond && cond.flag === 'college' && cond.equals === id) && college !== id) return false;
+    }
+    for (const [family, careers] of Object.entries(PATH_CAREERS)) {
+      if (eventRequires(event, cond => 'career' in cond && careers.includes(cond.career)) && path !== family) return false;
+    }
+    return true;
+  }).length;
+}
+
 function filtered(run: LifeRun, source?: Source): Set<string> {
   if (!source) return run.eventSet;
   return new Set([...run.eventSet].filter(id => {
@@ -93,6 +182,18 @@ function pairOverlaps(runs: LifeRun[], source?: Source): number[] {
   const values: number[] = [];
   for (let i = 1; i < runs.length; i++) values.push(overlap(filtered(runs[i - 1]!, source), filtered(runs[i]!, source)));
   return values;
+}
+
+function configurationOverlaps(runs: LifeRun[]): { same: number[]; different: number[] } {
+  const same: number[] = [];
+  const different: number[] = [];
+  for (let i = 0; i < runs.length; i++) {
+    for (let j = i + 1; j < runs.length; j++) {
+      const bucket = runs[i]!.signature === runs[j]!.signature ? same : different;
+      bucket.push(overlap(runs[i]!.eventSet, runs[j]!.eventSet));
+    }
+  }
+  return { same, different };
 }
 
 /**
@@ -131,7 +232,11 @@ function threeRunUniqueRatio(runs: LifeRun[]): number {
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   const runs: LifeRun[] = [];
+  // `appearances` 统计“出现过的局数”，用于高频事件与跨局间隔；
+  // `occurrences` 统计实际播放次数，用作回响命中率分母。管线/个案事件一局可播多次，
+  // 两者不能混用，否则命中率会超过 100%。
   const appearances = new Map<string, number>();
+  const occurrences = new Map<string, number>();
   const gaps = new Map<string, number[]>();
   const lastSeen = new Map<string, number>();
   const presentationHits = new Map<string, number>();
@@ -149,19 +254,21 @@ function main(): void {
       if (entry.kind !== 'event' || eventYears.has(entry.eventId)) continue;
       eventYears.set(entry.eventId, entry.year);
     }
-    const activeNpcs = Object.keys(result.finalState.npcs).sort().join('+');
-    const signature = `${result.finalState.profile.career ?? 'none'}|${activeNpcs}`;
+    const signature = configurationSignature(result.finalState);
     runs.push({
       eventIds,
       eventSet,
+      renderSet: new Set(result.renderFingerprints),
       eventYears,
       signature,
       college: String(result.finalState.flags.college ?? 'none'),
       presentationHits: result.presentationHits,
       contextLineHits: result.contextLineHits,
+      eligibleLibrarySize: eligibleLibrarySize(result.finalState),
     });
     for (const key of result.presentationHits) presentationHits.set(key, (presentationHits.get(key) ?? 0) + 1);
     for (const key of result.contextLineHits) contextLineHits.set(key, (contextLineHits.get(key) ?? 0) + 1);
+    for (const id of eventIds) occurrences.set(id, (occurrences.get(id) ?? 0) + 1);
     for (const id of eventSet) {
       appearances.set(id, (appearances.get(id) ?? 0) + 1);
       const previous = lastSeen.get(id);
@@ -175,34 +282,67 @@ function main(): void {
   }
 
   const sources: Source[] = ['强制节点', 'NPC线', '职业线', '公共池', '主时间线'];
+  const renderOverlap = mean(runs.slice(1).map((run, index) => overlap(runs[index]!.renderSet, run.renderSet)));
+  const nonMandatoryOverlap = mean(runs.slice(1).map((run, index) => {
+    const strip = (item: LifeRun) => new Set([...item.eventSet].filter(id => !eventsById.get(id)?.mandatory));
+    return overlap(strip(runs[index]!), strip(run));
+  }));
+  const uniqueRatio = threeRunUniqueRatio(runs);
+  // 口径与设计稿的“每局约 90 幕 / 约 471 个事件”一致：一局实际经历的幕数，
+  // 而不是 unique ID。管线模板可绑定不同课题多次出现，每次都是一幕真实内容。
+  const fullLibraryCoverage = mean(runs.map(run => run.eventIds.length / contentPack.events.length));
+  const reachableCoverage = mean(runs.map(run => run.eventIds.length / run.eligibleLibrarySize));
+  const contextAverage = [...contextLineHits.values()].reduce((sum, count) => sum + count, 0) / args.runs;
+  const config = configurationOverlaps(runs);
+  const configGap = config.same.length && config.different.length ? mean(config.same) - mean(config.different) : 0;
+  const slotDistributions = (contentPack.narrativeSlots ?? []).map(slot => {
+    const counts = slot.candidates.map(id => ({ id, count: appearances.get(id) ?? 0 }));
+    const total = counts.reduce((sum, item) => sum + item.count, 0);
+    return {
+      slot,
+      counts,
+      total,
+      minimum: total > 0 ? Math.min(...counts.map(item => item.count / total)) : 0,
+      checksGlobalBalance: slot.candidateMode !== 'conditional',
+    };
+  });
   console.log(`重复率仪表盘 · ${args.runs} 局 · seed ${args.seed}–${args.seed + args.runs - 1} · ${args.strategy} bot\n`);
   console.log(`平均每局事件数: ${mean(runs.map(run => run.eventIds.length)).toFixed(1)}`);
+  console.log(`相邻两局渲染三元组重合率: ${pct(renderOverlap)}`);
   console.log(`相邻两局事件重合率(Jaccard): ${pct(mean(pairOverlaps(runs)))}`);
-  console.log(`去除强制节点后的重合率: ${pct(mean(runs.slice(1).map((run, i) => {
-    const previous = runs[i]!;
-    const strip = (item: LifeRun) => new Set([...item.eventSet].filter(id => !eventsById.get(id)?.mandatory));
-    return overlap(strip(previous), strip(run));
-  })))}`);
-  console.log(`连续 3 局独有事件比例(独有ID/三局事件总次数): ${pct(threeRunUniqueRatio(runs))}`);
+  console.log(`去除强制节点后的重合率: ${pct(nonMandatoryOverlap)}`);
+  console.log(`连续 3 局独有事件比例(独有ID/三局事件总次数): ${pct(uniqueRatio)}`);
+  console.log(`单局内容覆盖率(本配置可达库): ${pct(reachableCoverage)}`);
+  console.log(`  全内容库诊断值: ${pct(fullLibraryCoverage)}`);
   console.log(`相邻两局节奏重合率(共有事件里落在同一年的比例): ${pct(mean(rhythmOverlaps(runs)))}`);
+
+  console.log('\n叙事功能位候选分布:');
+  if (slotDistributions.length === 0) console.log('  暂无');
+  else for (const item of slotDistributions) {
+    const counts = item.counts.map(candidate => `${candidate.id} ${candidate.count}`).join(' · ');
+    const summary = item.checksGlobalBalance
+      ? `最低 ${pct(item.minimum)}`
+      : `条件分流 · 总命中 ${item.total}`;
+    console.log(`  ${item.slot.id}: ${summary} · ${counts}`);
+  }
 
   const highFrequency = [...appearances.entries()]
     .filter(([, count]) => count / args.runs >= 0.5)
     .map(([id]) => eventsById.get(id)!)
     .filter(Boolean);
-  const variedHighFrequency = highFrequency.filter(event => perceivedVariation(event).length > 0);
+  const variedHighFrequency = highFrequency.filter(event => perceivedVariantCount(event) >= 3);
   console.log(`高频事件感知变体覆盖(出现率≥50%): ${variedHighFrequency.length}/${highFrequency.length} (${pct(variedHighFrequency.length / highFrequency.length)})`);
-  const uncovered = highFrequency.filter(event => perceivedVariation(event).length === 0);
+  const uncovered = highFrequency.filter(event => perceivedVariantCount(event) < 3);
   if (uncovered.length) console.log(`  待补: ${uncovered.map(event => `${event.title}(${event.id})`).join('、')}`);
 
-  const contextEnabledAppearances = [...appearances.entries()].reduce((sum, [id, count]) =>
+  const contextEnabledOccurrences = [...occurrences.entries()].reduce((sum, [id, count]) =>
     sum + (eventsById.get(id)?.contextLines?.length ? count : 0), 0);
   const totalContextHits = [...contextLineHits.values()].reduce((sum, count) => sum + count, 0);
   const runsWithContext = runs.filter(run => run.contextLineHits.length > 0).length;
   const totalPresentationHits = [...presentationHits.values()].reduce((sum, count) => sum + count, 0);
   console.log('\n实际条件文案命中:');
   console.log(`  小回响: 平均每局 ${(totalContextHits / args.runs).toFixed(2)} 条 · ${pct(runsWithContext / args.runs)} 的对局至少看到 1 条`);
-  console.log(`  带回响事件出现后命中率: ${contextEnabledAppearances ? pct(totalContextHits / contextEnabledAppearances) : '无样本'} (${totalContextHits}/${contextEnabledAppearances})`);
+  console.log(`  带回响事件出现后命中率: ${contextEnabledOccurrences ? pct(totalContextHits / contextEnabledOccurrences) : '无样本'} (${totalContextHits}/${contextEnabledOccurrences})`);
   // 条件命中 = 玩家看到的是引用自己前史的那一句;兜底 = 没有任何前史命中,给了泛化句。
   // 两者都算"看到回响",但只有前者是差异化内容,所以要分开看。
   const conditionalHits = [...contextLineHits.entries()].reduce((sum, [key, count]) => {
@@ -218,7 +358,7 @@ function main(): void {
   const contextEvents = contentPack.events.filter(event => event.contextLines?.length);
   console.log('  各事件回响命中率:');
   for (const event of contextEvents) {
-    const shown = appearances.get(event.id) ?? 0;
+    const shown = occurrences.get(event.id) ?? 0;
     const hits = event.contextLines!.reduce((sum, _line, index) => sum + (contextLineHits.get(`${event.id}#${index}`) ?? 0), 0);
     console.log(`    ${pct(shown ? hits / shown : 0).padStart(6)}  ${String(hits).padStart(3)}/${String(shown).padEnd(3)}  ${event.title}`);
   }
@@ -245,17 +385,10 @@ function main(): void {
     console.log(`  ${source.padEnd(5, ' ')} ${pct(mean(pairOverlaps(runs, source))).padStart(6)}  平均每局 ${averageCount.toFixed(1)} 个`);
   }
 
-  const same: number[] = [];
-  const different: number[] = [];
-  for (let i = 1; i < runs.length; i++) {
-    const previous = runs[i - 1]!;
-    const current = runs[i]!;
-    const bucket = previous.signature === current.signature ? same : different;
-    bucket.push(overlap(previous.eventSet, current.eventSet));
-  }
-  console.log('\n配置影响(职业 + 激活NPC):');
-  console.log(`  相同配置: ${same.length ? pct(mean(same)) : '样本不足'} (${same.length} 对)`);
-  console.log(`  不同配置: ${different.length ? pct(mean(different)) : '样本不足'} (${different.length} 对)`);
+  console.log('\n配置影响(导师 × 领域 × 取向 × 职业 × 学院):');
+  console.log(`  相同配置: ${config.same.length ? pct(mean(config.same)) : '样本不足'} (${config.same.length} 对)`);
+  console.log(`  不同配置: ${config.different.length ? pct(mean(config.different)) : '样本不足'} (${config.different.length} 对)`);
+  console.log(`  重合率差值: ${pct(configGap)}`);
 
   // ── 学院归属之间的本科事件重合率(M2 验收标准:<60%)──────────────────────
   //
@@ -326,6 +459,31 @@ function main(): void {
   console.log('\n固定节点变体池:');
   if (variants.size === 0) console.log('  暂无');
   else for (const [group, events] of variants) console.log(`  ${group}: ${events.length} 个变体`);
+
+  if (args.check) {
+    const failures: string[] = [];
+    if (renderOverlap > 0.15) failures.push(`渲染三元组重合率 ${pct(renderOverlap)} > 15%`);
+    if (nonMandatoryOverlap > 0.3) failures.push(`非强制事件重合率 ${pct(nonMandatoryOverlap)} > 30%`);
+    if (uniqueRatio < 0.4) failures.push(`连续三局独有事件比例 ${pct(uniqueRatio)} < 40%`);
+    if (!config.same.length || !config.different.length) failures.push('同/异配置配对样本不足');
+    else if (configGap < 0.2) failures.push(`同/异配置重合率差值 ${pct(configGap)} < 20pp`);
+    if (reachableCoverage < 0.2 || reachableCoverage > 0.3) failures.push(`单局内容覆盖率 ${pct(reachableCoverage)} 不在 20%–30%`);
+    if (uncovered.length > 0) failures.push(`${uncovered.length} 个高频事件的感知变体少于 3 个`);
+    if (contextAverage < 6) failures.push(`平均每局小回响 ${contextAverage.toFixed(2)} < 6`);
+    if (slotDistributions.length === 0) failures.push('内容包没有叙事功能位');
+    for (const item of slotDistributions) {
+      if (item.checksGlobalBalance && item.minimum < 0.15) {
+        failures.push(`功能位 ${item.slot.id} 最低候选占比 ${pct(item.minimum)} < 15%`);
+      }
+    }
+    if (failures.length > 0) {
+      console.error('\n❌ M7.5 重复率门禁失败:');
+      for (const failure of failures) console.error(`  - ${failure}`);
+      process.exitCode = 1;
+    } else {
+      console.log('\n✅ M7.5 重复率门禁通过');
+    }
+  }
 }
 
 main();

@@ -133,8 +133,10 @@ export const integrityEvents: GameEvent[] = [
         id: 'reconstruct', text: '按记忆重建一份干净的分析记录',
         outcomes: [
           {
-            weight: 1,
-            condition: { flagNum: { key: 'integrity_risk', op: '>=', value: 35 } },
+            weight: 2,
+            // 28 已是同一封编辑来信会要求公开更正的高风险档。把撤回另锁在
+            // 35 会令它在数千局里统计性消失；这里仍需同时选中“重建记录”。
+            condition: { flagNum: { key: 'integrity_risk', op: '>=', value: 28 } },
             text: '两版脚本对不上。编辑又问了三轮，最后通知撤回。\n\n公告没有写“造假”，写的是**无法核实报告结果所依据的分析流程**。这句话已经够了。',
             effects: [{ paperAudit: { op: 'retract' } }, { stats: { capital: -18, state: -10 } }, { schedule: { eventId: 'ev_integrity_reread', afterRounds: 1 } }],
           },

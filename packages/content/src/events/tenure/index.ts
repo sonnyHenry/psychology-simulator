@@ -58,9 +58,23 @@ export const tenureEvents: GameEvent[] = [
     id: 'ev_pd_partner_track',
     pools: ['postdoc', 'grad'],
     category: 'social',
+    mandatory: true,
     tier: 'major',
-    // 有伴侣才有这一幕。**两体问题的前提在这里立起来**
-    trigger: { all: [{ npcStage: 'npc_partner', stage: 'together' }, { year: { from: 2024 } }] },
+    // 有伴侣才有这一幕。**两体问题的前提在这里立起来**。
+    // 这是求职季五种归宿的入口，不得随着研究生随机池扩容而被稀释。
+    trigger: {
+      all: [
+        {
+          any: ['together', 'distance', 'years_left', 'two_maps', 'shared_home', 'settled'].map(stage => ({
+            npcStage: 'npc_partner',
+            stage,
+          })),
+        },
+        // 直博会在 2023 年离开 grad 池；写 2024 会让这批玩家直到求职季都
+        // 没有机会说明伴侣是否也在学术圈，同校配偶岗因此被结构性关掉。
+        { year: { from: 2023 } },
+      ],
+    },
     title: 'ta 也在找工作',
     text: '你们在同一张地图上各画各的圈,然后把两张纸放在一起看。\n\n重合的地方很少。\n\n**这件事你们回避了两年,现在回避不掉了。**',
     contextLines: [
@@ -268,6 +282,7 @@ export const tenureEvents: GameEvent[] = [
     id: 'ev_tn_someone_left',
     pools: ['tenure'],
     category: 'social',
+    weight: 5,
     trigger: { year: { from: 2030 } },
     title: '隔壁办公室空了',
     text: '同一批进来的那个人走了。\n\n没有通知,没有告别会。有一天你路过,门开着,里面什么都没有了。\n\n**他去年还在走廊上跟你聊过他那个课题。**',

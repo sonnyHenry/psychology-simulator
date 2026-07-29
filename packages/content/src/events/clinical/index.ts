@@ -75,6 +75,24 @@ export const clinicalEvents: GameEvent[] = [
         ],
       },
       {
+        id: 'pick_family',
+        text: '家庭系统：问题不只住在一个人身上',
+        outcomes: [{
+          weight: 1,
+          text: '你选了家庭系统。循环因果、三角关系、代际传递。\n\n一个人的症状可能在替整个家庭维持平衡；**改变一个人，也会让整个系统重新找位置。**',
+          effects: [{ setFlag: 'orientation_family' }, { setFlag: 'chose_orientation' }, { stats: { clinical: 3, capital: 1 } }],
+        }],
+      },
+      {
+        id: 'pick_act',
+        text: 'ACT / 正念：带着不适，仍往重要的方向走',
+        outcomes: [{
+          weight: 1,
+          text: '你选了 ACT 与正念路线。目标不是把每个念头消掉，而是改变人与念头的关系。\n\n**症状可以还在，生活不必等它完全离开才开始。**',
+          effects: [{ setFlag: 'orientation_act' }, { setFlag: 'chose_orientation' }, { stats: { clinical: 2, state: 2 } }],
+        }],
+      },
+      {
         id: 'pick_integrative',
         text: '整合:按来访者选工具,不按门派',
         outcomes: [
@@ -678,6 +696,8 @@ export const clinicalEvents: GameEvent[] = [
     text: '你的定价挂着两百,是三年前定的。同批的同行陆续涨到了三百,新来访者的咨询邮件却越来越多——**你的排期比价格先满了。**\n\n你打开定价那一栏,光标在数字上闪。',
     category: 'social',
     once: false,
+    mandatory: true,
+    eventSlotCost: 0,
     weight: 2,
     presentationVariants: [
       {
@@ -727,6 +747,8 @@ export const clinicalEvents: GameEvent[] = [
     text: '五百是这个城市咨询定价的一道心理坎:过了它,来访者的构成会变——学生几乎消失,换成了付得起也更挑剔的人。\n\n你的小时数和受训背景都够了。**问题是你想服务谁,以及每月的场地费想让你服务谁。**',
     category: 'social',
     once: false,
+    mandatory: true,
+    eventSlotCost: 0,
     weight: 2,
     trigger: {
       all: [
@@ -768,6 +790,8 @@ export const clinicalEvents: GameEvent[] = [
     text: '新的咨询申请,你能给出的最早时段在五周之后。等候名单上有十一个名字。\n\n按供需关系,你该涨到八百了。八百意味着:你和这个城市大多数普通人的一个月里,你的一小时约等于他们两天的工资。\n\n**你入行时想服务的人,和你的价格能筛出来的人,已经不是同一群了。**',
     category: 'social',
     once: false,
+    mandatory: true,
+    eventSlotCost: 0,
     weight: 2,
     trigger: {
       all: [
@@ -775,7 +799,7 @@ export const clinicalEvents: GameEvent[] = [
         { flagNum: { key: 'fee_level', op: '==', value: 2 } },
         // 450 不是 700:涨到第二档的人多在执业中后段,700 在时间线里基本够不到
         //(800 局实测小时数 p90 只有 746)。阈值要放回时间线里核一遍够不够得到。
-        { flagNum: { key: 'clinical_hours', op: '>=', value: 450 } },
+        { flagNum: { key: 'clinical_hours', op: '>=', value: 400 } },
       ],
     },
     choices: [
@@ -1032,6 +1056,7 @@ export const clinicalEvents: GameEvent[] = [
   {
     id: 'ev_cp_office',
     pools: ['clinical_practice', 'clinical_late'],
+    weight: 5,
     title: '一间自己的咨询室',
     text: '中介发来钥匙照片。五十平,朝南,离地铁站八百米。押三付一,加上装修和头半年的空窗期,数字不小。\n\n你看中它的理由和商业计划书没关系:**一间你自己选沙发、自己定规矩、没有运营指标的屋子。**',
     category: 'social',

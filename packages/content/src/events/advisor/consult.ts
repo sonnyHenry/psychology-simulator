@@ -32,13 +32,23 @@ function consultEvent(
   responseId: string,
   fields: Omit<GameEvent, 'id' | 'pools' | 'trigger' | 'mandatory' | 'once' | 'category'>,
 ): GameEvent {
+  const archetype = responseId.startsWith('young_pi_')
+    ? 'young_pi'
+    : responseId.startsWith('hands_off_')
+      ? 'hands_off'
+      : responseId.split('_')[0]!;
   return {
     id: `ev_consult_${responseId}`,
     pools: CONSULT_POOLS,
     category: 'social',
     mandatory: true,
     once: false,
-    trigger: { flag: 'advisor_consult_result', equals: responseId },
+    trigger: {
+      all: [
+        { flag: 'advisor_consult_result', equals: responseId },
+        { advisor: { archetype } },
+      ],
+    },
     ...fields,
   };
 }

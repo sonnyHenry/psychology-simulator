@@ -181,11 +181,19 @@ export const TWO_BODY_RESOLUTIONS: readonly TwoBodyResolution[] = [
  * 同校配偶岗**既真实又稀缺**。它不是玩家想选就能选的——
  * 要么对方也在学术圈、要么这所学校有这个政策。
  */
-export function spouseHireAvailable(state: GameState, offer: Offer | undefined): boolean {
+export function spouseHireAvailable(
+  state: GameState,
+  offer: Offer | undefined,
+  pack?: Pick<ContentPack, 'positions'>,
+): boolean {
   if (!offer) return false;
   if (!state.flags.partner_academic) return false;
-  // 海外 R1 和国内头部才有这套政策
-  return offer.region === 'overseas' || Boolean(state.flags.offer_from_top_tier);
+  // 海外岗位、国内头部，或岗位数据明确声明有配偶岗政策。`twoBodyFriendly`
+  // 原先只写进 Position 却从未被消费，导致六个标注岗位在游戏里仍然走不到这条路。
+  const positionSupportsIt = Boolean(
+    pack?.positions?.find(position => position.id === offer.positionId)?.twoBodyFriendly,
+  );
+  return offer.region === 'overseas' || Boolean(state.flags.offer_from_top_tier) || positionSupportsIt;
 }
 
 // ══════════════════ 七步流程 ══════════════════
@@ -415,7 +423,7 @@ export function buildJobMarketView(
           { id: 'apart', label: '异地', text: '先各干各的,周末飞。', hint: '六年很长' },
           { id: 'partner_follows', label: 'ta 跟你走', text: 'ta 辞掉现在的工作。', hint: '这笔账要还很多年' },
           { id: 'player_yields', label: '你去 ta 的城市', text: '换一个差一点的 offer。', hint: '你会一直知道自己让掉了什么' },
-          ...(spouseHireAvailable(state, market.offers[0])
+          ...(market.offers.some(offer => spouseHireAvailable(state, offer, pack))
             ? [{ id: 'spouse_hire', label: '争取同校配偶岗', text: '既真实又稀缺的那条路。', hint: '不一定谈得成' }]
             : []),
           { id: 'breakup', label: '分开', text: '谁都没有做错什么。' },

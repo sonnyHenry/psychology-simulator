@@ -36,6 +36,10 @@ body {
   font-size: 16px;
 }
 
+button {
+  touch-action: manipulation;
+}
+
 .app {
   max-width: 620px;
   margin: 0 auto;
@@ -437,6 +441,7 @@ body {
   cursor: pointer;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
+  min-height: 44px;
 }
 
 .desk-tab-archive {
@@ -760,7 +765,8 @@ body {
   background: none;
   font: inherit;
   font-size: 13px;
-  padding: 4px 12px;
+  min-height: 44px;
+  padding: 6px 12px;
   cursor: pointer;
 }
 
@@ -886,8 +892,8 @@ body {
 }
 
 .alloc-btn {
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   font: inherit;
   font-size: 18px;
   line-height: 1;
@@ -1233,6 +1239,7 @@ body {
   font: inherit;
   font-size: 13px;
   padding: 5px 14px;
+  min-height: 44px;
   cursor: pointer;
 }
 
@@ -1299,4 +1306,79 @@ body {
 
 .tenure-fail {
   border-left-color: var(--down);
+}
+
+/* ── M8 移动端收口 ─────────────────────────────────────── */
+
+@media (max-width: 420px) {
+  body {
+    line-height: 1.72;
+  }
+
+  .app {
+    padding: max(8px, env(safe-area-inset-top)) 10px
+      calc(36px + env(safe-area-inset-bottom));
+    min-height: 100dvh;
+  }
+
+  .stats-bar {
+    top: env(safe-area-inset-top);
+    margin-bottom: 14px;
+  }
+
+  .card {
+    padding: 18px 16px;
+  }
+
+  .card h1 {
+    font-size: 24px;
+  }
+
+  .card h2 {
+    font-size: 19px;
+  }
+
+  .desk-tabs {
+    gap: 0;
+  }
+
+  .desk-tab {
+    min-width: 0;
+    padding-inline: 2px;
+    font-size: 13px;
+  }
+
+  .desk-tab-archive {
+    margin-left: 4px;
+    padding-left: 8px;
+    font-size: 12px;
+  }
+
+  .desk-tab-badge {
+    margin-left: 2px;
+  }
+
+  .alloc-item {
+    align-items: flex-start;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .alloc-item-controls {
+    padding-top: 2px;
+  }
+
+  .jm-position-head,
+  .jm-offer-head {
+    align-items: flex-start;
+  }
+
+  .tenure-row {
+    grid-template-columns: 2.5em minmax(0, 1fr);
+  }
+
+  .tenure-req {
+    grid-column: 2;
+    text-align: left;
+  }
 }

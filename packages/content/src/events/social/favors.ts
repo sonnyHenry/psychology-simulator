@@ -123,7 +123,9 @@ export const favorEvents: GameEvent[] = [
     trigger: {
       all: [
         { year: { from: 2022 } },
-        { favorBalance: { direction: 'owed', op: '>=', value: 3 } },
+        // 求职季发生时，早年那笔 3 点人情通常已贬值到 2；继续要求 3 会让
+        // “人情会贬值”退化成“这幕永远不会出现”，而不是一个何时兑现的选择。
+        { favorBalance: { direction: 'owed', op: '>=', value: 2 } },
       ],
     },
     title: '你需要一封不是模板的推荐信',
@@ -143,7 +145,7 @@ export const favorEvents: GameEvent[] = [
             text: '他回得很快:"你把 CV 发我,我这两天写。"\n\n信是两页纸,里面提到了三件具体的事——**其中一件连你自己都快忘了**。\n\n这笔人情用掉了。',
             effects: [
               { stats: { capital: 6, state: 2 } },
-              { favor: { op: 'settle', direction: 'owed', weight: 3 } },
+              { favor: { op: 'settle', direction: 'owed', weight: 2 } },
               { setFlag: 'got_a_real_letter' },
             ],
           },

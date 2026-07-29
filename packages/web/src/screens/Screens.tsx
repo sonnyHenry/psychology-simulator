@@ -51,7 +51,8 @@ export function TitleScreen(props: {
       )}
       <p className="disclaimer">
         本作是一个游戏。它使用真实量表的题目形态和真实的行业制度来做叙事,但不提供任何诊断或评估。
-        如果你或你身边的人需要帮助:全国心理援助热线 <strong>12356</strong>。
+        如果你或你身边的人需要帮助:全国心理援助热线 <strong>12356</strong>。游戏进度只保存在当前浏览器,
+        不会上传到服务器。
       </p>
     </Card>
   );

@@ -149,6 +149,8 @@ export interface GameState {
   /** 黑天鹅独立配额：种子决定 1 或 2，不受属性保护。 */
   blackSwanQuota?: 1 | 2;
   blackSwanCount?: number;
+  /** 已填过的叙事功能位。旧存档缺失时按空数组处理。 */
+  filledSlots?: string[];
   /**
    * 本回合"这个事件是替哪个个案弹出来的"。由调度器写,回合开始时重建。
    * (与 `eventProjects` 同源:阶段事件必须知道自己在说哪个个案。)

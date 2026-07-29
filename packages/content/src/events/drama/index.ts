@@ -16,6 +16,10 @@ export const dramaEvents: GameEvent[] = [
     id: 'ev_drama_group_credit', pools: ['undergrad'], category: 'drama', mandatory: true, eventSlotCost: 0,
     title: '名单上的第三个人',
     text: '实验课小组报告做完了。一个几乎没出现的组员说，奖学金评定需要这门课的项目经历，希望名字保留在前三。\n\n他确实没做多少。你也知道，他这学期一直在医院陪家人。',
+    presentationVariants: [
+      { condition: { flag: 'origin_illness' }, title: '名单上的第三个人', text: '实验课小组报告做完了。那个几乎没出现的组员说，这学期大半时间都在医院陪家人。\n\n你知道医院会怎样吞掉一个人的日历；真正做完报告的人也确实不是他。' },
+      { condition: { flag: 'trait_rigorous' }, title: '贡献表最后一栏', text: '实验课要求逐项填写成员贡献。一个几乎没出现的组员希望名字留在前三，因为奖学金评定会看这一项。\n\n表格要你写百分比，生活没有。' },
+    ],
     trigger: { year: { from: 2016, to: 2016 } },
     choices: [
       { id: 'keep', text: '把他留在前三', outcomes: [{ weight: 1, text: '名单没改。真正做事的同学没有当场说什么，下一次分组时没有再找你。**你替一个人留了余地，也让另一个人的劳动变轻了。**', effects: [{ stats: { clinical: 2, capital: -2 } }, { setFlag: 'drama_kept_credit' }] }] },
@@ -26,6 +30,10 @@ export const dramaEvents: GameEvent[] = [
     id: 'ev_drama_absence_reason', pools: ['undergrad'], category: 'drama', mandatory: true, eventSlotCost: 0,
     title: '“你知道他为什么没来吗”',
     text: '同学在咨询中心做完一次紧急会谈，错过了必点名的课。老师问你知不知道原因。\n\n同学只对你说过一句：“别告诉别人。”老师说没有正当理由就记旷课。',
+    presentationVariants: [
+      { condition: { flag: 'sat_through_the_night' }, title: '“你知道他为什么没来吗”', text: '同学在咨询中心做完紧急会谈，错过了必点名的课。老师问你知不知道原因。\n\n你记得自己也坐过那样的一夜，也记得当时最怕别人替你解释。' },
+      { condition: { flag: 'reported_upward' }, title: '这一次该不该往上报', text: '同学在咨询中心做完紧急会谈，错过了必点名的课。老师要一个“正当理由”。\n\n你已经做过一次向上报告，也知道程序保护人的时候会先拿走什么。' },
+    ],
     trigger: { year: { from: 2018, to: 2018 } },
     choices: [
       { id: 'protect', text: '只说“有私事”，不透露更多', outcomes: [{ weight: 1, text: '旷课记上了。你守住了他交给你的边界，也没能替他挡住制度。**后来他没有怪你，反而让这件事更难受。**', effects: [{ stats: { clinical: 3, capital: -2 } }, { setFlag: 'drama_protected_secret' }] }] },
@@ -36,6 +44,10 @@ export const dramaEvents: GameEvent[] = [
     id: 'ev_drama_cover_colleague', pools: CAREER_POOLS, category: 'drama', mandatory: true, eventSlotCost: 0,
     title: '替他顶两个月',
     text: '同事家里出了事，问你能不能替他顶两个月：课、门诊、项目或值班。\n\n你知道他不是偷懒。你也知道自己的日历已经没有空白。',
+    presentationVariants: [
+      { condition: { flagNum: { key: 'burnout', op: '>=', value: 60 } }, title: '日历上已经没有白色', text: '同事家里出了事，问你能不能替两个月。你的日历上已经没有完整的空白，身体也开始用一些你不愿意命名的方式提醒你。\n\n他确实不是偷懒。你也确实接不动了。' },
+      { condition: { career: 'clinical' }, title: '把他的来访者也接过来', text: '同行家里出了事，问你能不能暂时接住他的几位来访者。转介不能停两个月，关系也不能像排班一样无缝移交。\n\n你知道拒绝意味着什么，也知道答应意味着什么。' },
+    ],
     trigger: { year: { from: 2025, to: 2026 } },
     choices: [
       { id: 'cover', text: '接下来', outcomes: [{ weight: 1, text: '事情都做完了，同事回来时认真向你道谢。**没有一项工作记得是你额外做的，只有你的身体记得。**', effects: [{ stats: { capital: 3, state: -4 } }, { addFlag: { key: 'burnout', delta: 8, min: 0, max: 100 } }] }] },

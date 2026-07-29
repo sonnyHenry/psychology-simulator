@@ -190,7 +190,7 @@ export const projectStageEvents: GameEvent[] = [
   // ══════════ 文献 ══════════
   stageEvent('ev_ps_lit_review_exists', 'lit', {
     title: '综述已经有人写了',
-    text: '你读到第 80 篇的时候,搜到了一篇 2019 年的系统综述。\n\n它把你这两个月读的东西整理得比你好。',
+    text: '「{{project}}」做到第 {{years}} 年。你读到第 80 篇的时候,搜到了一篇 2019 年的系统综述。\n\n它把你这两个月读的东西整理得比你好。',
     contextLines: [
       { text: '你的文献表格现在有 214 行。' },
       { condition: { flag: 'trait_rigorous' }, text: '每一行你都自己读过原文。' },
@@ -302,7 +302,7 @@ export const projectStageEvents: GameEvent[] = [
   // ══════════ 伦理 / 预注册(挂在文献站)══════════
   stageEvent('ev_ps_ethics_revisions', 'lit', {
     title: '伦理委员会返修第三次',
-    text: '第三次返修意见:知情同意书里未成年被试的监护人签字栏格式不符合要求。\n\n你这个研究招的是大学生。\n\n你回复说明了,他们回复"请按模板修改"。',
+    text: '「{{project}}」的第三次返修意见:知情同意书里未成年被试的监护人签字栏格式不符合要求。\n\n你这个研究招的是大学生。\n\n你回复说明了,他们回复"请按模板修改"。',
     contextLines: [
       { text: '第一次返修是三月,现在是七月。' },
       { condition: { flag: 'lab_logistics' }, text: '你现在是组里最会填表的那个人。' },
@@ -413,7 +413,7 @@ export const projectStageEvents: GameEvent[] = [
   }),
   stageEvent('ev_ps_collect_counterbalance', 'collect', {
     title: '师妹把 counterbalance 弄反了',
-    text: '你翻数据的时候发现:第 31 到 58 号被试的条件顺序全反了。\n\n帮你跑被试的师妹按你写的流程做的。你写的那份流程,第 4 步和第 5 步的顺序确实有歧义。',
+    text: '「{{project}}」第 {{years}} 年。你翻数据的时候发现:第 31 到 58 号被试的条件顺序全反了。\n\n帮你跑被试的师妹按你写的流程做的。你写的那份流程,第 4 步和第 5 步的顺序确实有歧义。',
     contextLines: [
       { text: '28 个被试。三周。' },
       { condition: { flag: 'mastered_exp' }, text: '你一眼就看出这 28 个不能直接合并——顺序效应会和你的自变量混在一起。' },
@@ -851,7 +851,7 @@ export const projectStageEvents: GameEvent[] = [
   // ══════════ 审稿 ══════════
   stageEvent('ev_ps_review_reviewer_two', 'review', {
     title: '审稿人 2 号',
-    text: '意见回来了。审稿人 1 号两段,基本正面。\n\n审稿人 2 号写了三页半。他要你补一个行为实验,理由是"当前证据不足以支持因果推断"。\n\n他说得对。补那个实验要一年。',
+    text: '「{{project}}」的意见回来了。审稿人 1 号两段,基本正面。\n\n审稿人 2 号写了三页半。他要你补一个行为实验,理由是"当前证据不足以支持因果推断"。\n\n他说得对。补那个实验要一年。',
     contextLines: [
       { text: '「{{project}}」已经第 {{years}} 年了。' },
       { condition: { flag: 'reviewer_will_know' }, text: '他还问了那篇 2015 年的重复研究为什么没引。' },

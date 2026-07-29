@@ -12,6 +12,7 @@ import {
 import { pendingAdvisorEvent } from '../systems/advisor';
 import { activeCases, openNewCasesForYear, rollCaseTrends } from '../systems/case';
 import { pickBlackSwan } from './blackswan';
+import { fillNarrativeSlots } from './slots';
 
 // ---------- 导演式选择器(storyteller) ----------
 // 只调整非 mandatory 事件进入随机槽位的相对概率;强制/NPC/schedule 事件不受影响。
@@ -134,6 +135,12 @@ export function pickRoundEvents(
   phase: Extract<PhaseConfig, { kind: 'rounds' }>,
 ): string[] {
   const picked: string[] = [];
+  // 功能位候选只由 fillNarrativeSlots 抽取。若继续混进普通池，同组兄弟会在
+  // 功能位已经挑完一幕之后再次被随机槽抽中，既破坏“这个位置三选一”，也会
+  // 让普通池扩容时反过来改变功能位的覆盖率。
+  const narrativeSlotCandidateIds = new Set(
+    (pack.narrativeSlots ?? []).flatMap(slot => slot.candidates),
+  );
 
   const due = state.scheduled.filter(s => s.dueRound <= state.roundCounter);
   state.scheduled = state.scheduled.filter(s => s.dueRound > state.roundCounter);
@@ -155,6 +162,7 @@ export function pickRoundEvents(
     if (ev.caseStatus !== undefined) return false;
     // 黑天鹅只走独立配额器，绝不混进普通随机槽导致一局超过配额。
     if (ev.category === 'blackswan') return false;
+    if (narrativeSlotCandidateIds.has(ev.id)) return false;
     if (!ev.pools.some(p => phase.pools.includes(p))) return false;
     if (ev.once !== false && state.triggeredEventIds.includes(ev.id)) return false;
     if (picked.includes(ev.id)) return false;
@@ -191,6 +199,13 @@ export function pickRoundEvents(
   // ② 黑天鹅走独立配额，不占普通槽位，也不经过导演器的属性/情绪加权。
   const blackSwan = pickBlackSwan(state, pack, rng, phase, new Set(picked));
   if (blackSwan && !picked.includes(blackSwan.id)) picked.push(blackSwan.id);
+
+  // ②a 叙事功能位：一局只填一次，从 ≥3 个叙事等价候选里挑。
+  // 功能位事件占普通事件预算，后面的随机池只填剩余格数。
+  const slotPicks = fillNarrativeSlots(state, pack, rng, phase, new Set(picked));
+  for (const hit of slotPicks) {
+    for (const event of hit.events) if (!picked.includes(event.id)) picked.push(event.id);
+  }
 
   // ②' 课题管线阶段事件(TECH 4.5)。不占 `eventSlots` 名额。
   //

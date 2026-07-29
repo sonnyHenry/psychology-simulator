@@ -264,7 +264,10 @@ export const foundations: Foundation[] = [
   {
     id: 'fnd_growth_mindset',
     label: '成长型思维',
-    domains: ['domain_social', 'domain_education'],
+    // 成长型思维既是教育干预，也是儿童/青少年发展研究的常见理论地基。
+    // M7.5 把发展心理学做成独立课题领域后，这条关联也必须显式登记；
+    // 否则新领域会被创建，却永远不可能经历已有的 2019 年“效应缩水”。
+    domains: ['domain_social', 'domain_education', 'domain_development'],
     origin: cite('cit_blackwell_2007'),
     hypeYears: [2007, 2019],
     // **这一条不是塌,是缩水**——效应真实但比所有人以为的小得多,

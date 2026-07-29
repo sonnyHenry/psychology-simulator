@@ -28,7 +28,7 @@ export const caseTemplates: CaseTemplate[] = [
       '她在早高峰的车厢里突然觉得自己要死了。急诊查了心电图,什么都没有。',
     ],
     riskLevel: 'low',
-    orientationFit: ['orientation_cbt', 'orientation_integrative'],
+    orientationFit: ['orientation_cbt', 'orientation_act', 'orientation_integrative'],
   },
   {
     id: 'tpl_breakup',
@@ -38,7 +38,7 @@ export const caseTemplates: CaseTemplate[] = [
       '他说每段关系都死在同一个地方,像一份被复印的病历。',
     ],
     riskLevel: 'low',
-    orientationFit: ['orientation_dynamic'],
+    orientationFit: ['orientation_dynamic', 'orientation_family'],
   },
   {
     id: 'tpl_grief',
@@ -48,7 +48,7 @@ export const caseTemplates: CaseTemplate[] = [
       '她说最难的不是想起来,是有一天发现自己想不起来声音了。',
     ],
     riskLevel: 'moderate',
-    orientationFit: ['orientation_humanistic', 'orientation_dynamic'],
+    orientationFit: ['orientation_humanistic', 'orientation_dynamic', 'orientation_family'],
   },
   {
     id: 'tpl_school_refusal',
@@ -58,7 +58,7 @@ export const caseTemplates: CaseTemplate[] = [
       '他每天在家学到凌晨,就是不进那个校门。是他妈妈先来的,替他。',
     ],
     riskLevel: 'moderate',
-    orientationFit: ['orientation_integrative', 'orientation_cbt'],
+    orientationFit: ['orientation_integrative', 'orientation_cbt', 'orientation_act'],
   },
   {
     id: 'tpl_selfharm_teen',
@@ -75,7 +75,7 @@ export const caseTemplates: CaseTemplate[] = [
         { flagNum: { key: 'supervision_hours', op: '>=', value: 24 } },
       ],
     },
-    orientationFit: ['orientation_cbt', 'orientation_integrative'],
+    orientationFit: ['orientation_cbt', 'orientation_act', 'orientation_integrative'],
   },
   {
     id: 'tpl_burnout_pm',
@@ -85,7 +85,7 @@ export const caseTemplates: CaseTemplate[] = [
       '她管理着一个十一个人的团队,和一个每天早上不想睁眼的自己。',
     ],
     riskLevel: 'low',
-    orientationFit: ['orientation_cbt', 'orientation_integrative'],
+    orientationFit: ['orientation_cbt', 'orientation_family', 'orientation_integrative'],
   },
   {
     id: 'tpl_marriage',
@@ -95,7 +95,7 @@ export const caseTemplates: CaseTemplate[] = [
       '他说想在离婚协议签字之前"确认一下是不是真的没了"。',
     ],
     riskLevel: 'moderate',
-    orientationFit: ['orientation_dynamic', 'orientation_humanistic'],
+    orientationFit: ['orientation_dynamic', 'orientation_humanistic', 'orientation_family'],
   },
   {
     id: 'tpl_retired_teacher',
@@ -105,6 +105,6 @@ export const caseTemplates: CaseTemplate[] = [
       '子女给她订了十次咨询当生日礼物。她第一次来是为了不浪费钱。',
     ],
     riskLevel: 'low',
-    orientationFit: ['orientation_humanistic'],
+    orientationFit: ['orientation_humanistic', 'orientation_act'],
   },
 ];

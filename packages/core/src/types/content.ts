@@ -92,6 +92,38 @@ export interface GameEvent {
   choices: EventChoice[];
 }
 
+/**
+ * 叙事功能位：窗口内保证出现某种叙事功能，具体是哪一幕由三倍超配候选池决定。
+ * 功能位不进长期玩法对象，只在 state 里记录是否已经填过。
+ */
+export interface NarrativeSlot {
+  id: string;
+  label: string;
+  phaseId: string;
+  /** 阶段内的 0-based 回合窗口，首尾均包含。 */
+  roundWindow: [number, number];
+  fill: number;
+  candidates: string[];
+  /**
+   * `pool`（默认）表示候选在同一配置下共同可用，重复率门禁会检查候选分布；
+   * `conditional` 表示候选按构筑条件互斥，跨配置的全局占比不代表随机公平性。
+   */
+  candidateMode?: 'pool' | 'conditional';
+}
+
+/**
+ * 发布前术语表。正文必须使用 `canonical`；`aliases` 是容易混入内容的错误写法。
+ * 年份边界按事件实际发生年份解释，首尾都包含。
+ */
+export interface GlossaryEntry {
+  id: string;
+  canonical: string;
+  definition: string;
+  aliases?: string[];
+  validFromYear?: number;
+  validThroughYear?: number;
+}
+
 export interface EndingDef {
   id: string;
   title: string;
@@ -435,6 +467,10 @@ export interface ContentPack {
   };
   timeline: PhaseConfig[];
   events: GameEvent[];
+  /** M7.5：按叙事功能组织的三倍超配候选池。 */
+  narrativeSlots?: NarrativeSlot[];
+  /** M8：专业术语、建制边界与有效年份的唯一数据源。 */
+  glossary?: GlossaryEntry[];
   incomes: IncomeRule[];
   endings: EndingDef[];
   examBank: ExamQuestion[];

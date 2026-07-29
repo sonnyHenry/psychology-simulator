@@ -424,6 +424,11 @@ export interface RunResult {
   presentationHits: string[];
   contextLineHits: string[];
   /**
+   * 玩家实际看到的叙事三元组：`eventId × presentationVariant × situation`。
+   * repetition 用它衡量“同一事件在不同人生里是否仍像同一幕”，而不只比较事件 ID。
+   */
+  renderFingerprints: string[];
+  /**
    * 每个自然年放了几幕事件。**节奏指标。**
    *
    * 玩家的原话是"每一年的事件太多了,玩久了有点累"——而在此之前没有任何一条指标在看这个。
@@ -522,6 +527,7 @@ export function runOne(
   const stateByYear: Array<[number, number]> = [];
   const presentationHits: string[] = [];
   const contextLineHits: string[] = [];
+  const renderFingerprints: string[] = [];
   let steps = 0;
   const log = (line: string) => {
     if (verbose) console.log(line);
@@ -552,6 +558,7 @@ export function runOne(
         steps,
         presentationHits,
         contextLineHits,
+        renderFingerprints,
         eventsPerYear: [...eventsPerYear.entries()],
         institutionsPicked: [...institutionsPicked],
         sawCollapse,
@@ -750,6 +757,25 @@ export function runOne(
             const contextLine = selectContextLine(event, ctx);
             if (presentationIndex >= 0) presentationHits.push(`${event.id}#${presentationIndex}`);
             if (contextLine) contextLineHits.push(`${event.id}#${contextLine.index}`);
+
+            const boundProjectId = state.eventProjects?.[event.id];
+            const boundProject = (state.projects ?? []).find(project => project.id === boundProjectId);
+            const primaryProject = boundProject ?? (state.projects ?? []).find(project => !project.isThesis);
+            const boundCaseId = state.eventCases?.[event.id];
+            const boundCase = (state.cases ?? []).find(kase => kase.id === boundCaseId);
+            const advisorArchetype = contentPack.advisors?.find(advisor => advisor.id === state.advisor?.id)?.archetype;
+            const orientation = Object.keys(state.flags)
+              .filter(key => key.startsWith('orientation_') && Boolean(state.flags[key]))
+              .sort()[0];
+            const situation = [
+              `domain:${primaryProject?.domain ?? 'none'}`,
+              `advisor:${advisorArchetype ?? 'none'}`,
+              `path:${state.profile.career ?? 'none'}`,
+              `object:${boundProject ? `project-${boundProject.stage}` : boundCase ? `case-${boundCase.status}` : 'none'}`,
+              `college:${String(state.flags.college ?? 'none')}`,
+              `orientation:${orientation ?? 'none'}`,
+            ].join('|');
+            renderFingerprints.push(`${event.id}#p${presentationIndex}#${situation}`);
           }
           if (view.eventId.startsWith('ev_collapse_')) {
             sawCollapse = true;
@@ -907,11 +933,12 @@ interface DeskStats {
 }
 
 const NPC_SPECIAL_FLAGS: Record<string, string[]> = {
-  first_love: ['love_true_companion', 'love_history_closure'],
-  roommate: ['roommate_true_partner'],
-  grinder: ['grinder_true_mirror'],
-  hometown_friend: ['hometown_true_friend'],
-  mentor: ['mentor_true_legacy'],
+  npc_senior_sister: ['npc_senior_bond'],
+  npc_rival: ['npc_peer_bond'],
+  npc_advisor_to_be: ['npc_teacher_bond'],
+  npc_roommate: ['npc_roommate_bond'],
+  npc_hometown_friend: ['npc_hometown_bond'],
+  npc_partner: ['npc_partner_bond'],
 };
 
 function runBatch(runs: number, baseSeed: number, strategy: Strategy, examSkill = 0): BatchStats {

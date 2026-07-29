@@ -136,6 +136,7 @@ export {
   marketTightnessFor,
   materialQualityFor,
   offerChance,
+  spouseHireAvailable,
   startJobMarket,
   willBeAskedAboutReplication,
   MAX_APPLICATIONS,
@@ -152,6 +153,7 @@ export {
 export { applyPaperAuditOp, riskiestPaper } from './systems/integrity';
 export { applyStudentOp } from './systems/student';
 export { pickBlackSwan } from './systems/blackswan';
+export { fillNarrativeSlots, type FilledNarrativeSlot } from './systems/slots';
 export { createEngine, type Engine } from './engine/engine';
 export { devJump, type DevJumpResult, type DevJumpTarget } from './dev/jump';
 export {

@@ -1,23 +1,16 @@
 import { useState } from 'react';
 import type { PlayerAction, ViewModel } from '@psy-sim/core';
-import { devJumpTargets } from '@psy-sim/content';
 import { Card, ChoiceButton, ContinueButton, DeltaChips, MoneyTrend, RichText } from '../components/ui';
 import { AskAround } from '../components/AskAround';
 
 type Act = (action: PlayerAction) => void;
 type Of<K extends ViewModel['kind']> = Extract<ViewModel, { kind: K }>;
 
-/** 开发面板开关:dev server 下常开,构建版加 `?dev` 才出现。测试工具不给普通玩家看 */
-const DEV_PANEL_ENABLED =
-  import.meta.env.DEV ||
-  (typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('dev'));
-
 export function TitleScreen(props: {
   view: Of<'TITLE'>;
   act: Act;
   hasSave: boolean;
   onContinue: () => void;
-  onDevJump?: (targetId: string) => boolean;
 }) {
   return (
     <Card className="title">
@@ -25,30 +18,6 @@ export function TitleScreen(props: {
       <p className="title-sub">2014 年 6 月。志愿表上那一行,你还没有填。</p>
       <ContinueButton onClick={() => props.act({ type: 'START' })} label="开始新的一局" />
       {props.hasSave && <ContinueButton onClick={props.onContinue} label="继续上一局" />}
-      {DEV_PANEL_ENABLED && props.onDevJump && (
-        <details className="dev-jump">
-          <summary>测试:一键跳到人生节点</summary>
-          <p className="dev-jump-note">
-            自动快进到目标节点,路上的选择按默认策略做(答题全对、岔口按目标选、精力按目标线投)。
-            每次跳转是一局新种子;跳完照常存档,可以从那里继续手玩。
-          </p>
-          <div className="dev-jump-grid">
-            {devJumpTargets.map(target => (
-              <button
-                key={target.id}
-                className="choice-btn"
-                onClick={() => {
-                  if (!props.onDevJump!(target.id)) {
-                    alert(`跳转失败:${target.label}(见 verify-jumps)`);
-                  }
-                }}
-              >
-                {target.label}
-              </button>
-            ))}
-          </div>
-        </details>
-      )}
       <p className="disclaimer">
         本作是一个游戏。它使用真实量表的题目形态和真实的行业制度来做叙事,但不提供任何诊断或评估。
         如果你或你身边的人需要帮助:全国心理援助热线 <strong>12356</strong>。游戏进度只保存在当前浏览器,

@@ -4,7 +4,8 @@ import type { PlayerAction } from '../types/view';
 import { createEngine } from '../engine/engine';
 
 /**
- * 开发用一键跳转:从开局按**默认策略**自动打到某个人生节点(测试工具,不是玩法)。
+ * 一键跳转:从开局按**默认策略**自动打到某个人生节点。
+ * 玩家跳转面板与开发可达性测试共用这一条真实快进路径。
  *
  * ## 为什么是"快进"而不是"造档"
  *
@@ -23,6 +24,8 @@ import { createEngine } from '../engine/engine';
 export interface DevJumpTarget {
   id: string;
   label: string;
+  /** 玩家面板用的进度刻度；只允许跳到严格晚于当前进度的年份。 */
+  year: number;
   /** 到达这个阶段就停(停在该阶段的第一个可交互屏)。省略 = 一路打到结局屏 */
   targetPhaseId?: string;
   /**

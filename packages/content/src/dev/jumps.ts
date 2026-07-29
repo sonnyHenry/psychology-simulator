@@ -1,7 +1,7 @@
 import type { DevJumpTarget } from '@psy-sim/core';
 
 /**
- * 一键跳转的目标表(测试工具)。快进器在 core(`devJump`),这里只放数据:
+ * 一键跳转的目标表。玩家面板与测试工具共用；快进器在 core(`devJump`),这里只放数据:
  * 停在哪个阶段、路上的岔口怎么选、精力往哪儿投。
  *
  * ## 加一个目标的方法
@@ -29,6 +29,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_crossroad_2018',
     label: '大四三岔口(2018)',
+    year: 2018,
     targetPhaseId: 'crossroad_2018',
     collegePref: 'science',
     // 兼顾几条线的门控:实验室(直博/海外)、备考(读硕/海外)、咨询中心(临床)。
@@ -38,6 +39,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_master',
     label: '研一入学(2019)',
+    year: 2019,
     targetPhaseId: 'master',
     collegePref: 'science',
     lifeGoalId: 'goal_academic',
@@ -47,6 +49,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_master_grad',
     label: '硕士岔口(2021,硕士毕业)',
+    year: 2021,
     targetPhaseId: 'crossroad_2021',
     collegePref: 'science',
     lifeGoalId: 'goal_academic',
@@ -56,6 +59,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_phd',
     label: '博一入学(2022,硕转博)',
+    year: 2022,
     targetPhaseId: 'phd_after_master',
     collegePref: 'science',
     lifeGoalId: 'goal_academic',
@@ -66,6 +70,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_phd_direct',
     label: '直博一年级(2019)',
+    year: 2019,
     targetPhaseId: 'phd_direct',
     collegePref: 'science',
     lifeGoalId: 'goal_academic',
@@ -75,6 +80,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_phd_ending',
     label: '博士毕业(直接看结局)',
+    year: 2034,
     collegePref: 'science',
     lifeGoalId: 'goal_academic',
     crossroadPrefs: { crossroad_2018: ['path_master'], crossroad_2021: ['m_continue_phd'] },
@@ -83,6 +89,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_clinical_grad',
     label: '专硕研一(2019,临床线)',
+    year: 2019,
     targetPhaseId: 'clinical',
     collegePref: 'education',
     lifeGoalId: 'goal_help_people',
@@ -92,6 +99,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_clinical_practice',
     label: '临床执业(2022)',
+    year: 2022,
     targetPhaseId: 'clinical_practice',
     collegePref: 'education',
     lifeGoalId: 'goal_help_people',
@@ -101,6 +109,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_clinical_late',
     label: '执业成熟期(2027)',
+    year: 2027,
     targetPhaseId: 'clinical_late',
     collegePref: 'education',
     lifeGoalId: 'goal_help_people',
@@ -110,6 +119,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_clinical_ending',
     label: '临床结局(2033)',
+    year: 2033,
     collegePref: 'education',
     lifeGoalId: 'goal_help_people',
     crossroadPrefs: { crossroad_2018: ['path_clinical'] },
@@ -118,6 +128,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_job_market',
     label: '求职季(2027)',
+    year: 2027,
     targetPhaseId: 'job_market',
     collegePref: 'science',
     lifeGoalId: 'goal_academic',
@@ -131,6 +142,7 @@ export const devJumpTargets: DevJumpTarget[] = [
   {
     id: 'jump_tenure_review',
     label: '长聘首考(2034)',
+    year: 2034,
     targetPhaseId: 'tenure_review',
     collegePref: 'science',
     lifeGoalId: 'goal_academic',
@@ -147,7 +159,8 @@ export const devJumpTargets: DevJumpTarget[] = [
   },
   {
     id: 'jump_hospital_ending',
-    label: '医院线结局(2034)',
+    label: '医院线结局(2033)',
+    year: 2033,
     collegePref: 'medical',
     lifeGoalId: 'goal_help_people',
     crossroadPrefs: {
@@ -158,7 +171,8 @@ export const devJumpTargets: DevJumpTarget[] = [
   },
   {
     id: 'jump_school_ending',
-    label: '学校线结局(2034)',
+    label: '学校线结局(2033)',
+    year: 2033,
     collegePref: 'normal',
     lifeGoalId: 'goal_stability',
     crossroadPrefs: { crossroad_2018: ['path_school'] },
@@ -166,7 +180,8 @@ export const devJumpTargets: DevJumpTarget[] = [
   },
   {
     id: 'jump_industry_ending',
-    label: '企业线结局(2034)',
+    label: '企业线结局(2033)',
+    year: 2033,
     collegePref: 'science',
     lifeGoalId: 'goal_income',
     crossroadPrefs: { crossroad_2018: ['path_industry'] },
@@ -174,7 +189,8 @@ export const devJumpTargets: DevJumpTarget[] = [
   },
   {
     id: 'jump_left_ending',
-    label: '离开线结局(2034)',
+    label: '离开线结局(2033)',
+    year: 2033,
     collegePref: 'education',
     lifeGoalId: 'goal_freedom',
     crossroadPrefs: { crossroad_2018: ['path_leave'] },

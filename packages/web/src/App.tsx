@@ -1,5 +1,6 @@
 import { contentPack } from '@psy-sim/content';
 import { StatsBar } from './components/StatsBar';
+import { JumpNavigator } from './components/JumpNavigator';
 import { DeskScreen } from './screens/Desk';
 import { GradApplyScreen, GradResultScreen } from './screens/GradApply';
 import { JobMarketScreen, TenureReviewScreen } from './screens/JobMarket';
@@ -29,12 +30,13 @@ function phaseLabelOf(phaseIndex: number): string {
 }
 
 export default function App() {
-  const { game, view, act, hasSave, continueGame, newGame, devJumpTo } = useGame();
+  const { game, view, act, hasSave, progressYear, continueGame, newGame, devJumpTo } = useGame();
   const showStats = view.kind !== 'TITLE' && view.kind !== 'ENDING';
 
   return (
     <div className="app">
       {showStats && <StatsBar game={game} phaseLabel={phaseLabelOf(game.phaseIndex)} />}
+      <JumpNavigator progressYear={progressYear} onJump={devJumpTo} />
       <main className="stage">
         {(() => {
           switch (view.kind) {
@@ -45,7 +47,6 @@ export default function App() {
                   act={act}
                   hasSave={hasSave}
                   onContinue={continueGame}
-                  onDevJump={devJumpTo}
                 />
               );
             case 'BACKGROUND_DRAW':

@@ -163,5 +163,5 @@ export const contentPack: ContentPack = {
 };
 
 export const CONTENT_VERSION = contentPack.meta.version;
-/** 开发用一键跳转目标表(测试工具,见 dev/jumps.ts) */
+/** 玩家与测试共用的一键跳转目标表(见 dev/jumps.ts) */
 export { devJumpTargets } from './dev/jumps';

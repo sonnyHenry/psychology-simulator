@@ -28,6 +28,11 @@ for (const target of devJumpTargets) {
   } else {
     assert.equal(result.state.screen, 'ENDING', `跳转目标没有停在结局屏: ${target.id}`);
   }
+  assert.equal(
+    result.state.date.year,
+    target.year,
+    `跳转目标年份不一致: ${target.id} 目标 ${target.year},实际 ${result.state.date.year}`,
+  );
   assert.ok(
     result.attempts <= MAX_ACCEPTABLE_ATTEMPTS,
     `跳转目标太难到达(${result.attempts} 次尝试 > ${MAX_ACCEPTABLE_ATTEMPTS}): ${target.id}——门控和默认策略对不上了,修偏好而不是调重试上限`,

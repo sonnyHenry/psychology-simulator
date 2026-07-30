@@ -127,6 +127,8 @@ export const favorEvents: GameEvent[] = [
     pools: ['grad', 'postdoc'],
     category: 'social',
     tier: 'major',
+    // 人情账的核心兑现点。手上真的有可兑现余额时，不再让它和普通随机事件抢槽位。
+    mandatory: true,
     // 手上有牌才有这一幕。**攒着不用的人到这里会发现牌已经贬值了**
     trigger: {
       all: [

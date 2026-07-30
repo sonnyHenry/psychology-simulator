@@ -149,7 +149,7 @@ export const gradEvents: GameEvent[] = [
         outcomes: [{
           weight: 1,
           text: '幼儿园排期、家长同意和孩子当天愿不愿意坐下，都会成为方法的一部分。',
-          effects: [{ stats: { clinical: 2, method: 2 } }, { project: { op: 'create', templateId: 'tpl_development' } }, { setFlag: 'domain_development' }, { schedule: { eventId: 'ev_ps_ideation_done_before', afterRounds: 0 } }],
+          effects: [{ stats: { clinical: 2, method: 2 } }, { project: { op: 'create', templateId: 'tpl_development' } }, { setFlag: 'domain_development' }, { schedule: { eventId: 'ev_domain_development_ideation_1', afterRounds: 0 } }],
         }],
       },
       {

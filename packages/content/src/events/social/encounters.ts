@@ -454,6 +454,8 @@ export const rivalEncounterEvents: GameEvent[] = [
   // ══════════ ⑤ 同投一个岗(学术线才有)══════════
   encounter('ev_rv_same_position_behind', RIVAL_JOB_SEARCH_POOLS, {
     tier: 'major',
+    // 求职窗口只有两年；符合条件时保证发生，否则扩池后很容易整局错过这次交汇。
+    mandatory: true,
     title: '候选名单上有他',
     trigger: {
       all: [
@@ -505,6 +507,7 @@ export const rivalEncounterEvents: GameEvent[] = [
   }),
   encounter('ev_rv_same_position_ahead', RIVAL_JOB_SEARCH_POOLS, {
     tier: 'major',
+    mandatory: true,
     title: '你是那个更被看好的',
     trigger: {
       all: [

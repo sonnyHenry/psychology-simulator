@@ -89,6 +89,8 @@ export const dramaEvents: GameEvent[] = [
   },
   {
     id: 'ev_drama_ac_labmate_data', pools: ['grad', 'postdoc'], category: 'drama',
+    // 这是一条科研诚信主线，不应在扩池后随机消失；门控命中时保证展示。
+    mandatory: true,
     title: '那一列不该那么整齐',
     text: '同门让你帮忙看数据。你发现一列反应时整齐得不自然，十几个被试的小数位模式完全相同。可能是复制错误，也可能不是。',
     trigger: { year: { from: 2021 } },

@@ -159,4 +159,8 @@ export const domainProjectEvents: GameEvent[] = scenes.flatMap(spec => [
   ...spec.collect.map((scene, index) => domainEvent(spec.domain, 'collect', index + 1, scene)),
   ...spec.analyze.map((scene, index) => domainEvent(spec.domain, 'analyze', index + 1, scene)),
   domainEvent(spec.domain, 'write', 1, spec.write),
-]);
+]).map(event =>
+  // 发展方向只在一部分新课题中出现，第一站再与普通池竞争会让整条方向内容
+  // 在数千局里仍可能一次都看不到。项目真的走到该站时保证展示这一幕。
+  event.id === 'ev_domain_development_ideation_1' ? { ...event, mandatory: true } : event,
+);

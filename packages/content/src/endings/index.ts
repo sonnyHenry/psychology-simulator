@@ -393,7 +393,8 @@ export const endings: EndingDef[] = [
     condition: { all: [{ any: [{ flag: 'job_market_shutout' }, { flag: 'path_left_after_phd' }, { flag: 'tenure_denied' }] }, {
       all: [
         { any: [{ flag: 'path_phd_direct' }, { flag: 'path_phd_after_master' }] },
-        { flagNum: { key: 'conferences', op: '>=', value: 3 } },
+        // 培养后段正常只有两次海外会议窗口；第三次过去依赖会议选项误漏进博后。
+        { flagNum: { key: 'conferences', op: '>=', value: 2 } },
       ],
     }] },
     shareCard: { tone: 'warm', tagline: '"有人认识你"是一种不出现在考核表上的资产。' },

@@ -298,7 +298,7 @@ export const tenureEvents: GameEvent[] = [
         text: '点开',
         outcomes: [
           {
-            weight: 3,
+            weight: 1,
             condition: { flagNum: { key: 'grant_attempts', op: '>=', value: 2 } },
             outcomeTag: 'grant_hit',
             text: '**中了。**\n\n你在办公室里坐了一会儿,然后给家里打了个电话。\n\n第二次写的那版和第一版几乎是两个东西——中间那一年你把整个思路推翻重来了。',
@@ -308,7 +308,7 @@ export const tenureEvents: GameEvent[] = [
             ],
           },
           {
-            weight: 1,
+            weight: 3,
             condition: { flagNum: { key: 'grant_attempts', op: '>=', value: 2 } },
             outcomeTag: 'grant_miss',
             text: '没中。\n\n意见有三条,其中两条互相矛盾。\n\n**你还有明年**——如果年龄还够的话。',

@@ -64,7 +64,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Check replay variation
-        run: pnpm repetition -- -n 300 --check
+        # 300 局时三候选功能位会因抽样噪声偶尔落到 15% 门槛以下；
+        # 1000 局与本地验收口径一致，仍很快，但不再把发布变成抽签。
+        run: pnpm repetition -- -n 1000 --check
       - name: Check outcome distribution and reachability
         run: pnpm simulate -- -n 3000 --check
 

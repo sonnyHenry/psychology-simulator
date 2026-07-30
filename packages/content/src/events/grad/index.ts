@@ -53,7 +53,8 @@ export const gradEvents: GameEvent[] = [
   // ── 研一/直博一年级:第一个真课题 ────────────────────────
   {
     id: 'ev_first_real_project',
-    pools: ['grad'],
+    // 研究项目本身跨越培养、博后和教职；具体文案用 presentationVariants 区分“第一个/再起一个”。
+    pools: ['grad', 'postdoc', 'tenure'],
     category: 'method',
     mandatory: true,
     tier: 'major',
@@ -79,6 +80,7 @@ export const gradEvents: GameEvent[] = [
     ],
     contextLines: [
       { text: '组里在做的东西你大概摸清了。' },
+      { condition: { flag: 'trait_curious' }, text: '你真正的困难不是没有问题，而是不知道该先放掉哪七个。' },
       { condition: { flag: 'stack_python' }, text: '你会写代码,这件事在选方向的时候比你以为的重要。' },
       { condition: { flag: 'mastered_stats' }, text: '统计学通了的人,选择余地会大一些。' },
     ],
@@ -181,7 +183,7 @@ export const gradEvents: GameEvent[] = [
   },
   {
     id: 'ev_open_another_project',
-    pools: ['grad'],
+    pools: ['grad', 'postdoc', 'tenure'],
     category: 'method',
     mandatory: true,
     // 可以开很多次。**"一个课题会做废,两个至少有一个能成"**是这一行的普遍算法。
@@ -197,8 +199,8 @@ export const gradEvents: GameEvent[] = [
     title: '再开一个',
     text: '你手上那个还没做完,但你想再开一个。\n\n理由很实际:**一个课题会做废,两个至少有一个能成。** 这一行的人几乎都是这么算的。\n\n代价也很实际:两个都会变慢。',
     contextLines: [
-      { text: '组里那个师兄手上有四个。他一个都没发出来。' },
-      { condition: { advisor: { archetype: 'young_pi' } }, text: '{{advisor}} 鼓励你多开。他自己在非升即走。' },
+      { text: '你认识的人里有人手上同时压着四个。一个都还没发出来。' },
+      { condition: { advisor: { archetype: 'young_pi' } }, text: '{{advisor}}以前总鼓励你多开。他当年自己也在非升即走。' },
       { condition: { flagNum: { key: 'burnout', op: '>=', value: 45 } }, text: '你已经很累了。' },
     ],
     choices: [
@@ -263,7 +265,8 @@ export const gradEvents: GameEvent[] = [
    */
   {
     id: 'ev_advisor_hands_project',
-    pools: ['grad'],
+    // 教职阶段已经是自己带组；“导师把师兄留下的课题塞给你”只到博后为止。
+    pools: ['grad', 'postdoc'],
     category: 'method',
     tier: 'major',
     // **mandatory,不去抢事件槽位。** 被塞活是研究生近乎普遍的经历,

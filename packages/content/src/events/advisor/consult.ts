@@ -22,7 +22,16 @@ import type { GameEvent } from '@psy-sim/core';
  * 一行文本,把一个幕后乘数变回一个人。
  */
 
-const CONSULT_POOLS = ['grad', 'undergrad', 'clinical_common'];
+// 寻求旧导师/督导意见可以跨阶段，但必须逐个职业阶段显式列出，不能靠后期阶段继承 grad。
+const CONSULT_POOLS = [
+  'undergrad',
+  'grad',
+  'postdoc',
+  'tenure',
+  'clinical_grad',
+  'clinical_practice',
+  'clinical_late',
+];
 
 /**
  * 事件的公共形状。`mandatory: true` + `once: false`:

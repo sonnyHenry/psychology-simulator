@@ -998,6 +998,10 @@ export function createEngine(pack: ContentPack): Engine {
     if (position?.kind.startsWith('backup_')) {
       state.flags.took_backup_job = true;
       state.flags.took_faculty_job = false;
+      // 备份岗是“离开学术界但有落点”的结局，不是预聘教职。
+      // 不显式跳走的话，flow 的默认 nextPhaseId 会把玩家送进 tenure_track，
+      // 造成医院/企业岗位下一年仍要写基金、参加长聘考核。
+      state.pendingJumpPhaseId = 'left_academia';
     }
   }
 
@@ -1759,6 +1763,16 @@ export function createEngine(pack: ContentPack): Engine {
         if (!outcome.done) return;
         // 走完了。接了 offer 就进预聘期,一个都没有就走"离开学术界"那条路
         settleJobMarketResult(state, outcome.accepted);
+        // JOB_MARKET 不是事件，没有 OUTCOME 屏替它消费 pendingJumpPhaseId。
+        // 退路岗和一个 offer 都没有的分支必须在这里直接落地；否则 nextStep
+        // 会沿 flow 默认边误入 tenure_track。
+        if (state.pendingJumpPhaseId) {
+          const idx = pack.timeline.findIndex(phase => phase.id === state.pendingJumpPhaseId);
+          if (idx < 0) throw new Error(`jumpToPhase target not found: ${state.pendingJumpPhaseId}`);
+          state.pendingJumpPhaseId = null;
+          enterPhase(state, rng, idx);
+          return;
+        }
         nextStep(state, rng);
         return;
       }

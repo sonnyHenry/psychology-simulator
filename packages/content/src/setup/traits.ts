@@ -2,10 +2,10 @@ import type { TraitCard } from '@psy-sim/core';
 
 /**
  * 特质构筑:抽 4 选 2,整局不变(GAME_DESIGN 2.2)。
- * 八张卡的 statMods 直接照抄设计文档的表格,不做二次平衡。
+ * 九张卡的 statMods 直接照抄设计文档的表格,不做二次平衡。
  *
- * M0 状态:只有 statMods 生效。`poolBias` 留到 M2 —— 它必须引用真实存在的事件 category,
- * 而 category 体系要等本科事件池写出来才定型;提前写会被 validate 判成"引用不存在的类别"。
+ * statMods 决定开局偏移；少数特质还用 poolBias 改变导演式随机池的相对权重。
+ * poolBias 必须引用真实存在的事件 category，validate 会检查。
  */
 export const traits: TraitCard[] = [
   {
@@ -55,5 +55,12 @@ export const traits: TraitCard[] = [
     label: '完美主义',
     text: '产出慢,但拿出手的东西挑不出毛病。稿子会在你硬盘里躺很久。',
     statMods: { method: 6, state: -4 },
+  },
+  {
+    id: 'trait_curious',
+    label: '好奇心',
+    text: '每个答案都会再长出一个问题。你容易找到别人没追下去的岔路，也容易同时打开太多扇门。',
+    statMods: { method: 5, clinical: 3, state: -3 },
+    poolBias: { method: 1.2, research: 1.25 },
   },
 ];

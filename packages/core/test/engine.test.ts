@@ -3603,6 +3603,53 @@ describe('M5 求职季', () => {
     expect(view.options.map(option => option.id)).toContain('spouse_hire');
   });
 
+  it('接受备份岗后进入离开学术界结局，不会误入预聘期', () => {
+    const pack = miniPack();
+    pack.timeline = [
+      {
+        kind: 'flow', id: 'job_market', label: '求职季', date: { year: 2027, month: 9 },
+        steps: ['JOB_MARKET'], nextPhaseId: 'tenure_track',
+      },
+      {
+        kind: 'rounds', id: 'tenure_track', label: '预聘期', rounds: 1,
+        eventSlots: 0, pools: [], briefs: ['预聘'], isFinal: true,
+      },
+      {
+        kind: 'rounds', id: 'left_academia', label: '离开学术界', rounds: 1,
+        eventSlots: 0, pools: [], briefs: ['离开'], isFinal: true,
+      },
+    ];
+    pack.institutions = [{
+      id: 'inst_backup', name: '测试医院', region: 'cn', city: '测试市',
+      tier: 'hospital', domains: [], unit: '心理科', impression: '测试机构',
+      gameified: {}, admits: [],
+    }];
+    pack.positions = [{
+      id: 'pos_backup', institutionId: 'inst_backup', kind: 'backup_hospital',
+      domainFit: [], requires: { always: true },
+    }];
+
+    const engine = createEngine(pack);
+    let state = engine.start(36);
+    state.phaseIndex = 0;
+    state.flowStepIndex = 0;
+    state.screen = 'JOB_MARKET';
+    state.jobMarket = {
+      step: 'result', year: 2027, marketTightness: 1, letters: [], letterWeight: 1,
+      materialQuality: 1, applied: ['pos_backup'], invited: ['pos_backup'],
+      offers: [{
+        positionId: 'pos_backup', institutionName: '测试医院', city: '测试市', region: 'cn',
+        terms: {} as never, termLines: [], negotiated: false,
+      }],
+      accepted: null,
+    };
+
+    state = engine.dispatch(state, { type: 'JOB_MARKET_STEP', optionId: 'pos_backup' });
+    expect(pack.timeline[state.phaseIndex]?.id).toBe('left_academia');
+    expect(state.flags.took_backup_job).toBe(true);
+    expect(state.flags.took_faculty_job).toBe(false);
+  });
+
   it('首考是一张清单,而基金那一行是硬指标', () => {
     const pack = miniPack();
     const state = createEngine(pack).start(33);

@@ -35,9 +35,9 @@ export function JobMarketScreen(props: { view: JobMarketView; act: (a: PlayerAct
         <h2>
           {view.year} 年 · {view.title}
         </h2>
-        <p className="gameified-notice">
+        <div className="gameified-notice">
           <RichText text={view.notice} />
-        </p>
+        </div>
       </div>
 
       <div className="jm-body">

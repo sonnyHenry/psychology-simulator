@@ -194,7 +194,9 @@ export const timeline: PhaseConfig[] = [
     date: { year: 2025, month: 9 },
     rounds: 2,
     eventSlots: 2,
-    pools: ['grad', 'postdoc'],
+    // 不继承整个 grad 池。跨阶段科研事件必须在自身 pools 里显式声明 postdoc，
+    // 否则“毕业、同门、换导师”之类培养期文案会跟着漏进博后。
+    pools: ['postdoc'],
     briefs: [
       '博后第一年。你终于只需要做研究了,而这件事比你想的更难。',
       '博后第二年。合同还剩一年,而求职季就在今年秋天。',
@@ -227,7 +229,8 @@ export const timeline: PhaseConfig[] = [
     rounds: 3,
     yearsPerRound: 2,
     eventSlots: 3,
-    pools: ['tenure', 'grad'],
+    // 不继承整个 grad 池。预聘期只收显式声明 tenure 的事件，避免硕博语境串阶段。
+    pools: ['tenure'],
     briefs: [
       '预聘期第一、二年。搬进一间自己的办公室,然后发现要从招学生开始。',
       '预聘期第三、四年。中期考核。你第一次知道"还差多少"是一个具体的数字。',

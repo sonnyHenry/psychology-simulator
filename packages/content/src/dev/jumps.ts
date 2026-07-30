@@ -78,6 +78,20 @@ export const devJumpTargets: DevJumpTarget[] = [
     allocationPrefs: UNDERGRAD_ACADEMIC,
   },
   {
+    id: 'jump_postdoc',
+    label: '博后第一年(2025)',
+    year: 2025,
+    targetPhaseId: 'postdoc',
+    collegePref: 'science',
+    lifeGoalId: 'goal_academic',
+    crossroadPrefs: {
+      crossroad_2018: ['path_master'],
+      crossroad_2021: ['m_continue_phd'],
+      crossroad_phd: ['p_postdoc'],
+    },
+    allocationPrefs: [...GRAD_ACADEMIC, ...UNDERGRAD_ACADEMIC],
+  },
+  {
     id: 'jump_phd_ending',
     label: '博士毕业(直接看结局)',
     year: 2034,

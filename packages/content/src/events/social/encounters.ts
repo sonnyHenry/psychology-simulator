@@ -18,19 +18,32 @@ import type { GameEvent } from '@psy-sim/core';
  * 这些都要在他后面十年的数字里留下痕迹。**不能修正的对手是一条固定难度曲线,不是人。**
  */
 
-const RIVAL_POOLS = ['grad', 'undergrad', 'clinical_common'];
+/** 一作冲突仍发生在别人的课题组里，只适用于培养阶段、博后和临床专硕。 */
+const RIVAL_LAB_POOLS = ['grad', 'postdoc', 'clinical_grad'];
+/** 审稿、会议与低谷会延续到独立职业阶段。 */
+const RIVAL_CAREER_POOLS = [
+  'grad',
+  'postdoc',
+  'tenure',
+  'clinical_grad',
+  'clinical_practice',
+  'clinical_late',
+];
+/** “同投一个岗”只能发生在仍处于学术求职窗口的阶段。 */
+const RIVAL_JOB_SEARCH_POOLS = ['grad', 'postdoc'];
 
 /** 交汇点的公共形状。`once: true`——同一个交汇点一局只发生一次 */
 function encounter(
   id: string,
+  pools: string[],
   fields: Omit<GameEvent, 'id' | 'pools' | 'category'>,
 ): GameEvent {
-  return { id, pools: RIVAL_POOLS, category: 'social', ...fields };
+  return { id, pools, category: 'social', ...fields };
 }
 
 export const rivalEncounterEvents: GameEvent[] = [
   // ══════════ ① 一作之争 ══════════
-  encounter('ev_rv_authorship_behind', {
+  encounter('ev_rv_authorship_behind', RIVAL_LAB_POOLS, {
     tier: 'major',
     weight: 4,
     title: '同一批数据,两个人',
@@ -84,7 +97,7 @@ export const rivalEncounterEvents: GameEvent[] = [
       },
     ],
   }),
-  encounter('ev_rv_authorship_ahead', {
+  encounter('ev_rv_authorship_ahead', RIVAL_LAB_POOLS, {
     tier: 'major',
     title: '这次轮到他来问你',
     trigger: {
@@ -138,7 +151,7 @@ export const rivalEncounterEvents: GameEvent[] = [
   }),
 
   // ══════════ ② 互相审稿 ══════════
-  encounter('ev_rv_review_behind', {
+  encounter('ev_rv_review_behind', RIVAL_CAREER_POOLS, {
     tier: 'major',
     title: '稿子是他的',
     trigger: {
@@ -191,7 +204,7 @@ export const rivalEncounterEvents: GameEvent[] = [
       },
     ],
   }),
-  encounter('ev_rv_review_ahead', {
+  encounter('ev_rv_review_ahead', RIVAL_CAREER_POOLS, {
     tier: 'major',
     title: '他是你的审稿人',
     trigger: {
@@ -246,7 +259,7 @@ export const rivalEncounterEvents: GameEvent[] = [
   }),
 
   // ══════════ ③ 会议上遇见 ══════════
-  encounter('ev_rv_conference_behind', {
+  encounter('ev_rv_conference_behind', RIVAL_CAREER_POOLS, {
     title: '他的名片换了头衔',
     trigger: { all: [{ rival: { met: true, aheadOfPlayer: true } }, { year: { from: 2023 } }] },
     text: '年会的茶歇。你端着一杯温的美式,他从人堆里走过来。\n\n名片上的头衔和上次不一样了。他问你最近在做什么,你说了两句,他说"挺好的"。\n\n**"挺好的"这三个字在这一行有很多种意思。**',
@@ -290,7 +303,7 @@ export const rivalEncounterEvents: GameEvent[] = [
       },
     ],
   }),
-  encounter('ev_rv_conference_ahead', {
+  encounter('ev_rv_conference_ahead', RIVAL_CAREER_POOLS, {
     title: '这次是他来找你',
     trigger: { all: [{ rival: { met: true, aheadOfPlayer: false } }, { year: { from: 2023 } }] },
     text: '年会的茶歇。他端着杯子走过来,先问了你那篇的事——他读过,而且记得数据量。\n\n聊到一半他说:"你比我做得好。"\n\n**这句话他说得很平静,而你一时不知道该怎么接。**',
@@ -338,7 +351,7 @@ export const rivalEncounterEvents: GameEvent[] = [
   }),
 
   // ══════════ ④ 他的低谷(**他从对手变成同类的那一幕**)══════════
-  encounter('ev_rv_struggling_behind', {
+  encounter('ev_rv_struggling_behind', RIVAL_CAREER_POOLS, {
     tier: 'major',
     title: '他一年没出东西',
     trigger: {
@@ -387,7 +400,7 @@ export const rivalEncounterEvents: GameEvent[] = [
       },
     ],
   }),
-  encounter('ev_rv_struggling_ahead', {
+  encounter('ev_rv_struggling_ahead', RIVAL_CAREER_POOLS, {
     tier: 'major',
     title: '你已经走在前面了,而他停下来了',
     trigger: {
@@ -439,7 +452,7 @@ export const rivalEncounterEvents: GameEvent[] = [
   }),
 
   // ══════════ ⑤ 同投一个岗(学术线才有)══════════
-  encounter('ev_rv_same_position_behind', {
+  encounter('ev_rv_same_position_behind', RIVAL_JOB_SEARCH_POOLS, {
     tier: 'major',
     title: '候选名单上有他',
     trigger: {
@@ -490,7 +503,7 @@ export const rivalEncounterEvents: GameEvent[] = [
       },
     ],
   }),
-  encounter('ev_rv_same_position_ahead', {
+  encounter('ev_rv_same_position_ahead', RIVAL_JOB_SEARCH_POOLS, {
     tier: 'major',
     title: '你是那个更被看好的',
     trigger: {

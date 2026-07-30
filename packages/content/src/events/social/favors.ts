@@ -20,7 +20,14 @@ import type { GameEvent } from '@psy-sim/core';
  * (`systems/favor.ts`)。攒了五年不用的那笔,到求职那年已经不够换一封推荐信了。
  */
 
-const FAVOR_POOLS = ['grad', 'clinical_common'];
+const TRAINING_POOLS = ['grad', 'clinical_grad'];
+const ACADEMIC_POOLS = ['grad', 'postdoc', 'tenure'];
+const PROFESSIONAL_POOLS = [
+  ...ACADEMIC_POOLS,
+  'clinical_grad',
+  'clinical_practice',
+  'clinical_late',
+];
 
 export const favorEvents: GameEvent[] = [
   // ══════════ 两笔日常的账。**没有这两个,人情账在大多数对局里是空的** ══════════
@@ -30,7 +37,7 @@ export const favorEvents: GameEvent[] = [
   // 设计里点名的那两件日常事(替人跑被试、师姐把被试池分给你)就是最好的来源。
   {
     id: 'ev_fv_ran_his_subjects',
-    pools: FAVOR_POOLS,
+    pools: TRAINING_POOLS,
     category: 'social',
     trigger: { all: [{ year: { from: 2019 } }, { advisor: {} }] },
     title: '四十个被试',
@@ -71,7 +78,7 @@ export const favorEvents: GameEvent[] = [
   },
   {
     id: 'ev_fv_subject_pool',
-    pools: FAVOR_POOLS,
+    pools: TRAINING_POOLS,
     category: 'social',
     trigger: { all: [{ year: { from: 2019 } }, { projectCount: { active: true, op: '>=', value: 1 } }] },
     title: '她把被试池分给了你',
@@ -116,7 +123,8 @@ export const favorEvents: GameEvent[] = [
   },
   {
     id: 'ev_fv_recommendation',
-    pools: FAVOR_POOLS,
+    // 这封信服务的是学术求职；拿到教职以后不再出现。
+    pools: ['grad', 'postdoc'],
     category: 'social',
     tier: 'major',
     // 手上有牌才有这一幕。**攒着不用的人到这里会发现牌已经贬值了**
@@ -167,7 +175,7 @@ export const favorEvents: GameEvent[] = [
   },
   {
     id: 'ev_fv_called_in',
-    pools: FAVOR_POOLS,
+    pools: PROFESSIONAL_POOLS,
     category: 'social',
     // 欠着的时候才有人来找你。**这就是"欠太多本身是压力"的具体样子**
     trigger: {
@@ -217,7 +225,7 @@ export const favorEvents: GameEvent[] = [
   },
   {
     id: 'ev_fv_reviewer_owes_you',
-    pools: FAVOR_POOLS,
+    pools: ACADEMIC_POOLS,
     category: 'social',
     tier: 'major',
     // 稿件在审与尚未贬值的人情同时存在时，这个伦理冲突本身就已经发生；

@@ -385,6 +385,42 @@ const CASES: Case[] = [
     },
     expect: 'can never reach a final phase',
   },
+  {
+    rule: '博后或预聘期整池继承硕博事件(规则 39)',
+    break: pack => {
+      const phase = pack.timeline.find(item => item.id === 'tenure_track');
+      if (phase?.kind !== 'rounds') throw new Error('反例夹具需要更新:找不到 tenure_track');
+      phase.pools.push('grad');
+    },
+    expect: '规则 39:阶段 tenure_track 不得整池继承 grad',
+  },
+  {
+    rule: '助教投入项跨年反复出现(规则 40)',
+    break: pack => {
+      const item = pack.allocationItems?.find(candidate => candidate.id === 'alloc_ta');
+      if (!item) throw new Error('反例夹具需要更新:找不到 alloc_ta');
+      item.availableWhen = { always: true };
+    },
+    expect: '规则 40:alloc_ta 必须只在培养第一年(截至 2019)开放',
+  },
+  {
+    rule: '培养期投入项漏进博后(规则 40)',
+    break: pack => {
+      const item = pack.allocationItems?.find(candidate => candidate.id === 'alloc_advisor_consult');
+      if (!item) throw new Error('反例夹具需要更新:找不到 alloc_advisor_consult');
+      item.availableWhen = { all: [{ advisor: {} }, { flag: 'track_academic' }] };
+    },
+    expect: '规则 40:alloc_advisor_consult 必须在进入博后后退场',
+  },
+  {
+    rule: '换导师入口漏进博后(规则 40)',
+    break: pack => {
+      const option = pack.advisorSwitchOptions?.find(candidate => candidate.id === 'switch_late');
+      if (!option) throw new Error('反例夹具需要更新:找不到 switch_late');
+      option.availableWhen = { all: [{ advisor: {} }, { year: { from: 2023 } }] };
+    },
+    expect: '规则 40:switch_late 必须在进入博后后退场',
+  },
 
   // ── 规则 4:累积量读写成对 ──────────────────────────────────
   {

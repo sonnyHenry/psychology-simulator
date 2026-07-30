@@ -92,6 +92,34 @@ function necessaryYearFrom(cond: Condition | undefined): number | undefined {
   return undefined;
 }
 
+/** 条件为真时，事件年份必然不晚于哪一年；无法证明时返回 undefined。 */
+function necessaryYearTo(cond: Condition | undefined): number | undefined {
+  if (!cond) return undefined;
+  if ('year' in cond) return cond.year.to;
+  if ('all' in cond) {
+    const bounds = cond.all.map(necessaryYearTo).filter((year): year is number => year !== undefined);
+    return bounds.length > 0 ? Math.min(...bounds) : undefined;
+  }
+  if ('any' in cond) {
+    const bounds = cond.any.map(necessaryYearTo);
+    return bounds.length > 0 && bounds.every((year): year is number => year !== undefined)
+      ? Math.max(...bounds)
+      : undefined;
+  }
+  return undefined;
+}
+
+/** 条件为真时是否必然排除某个 flag；用于阶段结束没有固定年份的路径。 */
+function necessarilyExcludesFlag(cond: Condition | undefined, key: string): boolean {
+  if (!cond) return false;
+  if ('not' in cond) return 'flag' in cond.not && cond.not.flag === key;
+  if ('all' in cond) return cond.all.some(item => necessarilyExcludesFlag(item, key));
+  if ('any' in cond) {
+    return cond.any.length > 0 && cond.any.every(item => necessarilyExcludesFlag(item, key));
+  }
+  return false;
+}
+
 /** 事件所有会展示给玩家的文字；术语检查不能只看标题和主正文。 */
 function eventProse(event: ContentPack['events'][number]): string {
   const parts = [event.title, event.text];
@@ -492,6 +520,46 @@ for (const phase of contentPack.timeline) {
     if (phase.allocationSlots !== undefined && phase.allocationSlots < 0) {
       error(`phase ${phase.id} has negative allocationSlots: ${phase.allocationSlots}`);
     }
+  }
+}
+
+// 规则 39:培养阶段事件池不得被博后/教职整池继承。
+// 跨阶段事件应该在事件自身的 pools 中显式声明 postdoc/tenure；否则一条只写了
+// “2020 年以后”的硕博文案，会在十年后仍然合法，出现“预聘期还在争毕业一作”。
+for (const phaseId of ['postdoc', 'tenure_track']) {
+  const phase = contentPack.timeline.find(item => item.id === phaseId);
+  if (phase?.kind === 'rounds' && phase.pools.includes('grad')) {
+    error(`规则 39:阶段 ${phaseId} 不得整池继承 grad；跨阶段事件必须显式声明 ${phaseId === 'postdoc' ? 'postdoc' : 'tenure'} pool`);
+  }
+}
+
+// 规则 40:培养期投入项必须服从年级节奏。
+// 助教只在入学第一年；前两年用组会练基本功；海外会议等到第四年有成形工作再开放。
+{
+  const allocations = new Map((contentPack.allocationItems ?? []).map(item => [item.id, item]));
+  const ta = allocations.get('alloc_ta');
+  if (!ta || necessaryYearTo(ta.availableWhen) !== 2019) {
+    error('规则 40:alloc_ta 必须只在培养第一年(截至 2019)开放');
+  }
+  const journalClub = allocations.get('alloc_journal_club');
+  if (!journalClub || necessaryYearTo(journalClub.availableWhen) !== 2020) {
+    error('规则 40:alloc_journal_club 必须只在培养前两年(截至 2020)开放');
+  }
+  const conference = allocations.get('alloc_conference');
+  if (
+    !conference ||
+    necessaryYearFrom(conference.availableWhen) !== 2022 ||
+    !necessarilyExcludesFlag(conference.availableWhen, 'path_postdoc')
+  ) {
+    error('规则 40:alloc_conference 必须从培养第四年开放，并在进入博后后退场');
+  }
+  const advisorConsult = allocations.get('alloc_advisor_consult');
+  if (!advisorConsult || !necessarilyExcludesFlag(advisorConsult.availableWhen, 'path_postdoc')) {
+    error('规则 40:alloc_advisor_consult 必须在进入博后后退场');
+  }
+  const lateSwitch = (contentPack.advisorSwitchOptions ?? []).find(option => option.id === 'switch_late');
+  if (!lateSwitch || !necessarilyExcludesFlag(lateSwitch.availableWhen, 'path_postdoc')) {
+    error('规则 40:switch_late 必须在进入博后后退场');
   }
 }
 

@@ -24,9 +24,10 @@ const IN_GRAD_SCHOOL: Condition = {
   all: [
     { advisor: {} },
     { flag: 'track_academic' },
-    // **拿到教职之后这些项要退场。** `advisor` 和 `track_academic` 一辈子都是真的,
-    // 所以不排掉的话,预聘期的工作台上会冒出"帮导师干活""教学助理"——
-    // 而你现在自己就是那个导师。(M3.1 那条"只写 from 会一路漏下去"的同型错。)
+    // **博士毕业之后这些项就要退场。** `advisor` 和 `track_academic` 一辈子都是真的。
+    // 不能用 2024 作为硬上界：换导师可能延毕，2025 仍在博士阶段的人仍需这些动作。
+    // `path_postdoc` 在博士毕业岔口写入，正好区分“延毕”与“已进入博后”。
+    { not: { flag: 'path_postdoc' } },
     { not: { flag: 'took_faculty_job' } },
   ],
 };
@@ -46,9 +47,28 @@ const IN_GRAD_SCHOOL: Condition = {
 const HAS_ADVISOR: Condition = {
   all: [
     { advisor: {} },
-    { any: [{ flag: 'track_academic' }, { all: [{ flag: 'track_clinical' }, { year: { to: 2021 } }] }] },
+    { not: { flag: 'path_postdoc' } },
+    { not: { flag: 'took_faculty_job' } },
+    {
+      any: [
+        { flag: 'track_academic' },
+        { all: [{ flag: 'track_clinical' }, { year: { to: 2021 } }] },
+      ],
+    },
   ],
 };
+
+const IN_POSTDOC: Condition = {
+  all: [
+    { flag: 'path_postdoc' },
+    { year: { from: 2025, to: 2026 } },
+    { not: { flag: 'took_faculty_job' } },
+  ],
+};
+
+// 这三项是硕博与博后都成立的通用选择；用显式并集，避免“为了让博后凑够三格”
+// 又把整个研究生条件放宽，连带放回助教、换导师等培养期动作。
+const IN_RESEARCH_TRAINING: Condition = { any: [IN_GRAD_SCHOOL, IN_POSTDOC] };
 
 export const gradAllocationItems: AllocationItem[] = [
   {
@@ -79,18 +99,63 @@ export const gradAllocationItems: AllocationItem[] = [
     ],
   },
   {
+    id: 'alloc_journal_club',
+    label: '读文献、做组会报告',
+    text: '把一个问题沿着引用链读清楚，再试着用二十分钟讲给组里的人听。',
+    payoff: '1 格 = 方法 +3、资本 +1、状态 −1。只在培养前两年开放；先学会读和讲，再谈“自己的方向”',
+    category: 'work',
+    availableWhen: {
+      all: [IN_GRAD_SCHOOL, { year: { to: 2020 } }],
+    },
+    maxSlots: 1,
+    perSlot: [
+      { stats: { method: 3, capital: 1, state: -1 } },
+      { addFlag: { key: 'journal_club_reports', delta: 1, min: 0, max: 2 } },
+    ],
+  },
+  {
     id: 'alloc_new_project',
     label: '开一个新课题',
     text: '想法你有,时间你没有。开新的意味着手上的那个今年基本不动。',
     payoff: '1 格 = 方法 +2、状态 −2,今年会有一个新课题立项。**三格精力配三个课题,总有一个轮空**——而轮空的那个就是会烂掉的那个',
     category: 'work',
-    availableWhen: IN_GRAD_SCHOOL,
+    availableWhen: IN_RESEARCH_TRAINING,
     maxSlots: 1,
     perSlot: [
       { stats: { method: 2, state: -2 } },
       // 开哪一类课题由内容侧的事件决定;这里只是把"今年我要开一个新的"这个意图记下来
       { addFlag: { key: 'wants_new_project', delta: 1, min: 0, max: 3 } },
     ],
+  },
+  {
+    id: 'alloc_first_manuscript',
+    label: '写第一篇论文',
+    text: '把已经做过的研究变成一篇别人能读、能审、也能重复的稿子。',
+    payoff: '1 格 = 方法 +4、资本 +2、状态 −2。培养第三年开放；写作不是研究结束后的誊写，而是另一轮判断',
+    category: 'work',
+    availableWhen: { all: [IN_GRAD_SCHOOL, { year: { from: 2021, to: 2021 } }] },
+    maxSlots: 1,
+    perSlot: [{ stats: { method: 4, capital: 2, state: -2 } }],
+  },
+  {
+    id: 'alloc_phd_proposal',
+    label: '准备博士开题',
+    text: '缩小问题、画清研究之间的关系，并为第一步失败准备另一条路。',
+    payoff: '1 格 = 方法 +4、资本 +2、状态 −2。第四年开放；把几年压成一个能完成的承诺',
+    category: 'work',
+    availableWhen: { all: [IN_GRAD_SCHOOL, { year: { from: 2022, to: 2022 } }] },
+    maxSlots: 1,
+    perSlot: [{ stats: { method: 4, capital: 2, state: -2 } }],
+  },
+  {
+    id: 'alloc_dissertation',
+    label: '整合论文、准备毕业',
+    text: '把分散的研究写进同一本论文，同时处理送审、答辩与所有不能漏的程序。',
+    payoff: '1 格 = 方法 +3、资本 +3、状态 −2。培养后段开放；新增结果和按时交出去开始争同一格时间',
+    category: 'work',
+    availableWhen: { all: [IN_GRAD_SCHOOL, { year: { from: 2023, to: 2024 } }] },
+    maxSlots: 1,
+    perSlot: [{ stats: { method: 3, capital: 3, state: -2 } }],
   },
   {
     id: 'alloc_advisor_work',
@@ -102,7 +167,7 @@ export const gradAllocationItems: AllocationItem[] = [
     text: '他的横向、他的基金本子、他学生的数据。跟你的课题没关系。',
     payoff: '1 格 = 资本 +4、状态 −2,师生关系上升。**关系越近这件事越理所当然,所以它不会灰掉**——你替他干的每一件活都记在账上,兑现点在推荐信那一年',
     category: 'work',
-    availableWhen: IN_GRAD_SCHOOL,
+    availableWhen: { all: [IN_GRAD_SCHOOL, { year: { to: 2024 } }] },
     maxSlots: 2,
     perSlot: [
       { stats: { capital: 4, state: -2 } },
@@ -116,7 +181,10 @@ export const gradAllocationItems: AllocationItem[] = [
     text: '带两个班的实验课,改作业,答疑。有补助,而且你会发现自己挺会讲的。',
     payoff: '1 格 = ¥6,000、资本 +2、状态 −1,教学工作量 +1。教学量在求职那一年才有人问起',
     category: 'work',
-    availableWhen: IN_GRAD_SCHOOL,
+    // 助教是入学第一年的固定杂务，不应五年都像一份可反复刷的兼职。
+    availableWhen: {
+      all: [IN_GRAD_SCHOOL, { year: { to: 2019 } }],
+    },
     maxSlots: 1,
     perSlot: [
       { stats: { money: 6000, capital: 2, state: -1 } },
@@ -125,15 +193,17 @@ export const gradAllocationItems: AllocationItem[] = [
   },
   {
     id: 'alloc_conference',
-    label: '投会议、跑会',
-    text: '海报或者口头报告。认识人这件事在这一行是有复利的。',
-    payoff: '1 格 = 资本 +5、方法 +1、状态 −1,自付一笔会议开销。**认识人是有复利的**,但要好几年才看得见',
+    label: '海外开会、学术交流',
+    text: '把已经成形的工作投到海外会议。海报、口头报告，以及第一次在别人的学术地图里介绍自己。',
+    payoff: '1 格 = 资本 +6、方法 +2、状态 −2,自付一笔差旅。第四年起开放；前两年先在组会里学会把问题讲清楚',
     category: 'work',
-    availableWhen: IN_GRAD_SCHOOL,
+    availableWhen: {
+      all: [IN_GRAD_SCHOOL, { year: { from: 2022 } }],
+    },
     maxSlots: 1,
     perSlot: [
-      { stats: { capital: 5, method: 1, state: -1 } },
-      { moneyCost: { rate: 0.08, max: 4000, reason: 'other' } },
+      { stats: { capital: 6, method: 2, state: -2 } },
+      { moneyCost: { rate: 0.1, max: 12000, reason: 'other' } },
       { addFlag: { key: 'conferences', delta: 1, min: 0, max: 10 } },
     ],
   },
@@ -143,7 +213,7 @@ export const gradAllocationItems: AllocationItem[] = [
     text: '横向、培训、考研网课。用学术时间换现金,汇率还行。',
     payoff: '1 格 = ¥22,000、方法 −1、状态 −1。这一格换的是现金,代价是它没有推进任何一个课题',
     category: 'money',
-    availableWhen: IN_GRAD_SCHOOL,
+    availableWhen: IN_RESEARCH_TRAINING,
     maxSlots: 2,
     perSlot: [
       { stats: { money: 22000, method: -1, state: -1 } },
@@ -151,12 +221,52 @@ export const gradAllocationItems: AllocationItem[] = [
     ],
   },
   {
+    id: 'alloc_postdoc_research_line',
+    label: '搭自己的研究线',
+    text: '不再只续博士论文，也不只替合作导师填一块；把两年后还能继续的问题立起来。',
+    payoff: '1 格 = 方法 +4、资本 +2、状态 −2。只在博后第一年开放；独立性要在求职材料之前先真实存在',
+    category: 'work',
+    availableWhen: { all: [IN_POSTDOC, { year: { from: 2025, to: 2025 } }] },
+    maxSlots: 1,
+    perSlot: [{ stats: { method: 4, capital: 2, state: -2 } }],
+  },
+  {
+    id: 'alloc_postdoc_backlog',
+    label: '清博士阶段的遗留稿',
+    text: '旧数据、返修和共同作者的最后一轮意见。它们不新鲜，却是简历上最近能变成一行的东西。',
+    payoff: '1 格 = 资本 +4、方法 +1、状态 −3。只在博后第一年开放；用新阶段的一部分时间结清旧阶段',
+    category: 'work',
+    availableWhen: { all: [IN_POSTDOC, { year: { from: 2025, to: 2025 } }] },
+    maxSlots: 1,
+    perSlot: [{ stats: { capital: 4, method: 1, state: -3 } }],
+  },
+  {
+    id: 'alloc_postdoc_job_talk',
+    label: '准备 job talk',
+    text: '把几篇并不整齐的工作讲成一条属于你的研究线，并准备最难回答的那三问。',
+    payoff: '1 格 = 资本 +5、方法 +2、状态 −2。只在博后第二年开放；讲清过去，也要让人相信未来五年',
+    category: 'work',
+    availableWhen: { all: [IN_POSTDOC, { year: { from: 2026, to: 2026 } }] },
+    maxSlots: 1,
+    perSlot: [{ stats: { capital: 5, method: 2, state: -2 } }],
+  },
+  {
+    id: 'alloc_postdoc_market_network',
+    label: '联系推荐人、看岗位',
+    text: '确认推荐信、给可能的系里写信、读职位描述里没有明说的那部分。',
+    payoff: '1 格 = 资本 +6、状态 −3。只在博后第二年开放；求职不是年底突然出现的一张申请表',
+    category: 'work',
+    availableWhen: { all: [IN_POSTDOC, { year: { from: 2026, to: 2026 } }] },
+    maxSlots: 1,
+    perSlot: [{ stats: { capital: 6, state: -3 } }],
+  },
+  {
     id: 'alloc_grad_rest',
     label: '休息',
     text: '睡觉、跑步、见朋友、什么都不干。',
     payoff: '1 格 = 状态 +7、耗竭 −9。**耗竭清零之后课题还是卡在那里,而你的同批已经发了两篇**',
     category: 'rest',
-    availableWhen: IN_GRAD_SCHOOL,
+    availableWhen: IN_RESEARCH_TRAINING,
     maxSlots: 3,
     // **"休息"必须是一个真实有效的选项。** 它给状态、降耗竭,代价是这一格没有推进任何东西。
     // 游戏不能奖励只会硬撑的玩家——但也不能让休息成为最优解:

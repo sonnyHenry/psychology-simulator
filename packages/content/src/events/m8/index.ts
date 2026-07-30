@@ -189,6 +189,11 @@ const traitScenes: ConfiguredScene[] = [
     title: '发送按钮亮了一整晚', text: '材料已经满足要求，你仍能看见四处可以更好。截止时间不会因为你看得见而延后。',
     choice: '在零点前按下发送', result: '发出去的版本不完美，也没有因此失去价值。第二天你仍记得那四处。', category: 'identity', effects: [{ stats: { state: 2, capital: 1 } }],
   },
+  {
+    id: 'trait_curious_margin_question', pools: ALL_LIFE_POOLS, condition: { flag: 'trait_curious' }, from: 2017, to: 2024,
+    title: '页边那个没有人要求你问的问题', text: '任务已经做完，你却在附录里看到一个没有解释的结果。它与眼前的截止日期无关，也可能什么都不是。',
+    choice: '沿着那条引用再读两篇', result: '它没有立刻变成成果，只在你的笔记里留下一个后来会重新出现的问题。', category: 'method', effects: [{ stats: { method: 3, state: -1 } }],
+  },
 ];
 
 const goalScenes: ConfiguredScene[] = [

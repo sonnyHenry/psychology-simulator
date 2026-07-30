@@ -77,7 +77,7 @@ import { m8ConfiguredEvents } from './events/m8';
 export const contentPack: ContentPack = {
   meta: {
     id: 'psy-sim-2014',
-    version: '0.8.0',
+    version: '0.8.1',
     title: '心理学模拟器',
     fallbackEndingId: 'end_m2_fallback',
     examQuestionCount: 6,

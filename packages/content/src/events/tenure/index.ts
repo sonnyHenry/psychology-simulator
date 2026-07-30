@@ -16,7 +16,8 @@ export const tenureEvents: GameEvent[] = [
     category: 'method',
     mandatory: true,
     tier: 'major',
-    trigger: { flag: 'path_postdoc' },
+    variantGroup: 'postdoc_entry',
+    trigger: { all: [{ flag: 'path_postdoc' }, { year: { from: 2025, to: 2025 } }] },
     title: '你终于只需要做研究了',
     text: '没有课,没有组会要主持,没有本科生的实验报告要改。\n\n**你以为这是你等了七年的东西。**\n\n第三个月你发现自己坐在办公室里刷手机——原来那些杂事一直在替你决定"今天先做什么"。',
     contextLines: [
@@ -51,6 +52,168 @@ export const tenureEvents: GameEvent[] = [
             ],
           },
         ],
+      },
+    ],
+  },
+  {
+    id: 'ev_pd_entry_independence',
+    pools: ['postdoc'],
+    category: 'identity',
+    mandatory: true,
+    tier: 'major',
+    variantGroup: 'postdoc_entry',
+    trigger: { all: [{ flag: 'path_postdoc' }, { year: { from: 2025, to: 2025 } }] },
+    title: '“这条线以后算谁的？”',
+    text: '合作导师把主项目拆成三块，让你挑一块负责。资源、样本和团队都是现成的；代价是两年后别人很容易把它看成“你在他的项目里做得很好”。\n\n博后第一年，**独立不是没人帮你，是别人能不能看见哪一部分由你决定。**',
+    contextLines: [{ text: '合同两年。求职委员会会同时问你做过什么，以及离开这里以后还会做什么。' }],
+    choices: [
+      {
+        id: 'own_question',
+        text: '接主项目，但把自己的问题写进设计',
+        outcomes: [{
+          weight: 1,
+          text: '进度慢了一点。第一次内部报告时，合作导师介绍道：“主设计是我们的，这个问题是 ta 加进去的。”\n\n**一句准确的归属，比一句笼统的夸奖值钱。**',
+          effects: [{ stats: { method: 4, capital: 3, state: -2 } }, { setFlag: 'postdoc_independent_line' }],
+        }],
+      },
+      {
+        id: 'main_project',
+        text: '先把主项目做出来，独立线以后再搭',
+        outcomes: [{
+          weight: 1,
+          text: '六个月后数据已经很完整。你的名字会在一篇好文章前面，研究陈述里的未来方向仍然是空白。',
+          effects: [{ stats: { capital: 5, method: 2, state: -2 } }],
+        }],
+      },
+    ],
+  },
+  {
+    id: 'ev_pd_entry_old_and_new',
+    pools: ['postdoc'],
+    category: 'career',
+    mandatory: true,
+    tier: 'major',
+    variantGroup: 'postdoc_entry',
+    trigger: { all: [{ flag: 'path_postdoc' }, { year: { from: 2025, to: 2025 } }] },
+    title: '博士的最后一篇，博后的第一个项目',
+    text: '博士论文留下两篇稿子：一篇大修，一篇只有共同作者的最后几条意见。新组同时已经把数据权限和第一次截止发给你。\n\n旧阶段没有在你入职那天自动结束。',
+    contextLines: [{ text: '今年三格精力里，至少有一格会用来结清一个已经离开的自己。' }],
+    choices: [
+      {
+        id: 'clear_old',
+        text: '先用三个月把遗留稿全部送出去',
+        outcomes: [{
+          weight: 1,
+          text: '春天结束时，两篇都不再躺在你的邮箱里。新项目落后了一点，你第一次真正感觉自己进入了博后。',
+          effects: [{ stats: { capital: 5, state: 2, method: 1 } }],
+        }],
+      },
+      {
+        id: 'start_new',
+        text: '优先在新组站住，旧稿并行慢慢改',
+        outcomes: [{
+          weight: 1,
+          text: '新组很快开始依赖你。旧共同作者每隔两周问一次进度；两个阶段都没有消失，只是一起占满了日历。',
+          effects: [{ stats: { method: 3, capital: 3, state: -5 } }, { addFlag: { key: 'burnout', delta: 8, min: 0, max: 100 } }],
+        }],
+      },
+    ],
+  },
+
+  // 第二年不再重复“终于只做研究”：合同、材料与求职把工作结构彻底改掉。
+  {
+    id: 'ev_pd_market_contract_clock',
+    pools: ['postdoc'],
+    category: 'career',
+    mandatory: true,
+    tier: 'major',
+    variantGroup: 'postdoc_market_clock',
+    trigger: { all: [{ flag: 'path_postdoc' }, { year: { from: 2026, to: 2026 } }] },
+    title: '合同还有十一个月',
+    text: '人事系统发来自动邮件：合同结束日期、离校手续、设备归还。离真正结束还有十一个月，求职材料却要在六周后开始投。\n\n**第二年不是第一年的续集，它从倒计时开始。**',
+    contextLines: [{ text: '每写一页 research statement，就少跑一次今天的数据；每多跑一次数据，就少准备一道面试问题。' }],
+    choices: [
+      {
+        id: 'market_first',
+        text: '先把申请材料和 job talk 做出来',
+        outcomes: [{
+          weight: 1,
+          text: '材料不再是临近截止的拼贴。代价是那篇最可能赶上的文章停了一个月。',
+          effects: [{ stats: { capital: 6, state: -2, method: -1 } }, { setFlag: 'postdoc_market_ready' }],
+        }],
+      },
+      {
+        id: 'paper_first',
+        text: '先冲一篇在审，材料晚一点再说',
+        outcomes: [{
+          weight: 1,
+          text: '稿子按时投出。第一批岗位开放时，你还在把博士和博后项目硬接成一条线。',
+          effects: [{ stats: { method: 4, capital: 2, state: -4 } }],
+        }],
+      },
+    ],
+  },
+  {
+    id: 'ev_pd_market_research_statement',
+    pools: ['postdoc'],
+    category: 'identity',
+    mandatory: true,
+    tier: 'major',
+    variantGroup: 'postdoc_market_clock',
+    trigger: { all: [{ flag: 'path_postdoc' }, { year: { from: 2026, to: 2026 } }] },
+    title: '“这几篇为什么属于同一个人？”',
+    text: '研究陈述第一页放着博士论文，第二页是博后项目，第三页是一个还没有数据的新方向。每一篇单独看都说得通，连在一起却像三份不同的简历。\n\n求职要你解释的不是发表列表，是**为什么下一篇也会由你做出来。**',
+    contextLines: [{ condition: { flag: 'postdoc_independent_line' }, text: '好在你第一年真的留出了一条由自己定义的问题。' }, { text: '你删掉“我的研究兴趣广泛”这句，空白反而更诚实。' }],
+    choices: [
+      {
+        id: 'question_line',
+        text: '按同一个问题重排，而不是按年份罗列',
+        outcomes: [{
+          weight: 1,
+          text: '有两篇文章被放到脚注。主线终于清楚：方法换过、样本换过，你一直在追同一个没被答完的问题。',
+          effects: [{ stats: { method: 3, capital: 5, state: 1 } }, { setFlag: 'postdoc_market_ready' }],
+        }],
+      },
+      {
+        id: 'output_line',
+        text: '按最强成果排序，先证明自己能产出',
+        outcomes: [{
+          weight: 1,
+          text: '第一页非常有力。读完的人会知道你做成过什么，未必知道给你一间办公室后你准备做什么。',
+          effects: [{ stats: { capital: 5, state: -1 } }],
+        }],
+      },
+    ],
+  },
+  {
+    id: 'ev_pd_market_mock_talk',
+    pools: ['postdoc'],
+    category: 'career',
+    mandatory: true,
+    tier: 'major',
+    variantGroup: 'postdoc_market_clock',
+    trigger: { all: [{ flag: 'path_postdoc' }, { year: { from: 2026, to: 2026 } }] },
+    title: '模拟 job talk 的第一个问题',
+    text: '你讲完四十五分钟，合作导师没有评价结果，先问：“这里面如果只能带走一条线，你带哪条？”\n\n你准备的是如何把所有工作讲完，没有准备如何放弃其中一半。',
+    contextLines: [{ text: '真正的岗位不会把现在这套设备、样本和合作关系一起交给你。' }],
+    choices: [
+      {
+        id: 'choose_line',
+        text: '现在就选一条，并说明另外两条为什么放下',
+        outcomes: [{
+          weight: 1,
+          text: '答案不再全面，却第一次像一个可以在新地方执行的计划。下一轮模拟时，所有人的问题都更具体了。',
+          effects: [{ stats: { capital: 6, method: 2, state: -2 } }, { setFlag: 'postdoc_market_ready' }],
+        }],
+      },
+      {
+        id: 'keep_portfolio',
+        text: '强调几条线可以互相支持，不必现在砍掉',
+        outcomes: [{
+          weight: 1,
+          text: '论证成立。合作导师最后只说：“那你要准备好，他们会问经费和人从哪里来。”',
+          effects: [{ stats: { method: 3, capital: 3, state: -3 } }],
+        }],
       },
     ],
   },

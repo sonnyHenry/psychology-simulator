@@ -37,9 +37,16 @@ export const advisorSwitchOptions: AdvisorSwitchOption[] = [
     id: 'switch_late',
     costTier: 'late',
     label: '还是要换',
-    // **这一档不许删。** 删了它,"代价极高但始终可行"就变成了"后期不可行"
+    // **这一档不许删。** 培养期内始终可行，只是博士毕业后不该继续出现在博后导师面板。
     cost: '延毕两年,课题全部清零,资本重挫。**它一直可行,只是到这时候几乎没有人还换得动。**',
-    availableWhen: { all: [{ advisor: {} }, { year: { from: 2023 } }] },
+    availableWhen: {
+      all: [
+        { advisor: {} },
+        { year: { from: 2023 } },
+        { not: { flag: 'path_postdoc' } },
+        { not: { flag: 'took_faculty_job' } },
+      ],
+    },
     eventId: 'ev_switch_advisor_late',
   },
 ];
@@ -163,7 +170,7 @@ export const advisorSwitchEvents: GameEvent[] = [
     tier: 'major',
     mandatory: true,
     eventSlotCost: 0,
-    // **窗口没有关。** 它只是贵到几乎没有人还换得动
+    // **培养期内窗口没有关。** 它只是贵到几乎没有人还换得动
     trigger: {
       all: [
         { advisor: { favor: { op: '<=', value: 26 } } },

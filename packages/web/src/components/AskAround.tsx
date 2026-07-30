@@ -13,7 +13,7 @@ type AskBlock = Extract<ViewModel, { kind: 'ADVISOR_DRAW' }>['ask'];
  *
  * ## 问之前你不知道他会说什么
  *
- * 按钮上只有来源("问问师姐""翻翻论坛"),没有内容摘要。
+ * 按钮上只写来源和打听对象("师兄 · 沈遇春"),没有内容摘要。
  * 有摘要的话这一屏就变成了挑答案,而不是打听。
  */
 export function AskAround(props: {
@@ -36,7 +36,7 @@ export function AskAround(props: {
       {ask.heard.map(item => (
         <div key={item.id} className="ask-heard">
           <div className="ask-quote">
-            {item.source}说:{item.text}
+            {item.source}谈{item.subject}:{item.text}
           </div>
           {/* 括注只给一个事实,不评价可靠性 */}
           <div className="ask-caveat">——{item.caveat}</div>
@@ -51,7 +51,7 @@ export function AskAround(props: {
               className="ask-btn"
               onClick={() => act({ type: 'ASK_AROUND', rumorId: option.id })}
             >
-              问问{option.source}
+              {option.source} · {option.subject}
             </button>
           ))}
         </div>

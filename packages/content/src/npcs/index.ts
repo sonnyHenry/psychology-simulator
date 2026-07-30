@@ -59,7 +59,7 @@ export const npcs: NpcDef[] = [
       office_hour: { eventId: 'ev_npc_teacher_2019', advanceWhen: { year: { from: 2019 } } },
       reference: { eventId: 'ev_npc_teacher_2022', advanceWhen: { year: { from: 2022 } } },
       peer_review: { eventId: 'ev_npc_teacher_2026', advanceWhen: { year: { from: 2026 } } },
-      retirement: { eventId: 'ev_npc_teacher_2031', advanceWhen: { year: { from: 2028 } } },
+      retirement: { eventId: 'ev_npc_teacher_2031', advanceWhen: { year: { from: 2027 } } },
       settled: {},
     },
   },

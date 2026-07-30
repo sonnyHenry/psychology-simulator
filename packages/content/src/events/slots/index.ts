@@ -120,7 +120,7 @@ export const narrativeSlotEvents: GameEvent[] = [
     text: '第一个研究的数据终于齐了。脚本跑完，图上两组几乎重合。你检查了三遍，没有报错。\n\n前一年所有阅读、伦理和招募，最后得到的是：**可能没有这个效应。**',
     trigger: { always: true },
     choices: [
-      { id: 'audit', text: '先复核设计与检出力，再决定它说明什么', outcomes: oneOutcome('你把“我失败了”拆成几个可以检查的问题。设计有局限，数据也是真的。研究没有按期待成功，训练第一次开始成功。', [{ stats: { method: 5, state: -3 } }, { setFlag: 'grad_survived_first_setback' }]) },
+      { id: 'audit', text: '先检查设计和样本量够不够，再决定它说明什么', outcomes: oneOutcome('你把“我失败了”拆成几个可以检查的问题。设计有局限，数据也是真的。研究没有按期待成功，训练第一次开始成功。', [{ stats: { method: 5, state: -3 } }, { setFlag: 'grad_survived_first_setback' }]) },
       { id: 'try_more', text: '再换几种分析，也许只是方法不对', outcomes: oneOutcome('第五种分析出现了一个显著交互。你高兴了十分钟，然后发现自己无法解释为什么前四种不算。', [{ stats: { method: 1, state: -2 } }, { addFlag: { key: 'integrity_risk', delta: 7, min: 0, max: 100 } }]) },
     ],
   },
@@ -136,12 +136,12 @@ export const narrativeSlotEvents: GameEvent[] = [
   },
   {
     id: 'ev_slot_g2_manipulation_failed', pools: ['grad'], category: 'research', tier: 'major',
-    title: '预实验里谁都没被操纵',
-    text: '你设计的操纵在预实验里完全没有拉开差异。被试认真做了，材料也按计划呈现；只是你以为会改变人的那件事，没有改变他们。\n\n{{advisor}}说：“那就重做。”他说得像在说换一张纸。',
+    title: '预实验没有造成预期差异',
+    text: '你在预实验里安排了两种不同情境，希望它们让参与者产生不同反应；结果两组几乎一样。参与者认真做了，材料也按计划呈现，只是你以为会改变人的那件事没有改变他们。\n\n{{advisor}}说：“那就重做。”他说得像在说换一张纸。',
     trigger: { always: true },
     choices: [
       { id: 'interview', text: '先问被试实际经历了什么', outcomes: oneOutcome('五个人给了五种理解。你删掉最漂亮的那段理论说明，重新写了最基本的指令。第二版没有那么聪明，终于能工作。', [{ stats: { clinical: 3, method: 3, state: -2 } }, { setFlag: 'grad_survived_first_setback' }]) },
-      { id: 'copy_paradigm', text: '换成文献里更成熟的范式', outcomes: oneOutcome('效应出来了。它不再完全是你原来想问的问题，但至少让项目重新开始移动。', [{ stats: { method: 2, capital: 1, state: -1 } }]) },
+      { id: 'copy_paradigm', text: '换成文献里更成熟的实验做法', outcomes: oneOutcome('差异出现了。它不再完全是你原来想问的问题，但至少让项目重新开始移动。', [{ stats: { method: 2, capital: 1, state: -1 } }]) },
     ],
   },
 

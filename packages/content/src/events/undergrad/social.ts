@@ -288,7 +288,7 @@ export const socialSeedEvents: GameEvent[] = [
     ],
   },
 
-  // ── 种子三:第一次打听(大三)─────────────────────────────
+  // 选完导师后的下一幕必须承接“已经选定”这个事实，不能再让玩家重新打听一遍。
   {
     id: 'ev_seed_first_rumor',
     pools: ['undergrad'],
@@ -296,129 +296,64 @@ export const socialSeedEvents: GameEvent[] = [
     mandatory: true,
     trigger: { year: { from: 2017, to: 2017 } },
     order: 16,
-    title: '进组之前,你第一次去打听一个人',
-    text: '你要选导师了。学院网站上每个老师的页面长得都差不多:研究方向、代表论文、承担项目。\n\n**这些页面唯一不写的,就是你真正需要知道的那件事。**\n\n于是你开始打听。你找到了三个人:一个刚毕业的师姐、一个在读的师兄、还有一个跟你不太熟但据说很知情的同班同学。',
-    // 师姐那条线要有 `has_senior_channel` 才问得到。**开场白不能许诺一个玩家没有的选项**——
-    // 说"你找到了三个人"却只给两个可问的人,读起来像 bug,实际上也是。
-    presentationVariants: [
-      {
-        condition: { not: { flag: 'has_senior_channel' } },
-        title: '进组之前,你第一次去打听一个人',
-        text: '你要选导师了。学院网站上每个老师的页面长得都差不多:研究方向、代表论文、承担项目。\n\n**这些页面唯一不写的,就是你真正需要知道的那件事。**\n\n于是你开始打听。但你能找到的人不多:一个在读的师兄,还有一个跟你不太熟但据说很知情的同班同学。\n\n**已经毕业的人才敢说真话,而你一个都不认识。**',
-      },
-    ],
+    title: '第一次坐进{{advisor}}的组会',
+    text: '人已经选定了。周三下午，你抱着电脑坐到{{advisor}}组会的最后一排。\n\n师兄师姐轮流汇报，很多词你还听不懂；但你第一次看见，这位老师怎样追问、怎样否定，也怎样在学生卡住时把问题拆小。\n\n**网页上没有写的那部分，现在就在你面前。**',
     contextLines: [
-      { text: '这是这一行最重要的一项技能,而它不在任何一门课的教学大纲里。' },
-      { condition: { flag: 'has_senior_channel' }, text: '师姐那条线你已经有了,而且她欠你一顿饭的人情正好可以用。' },
-      { condition: { flag: 'lab_years' }, text: '你在实验室待了两年,组里的事你本来就知道一些。' },
+      { text: '打听告诉你别人怎样描述一个导师，组会让你开始形成自己的判断。' },
+      { condition: { flag: 'asked_around_once' }, text: '你刚才听来的几句话，有一部分正在得到印证，也有一部分还看不出来。' },
+      { condition: { flag: 'has_senior_channel' }, text: '师姐进门时朝你点了点头。至少在这间屋里，你不是一个人都不认识。' },
     ],
     choices: [
       {
-        id: 'ask_the_graduate',
-        text: '问那个刚毕业的师姐',
+        id: 'prepare_with_senior',
+        text: '照师姐提醒的，提前读完今天要讲的论文',
         visibleIf: { flag: 'has_senior_channel' },
         outcomes: [
           {
             weight: 2,
-            text: '她想了几秒,说:\n\n> "老师很忙,但资源是真的多。你要能自己推着自己走。"\n\n(她是去年毕业的。她没有说她延期过一年。)\n\n**这就是情报的样子:原话是真的,括注里的东西她没说。** 你以后每一次打听都会是这个结构。',
-            effects: [
-              { stats: { capital: 3, method: 1 } },
-              { setFlag: 'asked_around_once' },
-              { addFlag: { key: 'rumors_heard', delta: 1, min: 0, max: 20 } },
-            ],
+            text: '大部分内容仍然很难，但你至少知道大家争的是哪一个问题。会后师姐说：“第一次能跟到这里已经不错了。”',
+            effects: [{ stats: { capital: 3, method: 1 } }, { setFlag: 'first_lab_meeting_done' }],
           },
           {
             weight: 1,
-            text: '她说:"这个我不太好说。你自己去组会坐一次。"\n\n**"不太好说"本身就是一条情报**,而且是可靠性最高的那一类。你听懂了。',
-            effects: [
-              { stats: { capital: 2, method: 2 } },
-              { setFlag: 'asked_around_once' },
-              { setFlag: 'read_between_lines' },
-              { addFlag: { key: 'rumors_heard', delta: 1, min: 0, max: 20 } },
-            ],
+            text: '你查了两晚，会上还是没跟上。可当老师问“这篇最薄弱的地方是什么”时，你认出了作者自己写在最后的那条局限。',
+            effects: [{ stats: { capital: 2, method: 2 } }, { setFlag: 'first_lab_meeting_done' }],
           },
         ],
       },
       {
-        id: 'ask_the_classmate',
-        text: '问那个据说很知情的同班同学',
+        id: 'take_notes',
+        text: '先把听不懂的词和追问全部记下来',
         outcomes: [
           {
             weight: 2,
-            text: '他讲了十分钟,信息量很大:谁组里压榨、谁给一作、谁去年有个学生退学。\n\n(他讲的这些,有一半是他从别人那里听来的。)\n\n**成本最低的情报也最不可靠**,而你在这个阶段分不出哪一半是真的。',
-            effects: [
-              { stats: { capital: 2, state: -2 } },
-              { setFlag: 'asked_around_once' },
-              { setFlag: 'heard_unreliable_rumor' },
-              { addFlag: { key: 'rumors_heard', delta: 2, min: 0, max: 20 } },
-            ],
+            text: '散会时你记了三页，其中两页是问号。回去逐个查完以后，你终于能复述今天那项研究究竟想回答什么。',
+            effects: [{ stats: { capital: 2, state: -2 } }, { setFlag: 'first_lab_meeting_done' }],
           },
           {
             weight: 1,
-            text: '他说的和你自己观察到的完全对不上。你去核了一件事,发现他讲错了。\n\n**你从此对"据说很知情的人"打了个折。** 这个折扣以后省了你很多麻烦。',
-            effects: [
-              { stats: { method: 3, capital: 1 } },
-              { setFlag: 'asked_around_once' },
-              { setFlag: 'verifies_rumors' },
-              { addFlag: { key: 'rumors_heard', delta: 1, min: 0, max: 20 } },
-            ],
+            text: '你没能记全结论，却记住了老师连续追问的三个“为什么”。后来你发现，组会真正教人的常常不是答案，而是怎么继续问。',
+            effects: [{ stats: { method: 3, capital: 1 } }, { setFlag: 'first_lab_meeting_done' }],
           },
         ],
       },
       {
-        id: 'ask_the_senior_student',
-        text: '问那个还在读的师兄',
+        id: 'ask_after_meeting',
+        text: '散会后留下，问一个刚才没听懂的问题',
         outcomes: [
           {
             weight: 2,
-            text: '他说了很多好话,而且说得很快。\n\n"挺好的老师,资源也多,你来肯定没问题。"\n\n(他还有两年毕业,而他的毕业得这个老师签字。)\n\n**在读的人不能说真话,这不是人品问题,是位置问题。** 你以后打听的第一件事会变成:这个人还归不归他管。',
-            effects: [
-              { stats: { method: 2, capital: 1 } },
-              { setFlag: 'asked_around_once' },
-              { setFlag: 'learned_who_can_speak' },
-              { addFlag: { key: 'rumors_heard', delta: 1, min: 0, max: 20 } },
-            ],
+            text: '师兄先替你解释了一遍，{{advisor}}又补了一句：“下次先把这个概念查清楚再来。”语气不轻，但答案是认真的。',
+            effects: [{ stats: { method: 2, capital: 1 } }, { setFlag: 'first_lab_meeting_done' }],
           },
           {
             weight: 1,
-            text: '他讲了二十分钟的好话,然后在你要走的时候补了一句:\n\n> "你要是想清楚了再来,别到时候后悔。"\n\n这句话他压低了声音。**你当时没听懂,两年后懂了。**',
-            effects: [
-              { stats: { method: 2, capital: 1, state: -2 } },
-              { setFlag: 'asked_around_once' },
-              { setFlag: 'heard_the_warning' },
-              { addFlag: { key: 'rumors_heard', delta: 2, min: 0, max: 20 } },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'sit_in',
-        text: '不打听,直接去蹭一次组会',
-        outcomes: [
-          {
-            weight: 1,
-            text: '你坐在最后一排听了两个小时。你看到导师怎么问问题、学生怎么回答、有人被问住的时候屋里是什么气氛。\n\n**这两个小时比十条情报都准。** 代价是你只能看到一个组,而打听可以覆盖五个。',
-            effects: [
-              { stats: { method: 3, capital: 2 } },
-              { setFlag: 'sat_in_lab_meeting' },
-            ],
-          },
-        ],
-      },
-      {
-        id: 'skip_it',
-        text: '不打听。看官网和论文自己判断',
-        outcomes: [
-          {
-            weight: 1,
-            text: '你按论文数、分区、项目级别排了个序,选了最高的那个。\n\n**这个方法不算错,而且它有一个很大的优点:公平。** 它的缺点要到研二才显现——那时候你会发现,论文数和"这个人怎么带学生"之间没有相关。',
-            effects: [
-              { stats: { method: 3, state: 1, capital: -1 } },
-              { setFlag: 'chose_by_metrics' },
-            ],
+            text: '{{advisor}}反问你：“你觉得它为什么要这样设计？”你答得断断续续。五分钟后，你带着一个更具体的问题离开了。',
+            effects: [{ stats: { method: 2, capital: 1, state: -2 } }, { setFlag: 'first_lab_meeting_done' }],
           },
         ],
       },
     ],
   },
+
 ];

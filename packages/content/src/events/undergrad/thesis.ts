@@ -224,7 +224,7 @@ export const thesisEvents: GameEvent[] = [
         outcomes: [
           {
             weight: 2,
-            text: '你又发了一轮问卷,收了 23 份,重跑。\n\n> t(201) = 2.03, **p = .044**\n\n显著了。你把结果写进去,接着写讨论。\n\n这件事花了你两周,**而且它看起来完全合理**——样本量本来就该更大一点,不是吗。\n\n没有人告诉你这叫 optional stopping。你要到研二读一篇方法学文章的时候才第一次看到这个词。',
+            text: '你又发了一轮问卷，收了 23 份，重新计算。\n\n> t(201) = 2.03，**p = .044**\n\n显著了。你把结果写进去，接着写讨论。\n\n这件事花了你两周，**而且它看起来完全合理**——样本量本来就该更大一点，不是吗。\n\n没有人告诉你，这叫“看过结果后再决定要不要继续收数据”（optional stopping）。它会让碰巧跨过门槛的概率变高。',
             effects: [
               { stats: { method: 1, state: -1 } },
               { project: { op: 'setField', target: 'thesis', integrityRisk: 20 } },
@@ -255,7 +255,7 @@ export const thesisEvents: GameEvent[] = [
         outcomes: [
           {
             weight: 2,
-            text: '你翻回自己的相关矩阵,找到了两个 p < .01 的关系,然后把引言重写了——**改成本来就是要研究这两个变量的**。\n\n第三章现在很好看。讨论也顺。导师说"逻辑很清楚"。\n\n这件事叫 HARKing。你在这一年里没听过这个词。',
+            text: '你翻回自己的结果表，找到两个 p < .01 的关系，然后把引言重写了——**改成本来就是要研究这两个变量的**。\n\n第三章现在很好看。讨论也顺。导师说“逻辑很清楚”。\n\n这叫“看到结果后再倒写原假设”（HARKing）。你在这一年里没听过这个词。',
             effects: [
               { stats: { method: 1, capital: 2 } },
               { project: { op: 'setField', target: 'thesis', integrityRisk: 28, quality: 4 } },
@@ -320,7 +320,7 @@ export const thesisEvents: GameEvent[] = [
     title: '写',
     text: '三万字。摘要、文献综述、方法、结果、讨论、参考文献、致谢。\n\n最难的不是结果那一章,是**文献综述**——你要把三十篇文章讲成一个故事,而它们本来并没有在讲同一个故事。\n\n最容易的是致谢。你写了八百字,超了。',
     contextLines: [
-      { text: '格式要求有一份 14 页的文档。参考文献必须是 APA 第六版。' },
+      { text: '格式要求有一份 14 页的文档。参考文献必须按 APA 第六版的统一格式排。' },
       { condition: { flag: 'trait_perfectionist' }, text: '你改了十一稿。前八稿只改了引言。' },
       { condition: { flag: 'reported_null_result' }, text: '不显著的结果反而让讨论好写:你有一整节可以认真谈局限。' },
       { condition: { flag: 'did_harking' }, text: '引言现在读起来天衣无缝,而你自己知道它是倒着写出来的。' },

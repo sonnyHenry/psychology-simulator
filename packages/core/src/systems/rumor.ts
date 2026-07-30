@@ -87,6 +87,8 @@ export function askRumor(
   if (!def) return null;
   state.rumors = [...(state.rumors ?? []), { defId: def.id, year: state.date.year }];
   state.asksThisRound = (state.asksThisRound ?? 0) + 1;
+  state.flags.asked_around_once = true;
+  state.flags.rumors_heard = Math.min(20, Number(state.flags.rumors_heard ?? 0) + 1);
   return { text: def.text, caveat: def.caveat, source: def.source };
 }
 

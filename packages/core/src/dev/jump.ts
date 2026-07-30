@@ -1,5 +1,5 @@
 import type { ContentPack } from '../types/content';
-import type { GameState } from '../types/state';
+import type { GameState, ScreenId } from '../types/state';
 import type { PlayerAction } from '../types/view';
 import { createEngine } from '../engine/engine';
 
@@ -28,6 +28,8 @@ export interface DevJumpTarget {
   year: number;
   /** 到达这个阶段就停(停在该阶段的第一个可交互屏)。省略 = 一路打到结局屏 */
   targetPhaseId?: string;
+  /** 到达这个具体交互屏就停；用于阶段中间的关键节点，如大三选导师。 */
+  targetScreen?: ScreenId;
   /**
    * 岔口偏好:group(岔口阶段 id)→ 按优先级排列的 optionId。
    * 命中不了(门控没过)就落到第一个可选项——那通常意味着走错路,由重试兜底。
@@ -220,7 +222,12 @@ function runOnce(
   let state = engine.start(seed);
   const actions: PlayerAction[] = [];
   for (let step = 0; step < MAX_STEPS_PER_RUN; step++) {
-    if (target.targetPhaseId !== undefined) {
+    if (target.targetScreen !== undefined) {
+      if (state.screen === target.targetScreen && state.date.year === target.year) {
+        return { state, actions, steps: step };
+      }
+      if (state.screen === 'ENDING') return null;
+    } else if (target.targetPhaseId !== undefined) {
       if (pack.timeline[state.phaseIndex]?.id === target.targetPhaseId) {
         return { state, actions, steps: step };
       }

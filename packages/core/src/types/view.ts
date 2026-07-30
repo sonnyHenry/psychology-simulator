@@ -48,13 +48,13 @@ export interface PublicExamQuestion {
 export interface AskAroundBlock {
   /** 本回合还能问几次。问完这一栏就只剩已经听到的那几句 */
   asksLeft: number;
-  /** 还能问的:只给来源和一个 id,**问之前你不知道他会说什么** */
-  options: { id: string; source: string }[];
+  /** 还能问的:给来源和打听对象,但**问之前你不知道他会说什么** */
+  options: { id: string; source: string; subject: string }[];
   /**
    * 已经听到的。排版是**引文 + 灰色括注**两行:正文是那个人的原话,
    * 括注是那句让人不安的补充。
    */
-  heard: { id: string; source: string; text: string; caveat: string }[];
+  heard: { id: string; source: string; subject: string; text: string; caveat: string }[];
 }
 
 export interface DeskView {

@@ -131,11 +131,11 @@ export const tenureEvents: GameEvent[] = [
     trigger: { all: [{ flag: 'path_postdoc' }, { year: { from: 2026, to: 2026 } }] },
     title: '合同还有十一个月',
     text: '人事系统发来自动邮件：合同结束日期、离校手续、设备归还。离真正结束还有十一个月，求职材料却要在六周后开始投。\n\n**第二年不是第一年的续集，它从倒计时开始。**',
-    contextLines: [{ text: '每写一页 research statement，就少跑一次今天的数据；每多跑一次数据，就少准备一道面试问题。' }],
+    contextLines: [{ text: '每写一页研究计划陈述，就少跑一次今天的数据；每多跑一次数据，就少准备一道面试问题。' }],
     choices: [
       {
         id: 'market_first',
-        text: '先把申请材料和 job talk 做出来',
+        text: '先把申请材料和求职学术报告做出来',
         outcomes: [{
           weight: 1,
           text: '材料不再是临近截止的拼贴。代价是那篇最可能赶上的文章停了一个月。',
@@ -193,7 +193,7 @@ export const tenureEvents: GameEvent[] = [
     tier: 'major',
     variantGroup: 'postdoc_market_clock',
     trigger: { all: [{ flag: 'path_postdoc' }, { year: { from: 2026, to: 2026 } }] },
-    title: '模拟 job talk 的第一个问题',
+    title: '模拟求职学术报告的第一个问题',
     text: '你讲完四十五分钟，合作导师没有评价结果，先问：“这里面如果只能带走一条线，你带哪条？”\n\n你准备的是如何把所有工作讲完，没有准备如何放弃其中一半。',
     contextLines: [{ text: '真正的岗位不会把现在这套设备、样本和合作关系一起交给你。' }],
     choices: [

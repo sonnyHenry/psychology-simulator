@@ -21,7 +21,7 @@ export const integrityEvents: GameEvent[] = [
         id: 'preprint', text: '把方法和零结果整理成预印本',
         outcomes: [{
           weight: 1,
-          text: '它没有期刊卷期，也不会替你满足所有毕业指标。它有 DOI、材料、分析脚本和一个诚实的零结果。\n\n**这是你的论文清单第一行。它不耀眼，但任何人都能打开。**',
+          text: '它没有期刊卷期，也不会替你满足所有毕业指标。它有永久链接（DOI）、研究材料、分析脚本和一个诚实的零结果。\n\n**这是你的论文清单第一行。它不耀眼，但任何人都能打开。**',
           effects: [
             { project: { op: 'create', templateId: 'tpl_survey' } },
             { project: { op: 'publish', target: 'latest', tier: 'preprint' } },
@@ -92,7 +92,7 @@ export const integrityEvents: GameEvent[] = [
         id: 'do_replication', text: '和对方联系，共同做一轮预注册重复',
         outcomes: [{
           weight: 1,
-          text: '对方回得很快。你们在 OSF 上一起写方案，每一条排除规则都在收数据之前定下。\n\n这会花一年，也可能再一次得到零。**你得到的是一个更清楚的答案，失去的是抢下一篇的时间。**',
+          text: '对方回得很快。你们在开放研究平台 OSF 上一起写方案，每一条排除规则都在收数据之前定下。\n\n这会花一年，也可能再一次得到零。**你得到的是一个更清楚的答案，失去的是抢下一篇的时间。**',
           effects: [
             { paperAudit: { op: 'replicationFailed' } },
             { stats: { method: 4, capital: 2, state: -3 } },

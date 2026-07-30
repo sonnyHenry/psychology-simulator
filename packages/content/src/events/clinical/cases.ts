@@ -87,7 +87,7 @@ export const caseStageEvents: GameEvent[] = [
     choices: [
       {
         id: 'take_it',
-        text: '接下来',
+        text: '在督导支持下接下这个个案',
         outcomes: [
           {
             weight: 2,

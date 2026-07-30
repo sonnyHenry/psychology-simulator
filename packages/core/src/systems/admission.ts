@@ -29,6 +29,24 @@ export const ADMISSION_TIERS = [
 ] as const;
 
 export type AdmissionTier = (typeof ADMISSION_TIERS)[number];
+export interface AdmissionAssessment {
+  minDiff: number;
+  chance: number;
+  label: AdmissionTier['label'];
+}
+
+/**
+ * 顶尖单位不因为玩家数值很高就变成“稳”。名额、导师当年是否招生、方向竞争者
+ * 这些清单外因素始终存在；它们不是玩家把方法和资本堆满就能消掉的。
+ */
+const SELECTIVITY_CEILING: Partial<Record<Institution['tier'], AdmissionTier['label']>> = {
+  a_plus: '冲',
+  institute: '冲',
+  r1: '冲',
+  hk_sg: '冲',
+  a: '较稳',
+  europe: '较稳',
+};
 
 /** 各档机构的门槛分。方法与资本的加权和要够到这条线才算"稳" */
 const TIER_BAR: Record<Institution['tier'], number> = {
@@ -94,11 +112,17 @@ export function admissionTierFor(
   state: GameState,
   inst: Institution,
   kind: GradApplyKind,
-): AdmissionTier {
+): AdmissionAssessment {
   const diff = applicantScore(state, kind) + domainMatchBonus(state, inst) - admissionBar(inst, kind);
-  const tier = ADMISSION_TIERS.find(t => diff >= t.minDiff);
-  if (!tier) throw new Error('unreachable: admission tier not found');
-  return tier;
+  const raw = ADMISSION_TIERS.find(t => diff >= t.minDiff);
+  if (!raw) throw new Error('unreachable: admission tier not found');
+  const ceilingLabel = SELECTIVITY_CEILING[inst.tier];
+  if (!ceilingLabel) return raw;
+  const ceiling = ADMISSION_TIERS.find(t => t.label === ceilingLabel)!;
+  // 标签还要表达模型里没有的风险（名额、导师是否招生、临场竞争），因此顶尖单位
+  // 最多显示到“冲”。但抽签概率继续使用已经标定过的实力曲线；否则仅仅修正文案
+  // 就会把强申请者大量送去调剂，并连带改写后续培养要求和结局分布。
+  return raw.chance > ceiling.chance ? { ...raw, label: ceiling.label } : raw;
 }
 
 /** 这次申请的候选清单:按 `admits` 过滤,顺序按门槛从高到低——清单本身就是一张梯度表 */

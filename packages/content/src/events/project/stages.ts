@@ -90,8 +90,8 @@ export const projectStageEvents: GameEvent[] = [
     ],
   }),
   stageEvent('ev_ps_ideation_journal_club', 'ideation', {
-    title: 'journal club 上读到一篇',
-    text: '这周的 journal club,师妹选的那篇正是你想做的。\n\n同一个问题,更大的样本,而且他们预注册了。\n\n屋里所有人都在看你——因为大家都知道你在做这个。',
+    title: '文献讨论会上读到一篇',
+    text: '这周的文献讨论会，师妹选的那篇正是你想做的。\n\n同一个问题，更大的样本，而且他们在收数据前就登记了分析方案。\n\n屋里所有人都在看你——因为大家都知道你在做这个。',
     contextLines: [
       { text: '「{{project}}」你已经做了 {{years}} 年。' },
       { condition: { flag: 'knows_preregistration' }, text: '他们预注册了。你没有。' },
@@ -332,7 +332,7 @@ export const projectStageEvents: GameEvent[] = [
         outcomes: [
           {
             weight: 1,
-            text: '你在 OSF 上把假设、样本量和分析方案登记出去。\n\n**从这一刻起你不能改假设了。** 这件事在收数据之前感觉像自缚手脚,在拿到不显著结果那天感觉像救命。',
+            text: '你在开放研究平台 OSF 上登记了假设、样本量和分析方案。\n\n**从这一刻起，你不能假装事后找到的结果原本就在计划里。** 收数据前这像自缚手脚，拿到不显著结果那天却像救命。',
             effects: [
               { stats: { method: 5 } },
               { project: { op: 'setField', preregistered: true, quality: 12 } },
@@ -347,7 +347,7 @@ export const projectStageEvents: GameEvent[] = [
   // ══════════ 收数据 ══════════
   stageEvent('ev_ps_collect_no_subjects', 'collect', {
     title: '被试招不满',
-    text: '「{{project}}」需要 120 个被试。\n\n你挂了两个月,来了 61 个。SONA 池被隔壁组抢空了,他们给的钱比你多 20 块。',
+    text: '「{{project}}」需要 120 个参与者。\n\n你在学校的实验招募系统里挂了两个月，只来了 61 个。隔壁组把愿意报名的人抢得差不多了，他们每人多给 20 块。',
     contextLines: [
       { text: '这是第 {{years}} 年。' },
       { condition: { advisor: { archetype: 'star' } }, text: '你导师那边其实有钱,但你得先在组会上开口。' },
@@ -378,7 +378,7 @@ export const projectStageEvents: GameEvent[] = [
         outcomes: [
           {
             weight: 2,
-            text: '你把预期样本从 120 改成 70,重新算了一遍检出力,发现刚好够检出一个"中等偏大"的效应。\n\n**你没有说谎**——你只是把标准调到了你能达到的地方。这件事和造假之间隔着很多步,而这是第一步。',
+            text: '你把预期样本从 120 改成 70，重新算了一遍：70 个人只有在真实差异“中等偏大”时才容易发现。\n\n**你没有说谎**——你只是把“多小的差异也要看得见”调到了自己能达到的程度。这件事和造假之间隔着很多步，而这是第一步。',
             effects: [
               { stats: { method: 1 } },
               { project: { op: 'setField', quality: -10, integrityRisk: 8 } },
@@ -388,7 +388,7 @@ export const projectStageEvents: GameEvent[] = [
           {
             weight: 1,
             condition: { flag: 'checks_power' },
-            text: '你算了一遍检出力,发现 70 个人只够检出一个大得不真实的效应。\n\n你没改。你继续招。**大二那年自己算过一遍这个公式的人,在这里会停下来。**',
+            text: '你算了一遍，发现 70 个人只有在真实差异大得不现实的时候才容易看出来。\n\n你没改。你继续招。**大二那年自己算过一遍这个公式的人，在这里会停下来。**',
             effects: [{ stats: { method: 4, state: -3 } }],
           },
         ],
@@ -412,8 +412,8 @@ export const projectStageEvents: GameEvent[] = [
     ],
   }),
   stageEvent('ev_ps_collect_counterbalance', 'collect', {
-    title: '师妹把 counterbalance 弄反了',
-    text: '「{{project}}」第 {{years}} 年。你翻数据的时候发现:第 31 到 58 号被试的条件顺序全反了。\n\n帮你跑被试的师妹按你写的流程做的。你写的那份流程,第 4 步和第 5 步的顺序确实有歧义。',
+    title: '师妹把实验顺序排反了',
+    text: '「{{project}}」第 {{years}} 年。你翻数据时发现：第 31 到 58 号参与者，本该轮换的任务顺序全反了。\n\n帮你执行实验的师妹按你写的流程做的。你写的那份流程，第 4 步和第 5 步的顺序确实有歧义。',
     contextLines: [
       { text: '28 个被试。三周。' },
       { condition: { flag: 'mastered_exp' }, text: '你一眼就看出这 28 个不能直接合并——顺序效应会和你的自变量混在一起。' },
@@ -531,8 +531,8 @@ export const projectStageEvents: GameEvent[] = [
 
   // ══════════ 分析 ══════════
   stageEvent('ev_ps_analyze_p062', 'analyze', {
-    title: 'p = .062',
-    text: '「{{project}}」的主效应:\n\n> F(1, 118) = 3.58, **p = .062**\n\n你已经见过一次这个场面了。那次是你的毕业论文。',
+    title: '差一点达到统计门槛',
+    text: '「{{project}}」最主要的比较结果是：\n\n> F(1, 118) = 3.58，**p = .062**\n\n这个数字越小，结果越不像随机碰巧出现；论文通常把 .05 当作一道门槛。你的 .062 就差一点。\n\n你已经见过一次这个场面了。那次是你的毕业论文。',
     contextLines: [
       { text: '这次的样本比那次大得多,而且花了 {{years}} 年。' },
       { condition: { flag: 'reported_null_result' }, text: '上一次你照实写了。' },
@@ -546,7 +546,7 @@ export const projectStageEvents: GameEvent[] = [
         outcomes: [
           {
             weight: 1,
-            text: '你把它写成一个未达显著的主效应,然后老实讨论了检出力。\n\n{{advisor}} 说:"那这篇不好投。"他说得对。\n\n**你还是照实写了。** 这一次比上一次难,因为这一次有 {{years}} 年在里面。',
+            text: '你照实写下“最主要的比较没有达到统计门槛”，也讨论了样本量是否足以发现真实差异。\n\n{{advisor}}说：“那这篇不好投。”他说得对。\n\n**你还是照实写了。** 这一次比上一次难，因为这一次有 {{years}} 年在里面。',
             effects: [
               { stats: { method: 6, state: -2, capital: -2 } },
               { project: { op: 'setField', quality: 10 } },
@@ -557,11 +557,11 @@ export const projectStageEvents: GameEvent[] = [
       },
       {
         id: 'find_the_interaction',
-        text: '主效应没了,但交互显著',
+        text: '主要结果不成立，再看看是否只对某一类人有效',
         outcomes: [
           {
             weight: 2,
-            text: '你跑了交互:**p = .028**。\n\n你把引言重写成"我们关注的是调节效应",讨论里讲得很顺。\n\n这篇会发出来。而三年后有人做重复研究,重复的是你写的那个交互——**那个你事后才找到的交互**。',
+            text: '你又按人群拆开看，发现差异似乎只在其中一类人身上出现：**p = .028**。\n\n你把引言重写成“我们从一开始就关心结果会不会因人而异”，讨论里讲得很顺。\n\n这篇会发出来。而三年后有人做重复研究，重复的是你事后才找到的这条结果。',
             effects: [
               { stats: { method: 1, capital: 2 } },
               { project: { op: 'setField', integrityRisk: 24, quality: 4 } },
@@ -572,7 +572,7 @@ export const projectStageEvents: GameEvent[] = [
           {
             weight: 1,
             condition: { flag: 'preregistered' },
-            text: '你跑了交互,显著。然后你想起自己预注册了。\n\n你把交互放进了"探索性分析"那一节,并且标明它是探索性的。\n\n**预注册那天你觉得是自缚手脚,今天它替你做了一个你未必做得出的决定。**',
+            text: '你按人群拆开看，发现一条新结果。然后你想起自己在收数据前登记过原定分析，这一条并不在里面。\n\n你把它放进“事后探索”那一节，并明确说明它需要新数据再验证。\n\n**提前登记那天你觉得是自缚手脚，今天它替你做了一个你未必做得出的决定。**',
             effects: [
               { stats: { method: 7, state: 2 } },
               { project: { op: 'setField', quality: 12 } },
@@ -609,7 +609,7 @@ export const projectStageEvents: GameEvent[] = [
   }),
   stageEvent('ev_ps_analyze_which_method', 'analyze', {
     title: '组会上关于方法的争论',
-    text: '你讲完分析,师兄说应该用 PROCESS,师姐说 Baron & Kenny 那套早就不用了,另一个人说你应该报贝叶斯因子。\n\n{{advisor}} 看着你,说:"你觉得呢?"',
+    text: '你讲完分析，师兄建议用一套常见的中介分析软件，师姐说旧的判断步骤早就不够了，另一个人建议换一种从证据强弱出发的统计方法。\n\n三个人各说了一套术语。{{advisor}}看着你，说：“你觉得呢？”',
     contextLines: [
       { text: '屋里五个人,三个说法。' },
       { condition: { flag: 'mastered_adv_stats' }, text: '这三种你都跑过。' },
@@ -624,7 +624,7 @@ export const projectStageEvents: GameEvent[] = [
           {
             weight: 2,
             condition: { projectRoll: 'ok' },
-            text: '你说:"因为我的假设是中介,而且样本量够做 bootstrap;贝叶斯因子我也算了,放在补充材料。"\n\n屋里安静了一下。{{advisor}} 说:"可以。"\n\n**这一刻的起点是大二期末统计课的那次判定。**',
+            text: '你没有报方法名，而是先讲问题：“我想判断 A 是否通过 B 影响 C；样本量够，重复抽样的结果也稳定。另一种算法我放在补充材料，结论没有变。”\n\n屋里安静了一下。{{advisor}}说：“可以。”\n\n**这一刻的起点是大二期末统计课的那次判定。**',
             effects: [
               { stats: { method: 6, capital: 3 } },
               { project: { op: 'setField', quality: 10 } },
@@ -791,7 +791,7 @@ export const projectStageEvents: GameEvent[] = [
   // ══════════ 投稿(挂在写作站)══════════
   stageEvent('ev_ps_submit_aim', 'write', {
     title: '投哪儿',
-    text: '「{{project}}」写完了。现在要决定投哪个刊。\n\n往上一档,大概率 desk reject,但万一呢。往下一档,基本能中,但这篇你做了 {{years}} 年。\n\n{{advisor}} 说:"你自己定。"',
+    text: '「{{project}}」写完了。现在要决定投哪个刊。\n\n往上一档，编辑很可能不送审就直接拒稿；往下一档，更容易进入正式审稿，但这篇你做了 {{years}} 年。\n\n{{advisor}}说：“你自己定。”',
     contextLines: [
       { text: '这是你第一次要自己做这个判断。' },
       { condition: { flag: 'writes_honest_limitations' }, text: '你的讨论那一节写得很实,而这在高档次的刊那里未必是加分项。' },
@@ -804,13 +804,13 @@ export const projectStageEvents: GameEvent[] = [
           {
             weight: 2,
             condition: { projectRoll: 'ok' },
-            text: '送外审了。**光是送外审这件事就值得高兴一晚上**——那个刊的 desk reject 率是七成。',
+            text: '编辑决定送给外部同行审稿。**光是进入正式审稿就值得高兴一晚上**——那个刊有七成稿件会被编辑直接拒掉。',
             effects: [{ stats: { capital: 2, state: 3 } }, { project: { op: 'setField', quality: 12 } }],
           },
           {
             weight: 2,
             condition: { projectRoll: 'setback' },
-            text: 'desk reject。三天。\n\n编辑的信有四行,其中两行是模板。',
+            text: '编辑直接拒稿，没有送外审。只用了三天。\n\n邮件有四行，其中两行是模板。',
             effects: [
               { stats: { state: -5 } },
               { project: { op: 'setField', quality: -4 } },
@@ -832,7 +832,7 @@ export const projectStageEvents: GameEvent[] = [
       },
       {
         id: 'apc',
-        text: '投开放获取的,APC 两千八美元',
+        text: '投读者可免费阅读的期刊，但要交两千八美元发表费',
         outcomes: [
           {
             weight: 1,
@@ -925,8 +925,8 @@ export const projectStageEvents: GameEvent[] = [
     ],
   }),
   stageEvent('ev_ps_review_major_revision', 'review', {
-    title: 'major revision,第十一个月',
-    text: '「{{project}}」投出去十一个月了。系统状态一直是 "Under Review"。\n\n你每周点开看一次。第十一个月的某天,状态变成了 "Decision in Process"。\n\n那天你什么都没干成。',
+    title: '需要大修，第十一个月',
+    text: '「{{project}}」投出去十一个月了。系统状态一直是“审稿中（Under Review）”。\n\n你每周点开看一次。第十一个月的某天，状态变成了“编辑正在做决定（Decision in Process）”。\n\n那天你什么都没干成。',
     contextLines: [
       { text: '这十一个月里你开了两个新课题。' },
       { condition: { flagNum: { key: 'burnout', op: '>=', value: 50 } }, text: '你已经不太在乎结果了,而这件事本身让你有点害怕。' },
@@ -948,7 +948,7 @@ export const projectStageEvents: GameEvent[] = [
           {
             weight: 1,
             condition: { projectRoll: 'setback' },
-            text: '你两周改完返回去,第二轮又回来了,还是 major。\n\n又是七个月。',
+            text: '你两周改完返回去，第二轮意见又来了，仍然是需要大修。\n\n又是七个月。',
             effects: [
               { stats: { state: -6 } },
               { project: { op: 'regress' } },
@@ -963,7 +963,7 @@ export const projectStageEvents: GameEvent[] = [
         outcomes: [
           {
             weight: 2,
-            text: '你改了三个月,把两个审稿人提的每一点都做实了,还补了一段稳健性检验。\n\n接受。**而且这一版比你原来那版好得多。**',
+            text: '你改了三个月，把两个审稿人提的每一点都做实，还用另一套合理方法重算了一遍，确认结论没有轻易改变。\n\n接受。**而且这一版比你原来那版好得多。**',
             effects: [
               { stats: { method: 6, state: -3 } },
               { project: { op: 'setField', quality: 14 } },
@@ -975,7 +975,7 @@ export const projectStageEvents: GameEvent[] = [
   }),
   stageEvent('ev_ps_review_scooped', 'review', {
     title: '被抢发了',
-    text: '你在等审稿意见的时候,刷到一篇刚上线的文章。\n\n同一个问题,同一个方向的结果,样本比你大。他们比你早三个月。\n\n通讯作者是你在会议上见过的一个人。',
+    text: '你在等审稿意见的时候，刷到一篇刚上线的文章。\n\n同一个问题，同一个方向的结果，样本比你大。他们比你早三个月。\n\n负责与期刊联络、通常也代表研究团队的通讯作者，是你在会议上见过的一个人。',
     contextLines: [
       { text: '「{{project}}」你做了 {{years}} 年。' },
       // **代词要有先行词。** 原文写的是"不是他。这次不是他。"——那个"他"指的是

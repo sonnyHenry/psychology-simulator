@@ -202,7 +202,7 @@ export const npcEvents: GameEvent[] = [
     ],
   }),
   beat({
-    id: 'ev_npc_teacher_2031', npcId: 'npc_advisor_to_be', yearFrom: 2028, nextStage: 'settled', tier: 'major',
+    id: 'ev_npc_teacher_2031', npcId: 'npc_advisor_to_be', yearFrom: 2027, nextStage: 'settled', tier: 'major',
     title: '页边那个框',
     text: '整理旧材料时，你翻到本科那页实验设计。纸已经发黄，页边那个框还在。\n\n你今天刚给一个年轻人画了几乎一样的框。',
     choices: [

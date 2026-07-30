@@ -18,7 +18,13 @@ let worst = 0;
 for (const target of devJumpTargets) {
   const result = devJump(contentPack, target, { seed: 20260728 });
   assert.ok(result, `跳转目标不可达: ${target.id}(${target.label})——偏好配置和当前内容对不上了`);
-  if (target.targetPhaseId !== undefined) {
+  if (target.targetScreen !== undefined) {
+    assert.equal(
+      result.state.screen,
+      target.targetScreen,
+      `跳转目标停错了屏幕: ${target.id} 停在 ${result.state.screen}`,
+    );
+  } else if (target.targetPhaseId !== undefined) {
     const phase = contentPack.timeline[result.state.phaseIndex];
     assert.equal(
       phase?.id,

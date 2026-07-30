@@ -50,7 +50,7 @@ export const dramaEvents: GameEvent[] = [
     ],
     trigger: { year: { from: 2025, to: 2026 } },
     choices: [
-      { id: 'cover', text: '接下来', outcomes: [{ weight: 1, text: '事情都做完了，同事回来时认真向你道谢。**没有一项工作记得是你额外做的，只有你的身体记得。**', effects: [{ stats: { capital: 3, state: -4 } }, { addFlag: { key: 'burnout', delta: 8, min: 0, max: 100 } }] }] },
+      { id: 'cover', text: '替他把这两个月接下来', outcomes: [{ weight: 1, text: '事情都做完了，同事回来时认真向你道谢。**没有一项工作记得是你额外做的，只有你的身体记得。**', effects: [{ stats: { capital: 3, state: -4 } }, { addFlag: { key: 'burnout', delta: 8, min: 0, max: 100 } }] }] },
       { id: 'decline', text: '说清楚自己接不动', outcomes: [{ weight: 1, text: '他点头说理解，最后把事情拆给了三个人。关系没有破裂，只是以后你需要别人接住时，**你不确定他会不会想起今天。**', effects: [{ stats: { state: 3, capital: -2 } }, { setFlag: 'drama_declined_cover' }] }] },
     ],
   },
@@ -58,8 +58,8 @@ export const dramaEvents: GameEvent[] = [
   // ── 学术线八幕 ──────────────────────────────────────────
   {
     id: 'ev_drama_ac_first_author', pools: ['grad'], category: 'drama', mandatory: true, eventSlotCost: 0, tier: 'major',
-    title: '一作',
-    text: '导师说，要把你做了两年的课题一作给刚来的博士生：“他快毕业了，差这一篇。你还年轻，下一篇还是你的。”\n\n那个博士生确实快到期限了，也补完了最后一轮分析。',
+    title: '第一作者的位置',
+    text: '导师说，要把你做了两年的课题第一作者给刚来的博士生。第一作者通常代表这篇论文的主要贡献者。\n\n“他快毕业了，差这一篇。你还年轻，下一篇还是你的。”\n\n那个博士生确实快到期限了，也补完了最后一轮分析。',
     trigger: { all: [{ paperCount: { op: '>=', value: 1 } }, { year: { from: 2020, to: 2023 } }] },
     choices: [
       { id: 'fight', text: '拿着贡献记录去争', outcomes: [{ weight: 1, text: '一作保住了。之后三年，组里每次需要帮忙，消息都绕过你。**署名写清了贡献，关系也写清了。**', effects: [{ stats: { capital: -4, method: 3 } }, { setFlag: 'drama_fought_authorship' }, { schedule: { eventId: 'ev_drama_authorship_return', afterRounds: 2 } }] }] },
@@ -70,7 +70,7 @@ export const dramaEvents: GameEvent[] = [
   {
     id: 'ev_drama_ac_scooped', pools: ['grad', 'postdoc'], category: 'drama', mandatory: true, eventSlotCost: 0,
     title: '先发出来的人',
-    text: '你的稿子在审。今天，一篇问题、范式甚至图表顺序都很像的文章 online first。审稿人名单不可见，但你记得大会上那个组问过你的全部细节。',
+    text: '你的稿子还在审。今天，另一篇问题、实验做法甚至图表顺序都很像的文章提前在线发表了。审稿人名单不可见，但你记得大会上那个组问过你的全部细节。',
     trigger: { all: [{ paperCount: { op: '>=', value: 1 } }, { year: { from: 2024, to: 2026 } }] },
     choices: [
       { id: 'revise_fast', text: '连夜重写，强调差异，尽快转投', outcomes: [{ weight: 1, text: '稿子两周后投出。你删掉了最野心勃勃的部分，换来时间。**它最终发表了，也永远像那篇文章的补充。**', effects: [{ stats: { method: 3, state: -4 } }, { setFlag: 'drama_scooped_revised' }] }] },
@@ -115,7 +115,7 @@ export const dramaEvents: GameEvent[] = [
     text: '{{advisor}}拿到另一所学校的职位，问你要不要一起走。跟走要重办学籍、课题重来；留下来，实验室会被拆分给两个你不熟的老师。',
     trigger: { all: [{ advisor: {} }, { year: { from: 2021, to: 2024 } }] },
     choices: [
-      { id: 'follow', text: '跟着走', outcomes: [{ weight: 1, text: '你重新签材料、搬数据、向新伦理委员会解释旧项目。导师还在，毕业时钟多走了一圈。', effects: [{ stats: { capital: 3, state: -4 } }, { extendPhase: { rounds: 1 } }, { setFlag: 'drama_followed_advisor' }] }] },
+      { id: 'follow', text: '跟导师转去新学校', outcomes: [{ weight: 1, text: '你重新签材料、搬数据，还要向新学校负责审查研究风险的委员会重新解释旧项目。导师还在，毕业时钟多走了一圈。', effects: [{ stats: { capital: 3, state: -4 } }, { extendPhase: { rounds: 1 } }, { setFlag: 'drama_followed_advisor' }] }] },
       { id: 'stay', text: '留下，保住学籍和课题', outcomes: [{ weight: 1, text: '课题没有重来。此后一年，你的邮件平均九天收到回复。**你保住了时间，失去了原来替这段时间赋形的人。**', effects: [{ stats: { method: 2, capital: -3 } }, { setFlag: 'drama_stayed_without_advisor' }] }] },
     ],
   },
@@ -136,7 +136,7 @@ export const dramaEvents: GameEvent[] = [
     trigger: { all: [{ paperCount: { op: '>=', value: 1 } }, { year: { from: 2023 } }] },
     choices: [
       { id: 'agree', text: '同意共同一作', outcomes: [{ weight: 1, text: '文章顺利收尾。申请表里只能填“第一作者：是/否”的地方，你每次都会停一下。', effects: [{ stats: { capital: 3, state: -2 } }] }] },
-      { id: 'keep_first', text: '保留一作，给他通讯作者', outcomes: [{ weight: 1, text: '他接受了，但下一个合作没有再找你。你的排序保住了，合作网络少了一条边。', effects: [{ stats: { method: 2, capital: -3 } }] }] },
+      { id: 'keep_first', text: '保留第一作者，让他做负责联络期刊的通讯作者', outcomes: [{ weight: 1, text: '他接受了，但下一个合作没有再找你。你的排序保住了，合作网络少了一条边。', effects: [{ stats: { method: 2, capital: -3 } }] }] },
     ],
   },
 
@@ -169,8 +169,8 @@ export const dramaConsequences: GameEvent[] = [
     title: '三年后的一封邮件',
     text: '当年和你争一作的那个人发来邮件。他所在的组有一个与你完全匹配的岗位，问你要不要投。\n\n邮件最后写：“工作归工作。我一直觉得你当年应该争。”',
     choices: [
-      { id: 'apply', text: '投', outcomes: [{ weight: 1, text: '你投了。关系没有被修复成友情，但它也没有被永远定格在那次争执里。', effects: [{ stats: { capital: 3 } }] }] },
-      { id: 'pass', text: '不投', outcomes: [{ weight: 1, text: '你回了谢谢。不是每一笔旧账都要靠下一次合作结清。', effects: [{ stats: { state: 2 } }] }] },
+      { id: 'apply', text: '投这个岗位', outcomes: [{ weight: 1, text: '你投了。关系没有被修复成友情，但它也没有被永远定格在那次争执里。', effects: [{ stats: { capital: 3 } }] }] },
+      { id: 'pass', text: '不投这个岗位', outcomes: [{ weight: 1, text: '你回了谢谢。不是每一笔旧账都要靠下一次合作结清。', effects: [{ stats: { state: 2 } }] }] },
     ],
   },
 ];

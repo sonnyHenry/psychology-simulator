@@ -562,7 +562,7 @@ export const clinicalEvents: GameEvent[] = [
       },
       {
         id: 'hold_the_line',
-        text: '守住案量,开始排 waiting list',
+        text: '不再超量接人，开始让新来访者排等候名单',
         outcomes: [
           {
             weight: 2,

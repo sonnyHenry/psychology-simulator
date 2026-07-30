@@ -27,6 +27,14 @@ const CLINICAL_PRACTICE = ['alloc_casework', 'alloc_supervision', 'alloc_persona
 
 export const devJumpTargets: DevJumpTarget[] = [
   {
+    id: 'jump_advisor_draw',
+    label: '大三选导师(2017)',
+    year: 2017,
+    targetScreen: 'ADVISOR_DRAW',
+    collegePref: 'science',
+    allocationPrefs: UNDERGRAD_ACADEMIC,
+  },
+  {
     id: 'jump_crossroad_2018',
     label: '大四三岔口(2018)',
     year: 2018,
@@ -35,6 +43,16 @@ export const devJumpTargets: DevJumpTarget[] = [
     // 兼顾几条线的门控:实验室(直博/海外)、备考(读硕/海外)、咨询中心(临床)。
     // 注意考编线(教师资格证)要师范归属,这个通用跳转顾不上——要测考编,手玩或加专属目标。
     allocationPrefs: ['alloc_lab', 'alloc_counseling', 'course', 'alloc_exam_prep'],
+  },
+  {
+    id: 'jump_master_apply',
+    label: '硕士申请(2018)',
+    year: 2018,
+    targetScreen: 'GRAD_APPLY',
+    collegePref: 'science',
+    lifeGoalId: 'goal_academic',
+    crossroadPrefs: { crossroad_2018: ['path_master'] },
+    allocationPrefs: UNDERGRAD_ACADEMIC,
   },
   {
     id: 'jump_master',
@@ -64,6 +82,16 @@ export const devJumpTargets: DevJumpTarget[] = [
     collegePref: 'science',
     lifeGoalId: 'goal_academic',
     // 读博的门控是"有一篇文章"(或资本+方法),默认策略不保证每个种子都攒得出——由重试兜底
+    crossroadPrefs: { crossroad_2018: ['path_master'], crossroad_2021: ['m_continue_phd'] },
+    allocationPrefs: [...GRAD_ACADEMIC, ...UNDERGRAD_ACADEMIC],
+  },
+  {
+    id: 'jump_phd_apply',
+    label: '博士申请(2021)',
+    year: 2021,
+    targetScreen: 'GRAD_APPLY',
+    collegePref: 'science',
+    lifeGoalId: 'goal_academic',
     crossroadPrefs: { crossroad_2018: ['path_master'], crossroad_2021: ['m_continue_phd'] },
     allocationPrefs: [...GRAD_ACADEMIC, ...UNDERGRAD_ACADEMIC],
   },

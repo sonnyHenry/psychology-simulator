@@ -49,7 +49,7 @@ export const favorEvents: GameEvent[] = [
     choices: [
       {
         id: 'run_them',
-        text: '接下来',
+        text: '替师兄跑完这四十个被试',
         outcomes: [
           {
             weight: 1,

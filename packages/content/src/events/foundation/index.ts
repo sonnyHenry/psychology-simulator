@@ -145,7 +145,7 @@ function collapseEvent(
 export const foundationEvents: GameEvent[] = [
   collapseEvent('fnd_ego_depletion', {
     title: '你的地基塌了',
-    text: '你在读一篇刚出来的多站点预注册研究。\n\n几十个实验室,同一个范式,统一的流程。结果是:**几乎没有找到支持自我损耗的证据。**\n\n你的开题报告第 3 页,整个理论框架建立在这个效应之上。\n\n「{{project}}」你已经做了 {{years}} 年。',
+    text: '你在读一篇刚出来的大规模重复研究：几十个实验室都在收数据前登记好方案，用同一套实验做法和统一流程重做那个经典结果。\n\n结论是：**几乎没有找到支持“自我损耗”的证据。**\n\n你的开题报告第 3 页，整个理论框架建立在这个结果之上。\n\n「{{project}}」你已经做了 {{years}} 年。',
     contextLines: [
       { text: '你把那篇下载下来,又从头读了一遍。没有读错。' },
       { condition: { flag: 'trait_skeptic' }, text: '那个样本量的问题,你其实早就注意到了。' },

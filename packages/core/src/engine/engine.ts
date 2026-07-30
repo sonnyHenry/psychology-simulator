@@ -141,6 +141,19 @@ export function createEngine(pack: ContentPack): Engine {
    */
   function askBlock(state: GameState, topics: string[]): AskAroundBlock {
     const rng = new Rng(state.rngState);
+    const subjectOf = (topic: string): string => {
+      const [kind, id] = topic.split(':', 2);
+      if (kind === 'advisor') {
+        return (pack.advisors ?? []).find(advisor => advisor.id === id)?.name ?? '这位老师';
+      }
+      if (kind === 'foundation') {
+        return (pack.foundations ?? []).find(foundation => foundation.id === id)?.label ?? '这个研究基础';
+      }
+      if (kind === 'institution') {
+        return (pack.institutions ?? []).find(institution => institution.id === id)?.name ?? '这个单位';
+      }
+      return '这件事';
+    };
     const heard = (state.rumors ?? [])
       .map(rumor => (pack.rumors ?? []).find(def => def.id === rumor.defId))
       .filter((def): def is NonNullable<typeof def> => Boolean(def))
@@ -148,6 +161,7 @@ export function createEngine(pack: ContentPack): Engine {
       .map(def => ({
         id: def.id,
         source: def.source,
+        subject: subjectOf(def.topic),
         text: renderText(def.text, state),
         caveat: def.caveat,
       }));
@@ -156,6 +170,7 @@ export function createEngine(pack: ContentPack): Engine {
       options: askableRumors(state, pack, rng, topics).map(rumor => ({
         id: rumor.id,
         source: rumor.source,
+        subject: subjectOf(rumor.topic),
       })),
       heard,
     };

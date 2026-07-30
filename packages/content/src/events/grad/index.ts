@@ -295,7 +295,7 @@ export const gradEvents: GameEvent[] = [
     choices: [
       {
         id: 'take_it',
-        text: '接下来',
+        text: '接下这个做到一半的课题',
         outcomes: [
           {
             weight: 1,

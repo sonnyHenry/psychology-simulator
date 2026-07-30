@@ -59,7 +59,7 @@ export const hospitalEvents: GameEvent[] = [
   trackEvent({
     id: 'ev_h_grad_first_record', pools: ['hospital_grad'], career: 'hospital', year: { to: 2019 }, weight: 6,
     title: '第一份评估记录',
-    text: '带教老师把一份 WAIS-IV 记录交给你。数字、行为观察、家属叙述,最后要落成一句能进病历的话。\n\n**量表给的是分数,病历要写的是这个人。**',
+    text: '带教老师把一份常用成人智力测验（WAIS-IV）的记录交给你。数字、行为观察、家属叙述，最后要落成一句能进病历的话。\n\n**量表给的是分数，病历要写的是这个人。**',
     choices: [
       { id: 'rewrite', text: '把行为观察重写一遍', result: '你删掉了三句像教科书的套话,补上受测者在哪几道题上停了很久。\n\n带教老师只改了一个词。那一个词你后来用了很多年。', effects: [{ stats: { clinical: 4, method: 1 } }, { setFlag: 'hospital_assessment_rigorous' }] },
       { id: 'template', text: '先按科里的模板交', result: '格式一项没错。老师说可以。\n\n你知道“可以”和“看见了这个人”之间还差一段路。', effects: [{ stats: { clinical: 2, capital: 1 } }] },
@@ -169,7 +169,7 @@ export const hospitalEvents: GameEvent[] = [
     title: '副主任那张表',
     text: '科里问你愿不愿意接一部分管理。排班、投诉、医保口径、耗材和年轻人的轮转。\n\n升上去意味着离开一部分门诊,留下意味着很多决定由别人做。',
     choices: [
-      { id: 'take_role', text: '接下来', result: '你开始在会议里替心理治疗争那几个不会直接产生收入的小时。\n\n做管理没有让你离临床更近,但有些边界终于能写进制度。', effects: [{ stats: { capital: 6, clinical: -1, state: -3 } }, { setFlag: 'hospital_manager' }] },
+      { id: 'take_role', text: '接下副主任的管理工作', result: '你开始在会议里替心理治疗争那几个不会直接产生收入的小时。\n\n做管理没有让你离临床更近,但有些边界终于能写进制度。', effects: [{ stats: { capital: 6, clinical: -1, state: -3 } }, { setFlag: 'hospital_manager' }] },
       { id: 'stay_clinical', text: '把位置留给别人,继续坐门诊', result: '你的名字没有出现在新组织架构里。预约表仍然排得很满。\n\n你选择继续做手艺人。', effects: [{ stats: { clinical: 5, state: 1 } }] },
     ],
   }),
@@ -219,7 +219,7 @@ export const schoolEvents: GameEvent[] = [
     { id: 'simple', text: '先把支持联系人和危机预案写清', result: '你没有替所有人消除担心。你确保出问题时不会有人问“现在该找谁”。', effects: [{ stats: { method: 2, clinical: 3, state: -1 } }] },
   ] }),
   trackEvent({ id: 'ev_s_homeroom', pools: ['school_late'], career: 'school', title: '顺便带个班', text: '教务处说缺班主任,问你能不能“暂时”带一个。理由很充分:你最会做学生工作。\n\n你知道“暂时”在学校里通常有多长。', choices: [
-    { id: 'take', text: '接下来', result: '从此你的咨询时段里混进了考勤、家长群和运动会。你更了解学生的日常,也更难让他们相信谈话不会影响班级管理。', effects: [{ stats: { capital: 5, clinical: -2, state: -5 } }, { setFlag: 'school_homeroom' }] },
+    { id: 'take', text: '接下这个班的班主任', result: '从此你的咨询时段里混进了考勤、家长群和运动会。你更了解学生的日常,也更难让他们相信谈话不会影响班级管理。', effects: [{ stats: { capital: 5, clinical: -2, state: -5 } }, { setFlag: 'school_homeroom' }] },
     { id: 'decline', text: '说明双重角色的风险,不接', result: '教务处不高兴。咨询室保住了它唯一重要的东西:学生不用猜眼前的人下一分钟会不会去找班主任。', effects: [{ stats: { clinical: 5, capital: -2, state: 1 } }, { setFlag: 'school_protected_room' }] },
   ] }),
   trackEvent({ id: 'ev_s_district_system', pools: ['school_late'], career: 'school', title: '一张区级流程图', text: '区里让你牵头做危机转介流程。医院、教育局、学校和家长需要在同一张纸上出现,而每一方都希望责任停在自己门外。', choices: [
@@ -257,7 +257,7 @@ export const industryEvents: GameEvent[] = [
     { id: 'benchmark', text: '拿真实访谈做一轮对照', result: '模型复述了所有常见答案,漏掉了真正让产品失败的那几个尴尬停顿。你没有宣布它没用,你写清了它能替代哪一段、不能替代哪一段。', effects: [{ stats: { method: 5, capital: 3 } }, { setFlag: 'industry_ai_literate' }] },
     { id: 'adopt', text: '把它用于前期假设生成', result: '项目快了一周。你把生成内容明确标成假设,没有把模拟用户包装成样本。', effects: [{ stats: { method: 3, capital: 4, state: 1 } }] },
   ] }),
-  trackEvent({ id: 'ev_i_reorg', pools: ['industry'], career: 'industry', year: { from: 2025 }, title: '汇报对象换了第五次', text: '组织架构又调了。新老板不认识你做过的任何项目,只看到今年的 OKR。\n\n你保存的那些洞察不会随组织图自动迁移。', choices: [
+  trackEvent({ id: 'ev_i_reorg', pools: ['industry'], career: 'industry', year: { from: 2025 }, title: '汇报对象换了第五次', text: '组织架构又调了。新老板不认识你做过的任何项目，只看到今年那张目标与关键结果表（OKR）。\n\n你保存的那些洞察不会随组织图自动迁移。', choices: [
     { id: 'repository', text: '把研究资产做成可检索的证据库', result: '它没有阻止下一次重组,但让三年前的访谈第一次在新项目里被重新用上。', effects: [{ stats: { method: 3, capital: 5, state: -3 } }, { setFlag: 'industry_research_system' }] },
     { id: 'reset', text: '接受重置,从新老板的问题开始', result: '你没有花半年证明过去的自己。新项目启动得很快,旧文件夹仍留在硬盘里。', effects: [{ stats: { capital: 3, state: 2 } }] },
   ] }),

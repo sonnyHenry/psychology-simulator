@@ -29,8 +29,8 @@ export const masteryEvents: GameEvent[] = [
     mandatory: true,
     trigger: { all: [{ year: { from: 2017 } }, { flag: 'entered_lab' }] },
     order: 18,
-    title: '组会上师兄在讲中介效应',
-    text: '师兄在讲他的新分析:"这里我做了 bootstrap,5000 次抽样,间接效应的置信区间不包含 0,所以中介成立。但 Baron & Kenny 那套现在不太用了,审稿人会问你为什么不做 Sobel。"\n\n他讲完看了一圈:"有问题吗?"',
+    title: '组会上师兄在讲一套你没学过的统计方法',
+    text: '师兄在分析一个问题：A 是否先改变 B，再通过 B 影响 C。统计里把这叫“中介效应”。\n\n接着他一口气说了 bootstrap、置信区间、Baron & Kenny 和 Sobel——几种判断这条间接路径是否站得住的方法。\n\n他讲完看了一圈：“有问题吗？”',
     contextLines: [
       { text: '屋里六个人,有两个在点头,有一个在记笔记,有一个在看手机。' },
       { condition: { flag: 'mastered_stats' }, text: '你知道他刚才那句话有一个地方讲错了。' },
@@ -39,12 +39,12 @@ export const masteryEvents: GameEvent[] = [
     choices: [
       {
         id: 'ask_real_question',
-        text: '问他:那如果直接效应也显著,你怎么解释部分中介',
+        text: '问他：如果 A 仍会直接影响 C，该怎么解释',
         visibleIf: { flag: 'mastered_stats' },
         outcomes: [
           {
             weight: 2,
-            text: '师兄停了一下,说:"问得好。其实「部分中介」这个说法现在有争议,因为它依赖于直接效应的显著性,而那个又依赖样本量。"\n\n导师在旁边说了一句:"这个学生的统计学得不错。"\n\n**你在这个屋子里的位置从今天起不一样了。** 而这句话的起点是大二期末的一次判定。',
+            text: '师兄停了一下，说：“问得好。过去会把这种情况叫‘部分中介’，但这个名字依赖直接路径有没有达到统计门槛，而门槛又会受样本量影响。”\n\n导师在旁边说了一句：“这个学生的统计学得不错。”\n\n**你在这个屋子里的位置从今天起不一样了。** 而这句话的起点是大二期末的一次判定。',
             effects: [
               { stats: { method: 5, capital: 4 } },
               { setFlag: 'known_for_stats' },
@@ -68,7 +68,7 @@ export const masteryEvents: GameEvent[] = [
           {
             weight: 1,
             // 不带任何嘲讽。现实里很多人就是这么过来的,包括一些发了很多论文的人。
-            text: '你点了头。屋里另外三个人也点了头。\n\n组会结束后你把"bootstrap""Sobel""Baron & Kenny"抄在手机备忘录里,打算晚上查。\n\n后来你查了,而且大致看懂了。**你会用这种方式补上很多东西**——比在课上学慢,比什么都不做快。这一行有很多人是这么走完全程的。',
+            text: '你点了头。屋里另外三个人也点了头。\n\n组会结束后，你把那三个陌生的方法名抄在手机备忘录里，打算晚上查。\n\n后来你查了，而且大致看懂了。**你会用这种方式补上很多东西**——比在课上学慢，比什么都不做快。这一行有很多人是这么走完全程的。',
             effects: [
               { stats: { method: 2, state: -1 } },
               { addFlag: { key: 'nodded_along', delta: 1, min: 0, max: 20 } },

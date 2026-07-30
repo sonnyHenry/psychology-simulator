@@ -244,7 +244,7 @@ const goalScenes: ConfiguredScene[] = [
   },
   {
     id: 'goal_freedom_self_deadline', pools: POST_CROSSROAD_POOLS, condition: { flag: 'life_goal', equals: 'goal_freedom' }, from: 2026,
-    title: '没有人催的截止日', text: '这件事完全由你决定，也因此可以永远不完成。自主和拖延共用同一扇门。',
+    title: '没有人催的个人计划', text: '你想写一份只属于自己的研究或职业计划，没有单位要求，也没有截止日期。它完全由你决定，也因此可以永远不完成。自主和拖延共用同一扇门。',
     choice: '给自己一个可以违约的日期', result: '你按时做完了。不是因为有人管，而是自由也需要自己提供一点结构。', category: 'identity', effects: [{ stats: { method: 2, state: 2 } }],
   },
 ];

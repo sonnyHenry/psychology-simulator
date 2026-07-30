@@ -2332,6 +2332,9 @@ describe('M3 导师', () => {
       { id: 'a2', archetype: 'warm', availability: 'rare', name: '乙老师', publicImpression: '师兄师姐都夸。', initialStage: 'joined', initialFavor: 65, stages: { joined: {} } },
       { id: 'a3', archetype: 'boundary', availability: 'rare', name: '丙老师', publicImpression: '横向做得很大。', initialStage: 'joined', initialFavor: 40, stages: { joined: {} } },
     ];
+    pack.rumors = [
+      { id: 'rum_a1', topic: 'advisor:a1', source: '师兄', text: '“很忙。”', caveat: '他仍在组里。', accurate: true },
+    ];
     return pack;
   }
 
@@ -2351,6 +2354,7 @@ describe('M3 导师', () => {
     expect(serialized).not.toContain('star');
     expect(serialized).not.toContain('boundary');
     expect(serialized).toContain('主页上三十篇一区');
+    expect(view.ask.options[0]).toMatchObject({ source: '师兄', subject: '甲老师' });
   });
 
   it('JOIN_ADVISOR 只接受候选池里的人', () => {
@@ -2591,6 +2595,13 @@ describe('M3.5 录取判定', () => {
     expect(admissionTierFor(matched, target, 'master').chance).toBeGreaterThan(
       admissionTierFor(blind, target, 'master').chance,
     );
+  });
+
+  it('顶尖单位始终保留风险，不会因为数值堆满全部显示为稳', () => {
+    const pack = applyPack();
+    const top = pack.institutions![0]!;
+    const strongest = applicant(pack, 100, 100, ['domain_cogneuro']);
+    expect(admissionTierFor(strongest, top, 'master').label).toBe('冲');
   });
 
   it('出国的门槛比读硕高:语言、推荐信、没人认识你,合成一个门槛', () => {
@@ -3509,6 +3520,8 @@ describe('M4.5 社会层', () => {
       const options = askableRumors(state, pack, new Rng(1), ['advisor:a1']);
       expect(options.map(o => o.id)).toEqual(['rum_b']);
       expect(hasHeard(state, 'rum_a')).toBe(true);
+      expect(state.flags.asked_around_once).toBe(true);
+      expect(state.flags.rumors_heard).toBe(1);
     });
 
     it('打听次数每回合有限,而且只列这一屏的话题', () => {

@@ -226,7 +226,9 @@ function runOnce(
       }
       if (state.screen === 'ENDING') return null; // 没到目标就结束了:走岔了或提前结局
     } else if (state.screen === 'ENDING') {
-      return { state, actions, steps: step };
+      // 结局型目标也有明确的进度年份。学术线可能在求职季提前结束；
+      // 那不是“博士线结局(2034)”按钮要找的终点，应换种子继续尝试。
+      return state.date.year === target.year ? { state, actions, steps: step } : null;
     }
     const action = defaultAction(engine.view(state), pack, target, answers);
     state = engine.dispatch(state, action);

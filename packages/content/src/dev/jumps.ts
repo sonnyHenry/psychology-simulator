@@ -97,7 +97,11 @@ export const devJumpTargets: DevJumpTarget[] = [
     year: 2034,
     collegePref: 'science',
     lifeGoalId: 'goal_academic',
-    crossroadPrefs: { crossroad_2018: ['path_master'], crossroad_2021: ['m_continue_phd'] },
+    crossroadPrefs: {
+      crossroad_2018: ['path_master'],
+      crossroad_2021: ['m_continue_phd'],
+      crossroad_phd: ['p_postdoc'],
+    },
     allocationPrefs: [...GRAD_ACADEMIC, ...UNDERGRAD_ACADEMIC],
   },
   {
